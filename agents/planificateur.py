@@ -1,17 +1,22 @@
 def creer_plan(consigne: str, exigences: list) -> list:
     """
-    Crée un plan d'action simple à partir de la consigne.
+    Agent planificateur :
+    transforme la consigne en plan d'action.
     """
+    if not consigne.strip():
+        return ["Ajouter une consigne avant de créer un plan."]
+
     plan = [
-        "Lire attentivement la consigne.",
+        "Lire la consigne attentivement.",
         "Identifier le résultat attendu.",
-        "Lister les exigences importantes.",
+        "Repérer les contraintes importantes.",
         "Découper le travail en petites étapes.",
-        "Produire une première version.",
-        "Vérifier la qualité avec une checklist."
+        "Construire une première version simple.",
+        "Vérifier que chaque exigence est respectée.",
+        "Améliorer la clarté et la qualité finale."
     ]
 
     if exigences:
-        plan.append("Comparer le résultat final avec chaque exigence détectée.")
+        plan.append("Comparer le résultat final avec la liste des exigences détectées.")
 
     return plan
