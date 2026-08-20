@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "updatedAt": "2026-08-19T23:18:00-04:00",
+  "source": "ChatGPT Session 7 OS bridge",
+  "activeCourse": "projet",
+  "tasks": [
+    {
+      "id": "task-matrice-modele-affaires-2026-08-21",
+      "course": "marche",
+      "linkedCourses": ["projet", "marche"],
+      "title": "Remplir la matrice du modèle d’affaires responsable",
+      "subject": "Matrice du modèle d’affaires responsable",
+      "due": "2026-08-21",
+      "minutes": 105,
+      "next": "20 août : visionner et remplir le brouillon; 21 août : compléter, vérifier et remettre",
+      "source": "https://chaires.fsa.ulaval.ca/espritentrepreneuriat/matrice-modele-affaires-responsable/",
+      "status": "todo",
+      "done": false,
+      "at": "2026-08-19T22:57:00-04:00",
+      "updatedAt": "2026-08-19T23:18:00-04:00",
+      "origin": "chatgpt"
+    }
+  ],
+  "notes": [],
+  "tests": [],
+  "planning": [],
+  "journal": [
+    {
+      "id": "journal-matrice-2026-08-19",
+      "at": "2026-08-19T23:18:00-04:00",
+      "text": "Travail ajouté depuis ChatGPT : remplir la matrice du modèle d’affaires responsable · Projet maraîcher + Mise en marché · échéance 21 août 2026",
+      "type": "task",
+      "updatedAt": "2026-08-19T23:18:00-04:00",
+      "origin": "chatgpt"
+    }
+  ]
+}
