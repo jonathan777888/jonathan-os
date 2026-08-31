@@ -1,0 +1,35 @@
+ackup-note" style="margin-top:12px">Le fichier JSON contient la carte, les relations, positions, mémoires, tâches, bilans et l’archive des anciens liens retrouvés. Tu peux le déposer dans Google Drive puis le réimporter sur un autre appareil.</div><div class="actions" style="margin-top:12px"><a class="btn" href="https://drive.google.com" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Ouvrir Google Drive</a><a class="btn" href="https://calendar.google.com" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Ouvrir Google Agenda</a></div></div><div class="panel"><h3>Historique local</h3><div class="list" id="backupList"></div></div></div><div class="panel" style="margin-top:14px"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Anciens liens Internet</h3><p class="muted" style="margin:5px 0 0">V12 recherche les liens enregistrés dans les anciennes versions et sauvegardes encore accessibles dans ce navigateur. Rien n’est restauré automatiquement.</p></div><button class="btn primary" id="recoverLinks">Rechercher les anciens liens</button></div><div class="status" id="linkRecoveryStatus"></div><div class="list" id="legacyLinkList" style="margin-top:10px;max-height:520px"></div></div><div class="backup-note" style="margin-top:14px"><strong>Synchronisation automatique Google :</strong> pour qu’un site Vercel lise et écrive directement dans ton Drive/Agenda sans passer par un export, Google exige une application OAuth (Client ID Google). La structure de données actuelle est prête à recevoir cette connexion.</div><div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Historique des versions</h3><div class="list" id="versionList"></div></div></div></section>
+</div>
+<script>
+(()=>{
+const APP_VERSION='12.0.0', SCHEMA_VERSION=12, KEY='second-brain-current', HIST='second-brain-history', LEGACY_STATE_KEY='second-brain-v7', LEGACY_HIST='second-brain-v7-history', LEGACY_REVIEW_KEY='jonathan-daily-reviews-v1', LEGACY_MAP_HIST='jonathan-racines-history-v5';
+const $=id=>document.getElementById(id), uid=()=> 'n-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const initialTree={id:'jesus',title:'Jésus-Christ',body:'Il est le chemin vers le Père. C’est grâce à lui que j’ai accès à Jéhovah.',link:'',tags:['centre','foi'],x:650,y:430,children:[
+{id:uid(),title:'La foi',body:'Je pratique et je crois à la Parole de Dieu. Je crois que Jésus-Christ me mène vers Jéhovah, la source de toute chose.',link:'',tags:['foi','parole de Dieu'],x:650,y:130,children:[]},
+{id:uid(),title:'Je fais tout pour Jésus',body:'Mon travail, mes choix, mes projets et mes actions sont pour Jésus-Christ.',link:'',tags:['service','travail'],x:970,y:270,children:[]},
+{id:uid(),title:'Jéhovah est ma source d’amour',body:'C’est lui seul que je veux comme source d’amour, grâce à Jésus-Christ.',link:'',tags:['amour','Jéhovah'],x:990,y:610,children:[]},
+{id:uid(),title:'Glorifier Jéhovah à travers Jésus-Christ',body:'Le but de ma vie est de glorifier Jéhovah par Jésus-Christ.',link:'',tags:['gloire','but'],x:650,y:760,children:[]},
+{id:uid(),title:'Travail',body:'Branche liée au travail, aux projets professionnels et aux études.',link:'',tags:['travail'],x:330,y:610,children:[{id:uid(),title:'Études',body:'Sous-racine de Travail : cours, devoirs, examens, méthodes d’étude et liens.',link:'',tags:['études','cours'],x:160,y:760,children:[]}]},
+{id:uid(),title:'Rêve',body:'Branche dédiée aux rêves et projets de vie.',link:'',tags:['rêve'],x:310,y:270,children:[{id:uid(),title:"La ferme de l’avenir",body:"Projet de rêve : développer progressivement La ferme de l’avenir.",link:'',tags:['agriculture','projet','rêve'],x:120,y:120,children:[]}]}
+]};
+function defaultState(){return{meta:{appVersion:APP_VERSION,schemaVersion:SCHEMA_VERSION,createdAt:new Date().toISOString(),migratedFrom:null},tree:clone(initialTree),relations:[],reviews:{},memories:[],tasks:[],linkArchive:[],updatedAt:new Date().toISOString()}}
+function readJson(key,fallback=null){try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch(e){return fallback}}
+function sourceVersionOf(s){return String(s?.meta?.appVersion||'10-or-earlier')}
+function migrate(){
+  let s=readJson(KEY,null), from=sourceVersionOf(s);
+  if(!s){s=readJson(LEGACY_STATE_KEY,null);from=s?'10-or-earlier':from}
+  if(!s){
+    const oldKeys=['jonathan-racines-editable-v5','jonathan-racines-editable-v1','second-brain-v6','carte-racines-editable-v6','carte-racines-editable-v5','carte-racines-editable-v4'];
+    for(const k of oldKeys){const old=readJson(k,null);if(old){const n=defaultState();if(old.tree)n.tree=old.tree;else if(old.id)n.tree=old;if(old.reviews)n.reviews=old.reviews;if(old.memories)n.memories=old.memories;if(old.tasks)n.tasks=old.tasks;s=n;from=k;break}}
+  }
+  if(!s)return defaultState();
+  try{const backupKey='second-brain-pre-upgrade-v12';if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify({at:new Date().toISOString(),fromVersion:from,state:clone(s)}))}catch(e){}
+  s=normalize(s,false);s.meta=s.meta||{};s.meta.migratedFrom=s.meta.appVersion||from;s.meta.appVersion=APP_VERSION;s.meta.schemaVersion=SCHEMA_VERSION;s.meta.lastMigrationAt=new Date().toISOString();return s
+}
+function normalizeReview(r){r=r||{};return{worked:String(r.worked||''),notWorked:String(r.notWorked??r.failed??''),improve:String(r.improve||''),updatedAt:r.updatedAt||''}}
+function normalizeReviews(reviews){const out={};if(Array.isArray(reviews)){reviews.forEach(r=>{if(r&&r.date)out[r.date]=normalizeReview(r)})}else if(reviews&&typeof reviews==='object'){Object.entries(reviews).forEach(([date,r])=>{out[date]=normalizeReview(r)})}return out}
+function reviewHasText(r){r=normalizeReview(r);return !!(r.worked.trim()||r.notWorked.trim()||r.improve.trim())}
+function mergeReviews(target,source){let added=0;const src=normalizeReviews(source);Object.entries(src).forEach(([date,r])=>{const cur=target[date];if(reviewHasText(r)&&(!cur||!reviewHasText(cur))){target[date]=r;added++}});return added}
+function recoverLegacyReviews(s){s.reviews=normalizeReviews(s.reviews);let added=0;try{const raw=JSON.parse(localStorage.getItem(LEGACY_REVIEW_KEY)||'null');if(raw)added+=mergeReviews(s.reviews,raw)}catch(e){}const oldStateKeys=['second-brain-v6','jonathan-racines-editable-v5','carte-racines-editable-v6','carte-racines-editable-v5'];for(const k of oldStateKeys){try{const old=JSON.parse(localStorage.getItem(k)||'null');if(old&&old.reviews)added+=mergeReviews(s.reviews,old.reviews)}catch(e){}}for(const hk of [HIST,LEGACY_HIST]){try{const hist=readJson(hk,[]);if(Array.isArray(hist))hist.forEach(h=>{if(h?.state?.reviews)added+=mergeReviews(s.reviews,h.state.reviews)})}catch(e){}}return added}
+function normalize(s,addDefaults=false){s=s||defaultState();s.meta=s.meta||{};s.meta.appVersion=s.me
