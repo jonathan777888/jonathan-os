@@ -45,3 +45,5 @@ jobs:
           git add second-cerveau
           git diff --cached --quiet || git commit -m "Add Second Cerveau IA V12"
           git push
+
+# trigger: 2026-08-30
