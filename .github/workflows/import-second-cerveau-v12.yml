@@ -1,0 +1,47 @@
+name: Import Second Cerveau V12
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/import-second-cerveau-v12.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  import-v12:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover V12 source
+        shell: python
+        run: |
+          import urllib.request, re, base64, gzip
+          from pathlib import Path
+
+          url = "https://racines-fruits.vercel.app"
+          html = urllib.request.urlopen(url).read().decode("utf-8")
+          match = re.search(r"const s='([^']+)'", html)
+          if not match:
+              raise SystemExit("V12 payload not found on Vercel")
+
+          raw = gzip.decompress(base64.b64decode(match.group(1)))
+          text = raw.decode("utf-8")
+          if "Second Cerveau IA — V12" not in text:
+              raise SystemExit("Recovered file is not V12")
+
+          current = Path("second-cerveau/index.html")
+          archived = Path("second-cerveau/versions/v12/index.html")
+          current.parent.mkdir(parents=True, exist_ok=True)
+          archived.parent.mkdir(parents=True, exist_ok=True)
+          current.write_text(text, encoding="utf-8")
+          archived.write_text(text, encoding="utf-8")
+
+      - name: Commit V12
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add second-cerveau
+          git diff --cached --quiet || git commit -m "Add Second Cerveau IA V12"
+          git push
