@@ -4,12 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'second-cerveau/**'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -23,24 +22,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build standalone V12 page
+      - name: Recover intact V12 once
         shell: python
         run: |
-          import re, base64, gzip
+          import urllib.request
           from pathlib import Path
 
-          source = Path('second-cerveau/index.html').read_text(encoding='utf-8')
-          match = re.search(r"const s='([^']+)'", source)
-          if not match:
-              raise SystemExit('Payload V12 introuvable dans second-cerveau/index.html')
+          base = 'https://dilated-hub-vqsd2t3.shipstatic.com'
+          parts = []
+          for name in ['part-00.txt','part-01.txt','part-02.txt']:
+              parts.append(urllib.request.urlopen(f'{base}/{name}').read().decode('utf-8'))
+          html = ''.join(parts)
+          if 'Second Cerveau IA — V12' not in html:
+              raise SystemExit('La V12 intacte n’a pas pu être reconstruite')
+          if 'atob(' in html:
+              raise SystemExit('La V12 reconstruite contient encore atob()')
 
-          html = gzip.decompress(base64.b64decode(match.group(1))).decode('utf-8')
-          if 'Second Cerveau IA' not in html:
-              raise SystemExit('Le contenu V12 récupéré est invalide')
-
+          src = Path('second-cerveau/v12.html')
+          src.parent.mkdir(parents=True, exist_ok=True)
+          src.write_text(html, encoding='utf-8')
           out = Path('public')
           out.mkdir(exist_ok=True)
           (out / 'index.html').write_text(html, encoding='utf-8')
+
+      - name: Persist intact V12 in repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add second-cerveau/v12.html
+          git diff --cached --quiet || git commit -m "Store intact Second Cerveau IA V12"
+          git push
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
