@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Second Cerveau IA — V12</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f4f1e8;color:#20251f;margin:0;padding:32px}.card{max-width:760px;margin:12vh auto;background:#fff;border:1px solid #dbe0d6;border-radius:22px;padding:24px;box-shadow:0 16px 42px rgba(28,36,29,.09)}h1{margin:0 0 8px}p{color:#697268;line-height:1.5}</style>
+</head>
+<body>
+<div class="card" id="status"><h1>Second Cerveau IA — V12</h1><p>Chargement de la version GitHub…</p></div>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    const sourceUrl='https://raw.githubusercontent.com/jonathan777888/jonathan-os/main/second-cerveau/index.html';
+    const wrapper=await fetch(sourceUrl,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Source GitHub introuvable');return r.text()});
+    const m=wrapper.match(/const s='([^']+)'/);
+    if(!m) throw new Error('Payload V12 introuvable dans GitHub');
+    const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const clean=m[1].replace(/[^A-Za-z0-9+/=]/g,'');
+    const out=[];
+    let buffer=0,bits=0;
+    for(const ch of clean){
+      if(ch==='=') break;
+      const v=alphabet.indexOf(ch);
+      if(v<0) continue;
+      buffer=(buffer<<6)|v; bits+=6;
+      if(bits>=8){bits-=8;out.push((buffer>>bits)&255)}
+    }
+    const bytes=new Uint8Array(out);
+    if(typeof DecompressionStream==='undefined') throw new Error('Ce navigateur ne prend pas en charge la décompression gzip moderne');
+    const ds=new DecompressionStream('gzip');
+    const html=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).text();
+    if(!html.includes('Second Cerveau IA')) throw new Error('La V12 récupérée est invalide');
+    document.open(); document.write(html); document.close();
+  }catch(e){
+    status.innerHTML='<h1>Second Cerveau IA — V12</h1><p>Erreur de chargement : '+String(e.message||e)+'</p>';
+  }
+})();
+</script>
+</body>
+</html>
