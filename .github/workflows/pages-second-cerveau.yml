@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'pages/**'
+      - 'second-cerveau/**'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
@@ -22,10 +22,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Build standalone V12 page
+        shell: python
+        run: |
+          import re, base64, gzip
+          from pathlib import Path
+
+          source = Path('second-cerveau/index.html').read_text(encoding='utf-8')
+          match = re.search(r"const s='([^']+)'", source)
+          if not match:
+              raise SystemExit('Payload V12 introuvable dans second-cerveau/index.html')
+
+          html = gzip.decompress(base64.b64decode(match.group(1))).decode('utf-8')
+          if 'Second Cerveau IA' not in html:
+              raise SystemExit('Le contenu V12 récupéré est invalide')
+
+          out = Path('public')
+          out.mkdir(exist_ok=True)
+          (out / 'index.html').write_text(html, encoding='utf-8')
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: pages
+          path: public
 
   deploy:
     environment:
