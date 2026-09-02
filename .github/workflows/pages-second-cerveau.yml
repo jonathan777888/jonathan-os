@@ -23,11 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build V12 from GitHub source parts
+      - name: Build current Second Cerveau from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V12' public/index.html
+          grep -q 'Second Cerveau IA — V13' public/index.html
+          grep -q "APP_VERSION='13.0.0'" public/index.html
           if grep -q 'atob(' public/index.html; then exit 1; fi
 
       - uses: actions/configure-pages@v5
