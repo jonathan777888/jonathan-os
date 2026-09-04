@@ -1,0 +1,169 @@
+name: Upgrade Second Cerveau V14 Schedule Tab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upgrade-second-cerveau-v14.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upgrade V13 to V14 and add schedule tab
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path('second-cerveau/source')
+
+          def patch(name, replacements):
+              path = root / name
+              text = path.read_text(encoding='utf-8')
+              for old, new, label in replacements:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{name} / {label}: expected 1 match, found {count}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+
+          patch('part-00.txt', [
+              ('<title>Second Cerveau IA — V13</title>', '<title>Second Cerveau IA — V14</title>', 'title'),
+          ])
+
+          patch('part-01.txt', [
+              ('Second Cerveau IA — V13</span>', 'Second Cerveau IA — V14</span>', 'pill'),
+              ('V13 hérite directement de V12 : toutes les fonctions précédentes sont conservées, avec une carte extensible qui grandit automatiquement.', 'V14 hérite directement de V13 : toutes les fonctions précédentes sont conservées, avec un nouvel onglet Emploi du temps.', 'status'),
+          ])
+
+          patch('part-02.txt', [
+              ('V13 conserve la récupération des liens enregistrés dans les anciennes versions et sauvegardes encore accessibles dans ce navigateur.', 'V14 conserve la récupération des liens enregistrés dans les anciennes versions et sauvegardes encore accessibles dans ce navigateur.', 'legacy text'),
+              ("const APP_VERSION='13.0.0', SCHEMA_VERSION=13", "const APP_VERSION='14.0.0', SCHEMA_VERSION=14", 'version constants'),
+              ("const backupKey='second-brain-pre-upgrade-v13'", "const backupKey='second-brain-pre-upgrade-v14'", 'upgrade backup'),
+          ])
+
+          patch('part-04.txt', [
+              ("a.download='second-cerveau-v13-'", "a.download='second-cerveau-v14-'", 'export filename'),
+              ("'second-brain-pre-upgrade-v11','second-brain-pre-upgrade-v12','second-brain-pre-upgrade-v13'", "'second-brain-pre-upgrade-v11','second-brain-pre-upgrade-v12','second-brain-pre-upgrade-v13','second-brain-pre-upgrade-v14'", 'legacy backups'),
+          ])
+
+          patch('part-05.txt', [
+              ("const RELEASES=[\n{v:'V13'", "const RELEASES=[\n{v:'V14',note:'V14 part directement de V13 : ajout d’un onglet Emploi du temps pour visualiser la routine d’études, la foi, le sport et les projets personnels.'},\n{v:'V13'", 'release history'),
+              ("Version actuelle V13 · données schema ${SCHEMA_VERSION} · cette version hérite directement de V12.", "Version actuelle V14 · données schema ${SCHEMA_VERSION} · cette version hérite directement de V13.", 'version label'),
+          ])
+
+          schedule_js = r'''
+// V14 — onglet Emploi du temps
+(()=>{
+  const nav=document.querySelector('.tabs'), app=document.querySelector('.app');
+  if(!nav||!app||document.querySelector('[data-page="schedule"]'))return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+  .schedule-shell{display:grid;gap:16px}.schedule-hero{padding:24px;border-radius:22px;background:linear-gradient(135deg,#174f43,#226b5c);color:#fff;overflow:hidden;position:relative}.schedule-hero:after{content:'';position:absolute;width:220px;height:220px;border-radius:50%;right:-70px;top:-100px;background:rgba(255,255,255,.06)}.schedule-hero h2{margin:0;font-size:clamp(27px,4vw,44px);letter-spacing:-.04em}.schedule-hero p{margin:7px 0 0;opacity:.88}.hours-badge{display:inline-flex;margin-top:18px;padding:10px 16px;border-radius:999px;background:#f3c762;color:#173d34;font-weight:950;letter-spacing:.03em}.schedule-title{margin:4px 0 0;font-size:16px;text-transform:uppercase;letter-spacing:.13em;color:#315f55}.routine-card{display:grid;gap:0;padding:8px 18px}.time-row{display:grid;grid-template-columns:54px 190px 1fr;gap:10px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}.time-row:last-child{border-bottom:0}.time-icon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:950;background:#e5f2ee;color:#246b5d}.time-row.rest .time-icon{background:#fff0c9;color:#9b6a08}.time-row.sport .time-icon{background:#ffe7dd;color:#b25a31}.time-row.bible .time-icon{background:#eee8f9;color:#6c56a4}.time-range{font-weight:950;font-size:17px;color:#173d34}.time-label{font-weight:850;font-size:17px}.projects-grid{display:grid;gap:12px}.project-row{display:grid;grid-template-columns:175px 1fr;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}.project-day{padding:18px;background:#277764;color:#fff;font-weight:950}.project-day small{display:block;margin-top:5px;font-weight:600;opacity:.9}.project-row.friday .project-day{background:#d9950c}.project-row.saturday .project-day{background:#536eb1}.project-row.sunday .project-day{background:#8556a4}.project-text{padding:18px;font-weight:800;line-height:1.4;background:#f7faf8}.schedule-footer{text-align:center;padding:15px;border-top:2px solid #b9d1c9;color:#315f55;font-weight:950;letter-spacing:.06em;text-transform:uppercase}@media(max-width:720px){.time-row{grid-template-columns:46px 1fr}.time-label{grid-column:2}.project-row{grid-template-columns:1fr}.project-day{padding:13px 16px}.project-text{padding:15px}.schedule-hero{padding:20px 17px}}
+  `;
+  document.head.appendChild(style);
+
+  const tab=document.createElement('button');
+  tab.className='tab';tab.dataset.page='schedule';tab.textContent='Emploi du temps';
+  nav.appendChild(tab);
+
+  const section=document.createElement('section');
+  section.className='page';section.id='page-schedule';
+  section.innerHTML=`<div class="schedule-shell">
+    <div class="schedule-hero">
+      <h2>Mon emploi du temps</h2>
+      <p>Études • foi • santé • création</p>
+      <span class="hours-badge">40 h D’ÉTUDES PAR SEMAINE</span>
+    </div>
+
+    <div>
+      <h3 class="schedule-title">Routine · lundi à vendredi</h3>
+      <div class="card routine-card">
+        <div class="time-row"><div class="time-icon">É</div><div class="time-range">8 h 15 — 12 h</div><div class="time-label">Études concentrées</div></div>
+        <div class="time-row rest"><div class="time-icon">D</div><div class="time-range">12 h — 12 h 45</div><div class="time-label">Dîner et repos</div></div>
+        <div class="time-row"><div class="time-icon">É</div><div class="time-range">12 h 45 — 17 h</div><div class="time-label">Études concentrées</div></div>
+        <div class="time-row sport"><div class="time-icon">S</div><div class="time-range">17 h — 19 h</div><div class="time-label">Sport, douche et déplacement</div></div>
+        <div class="time-row bible"><div class="time-icon">B</div><div class="time-range">19 h — 20 h</div><div class="time-label">Étude biblique</div></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="schedule-title">Projets personnels</h3>
+      <div class="projects-grid">
+        <div class="project-row"><div class="project-day">LUN. → JEU.<small>20 h — 21 h</small></div><div class="project-text">S’entraîner à combiner ChatGPT, Adobe Premiere Pro et After Effects</div></div>
+        <div class="project-row friday"><div class="project-day">VENDREDI<small>20 h — 21 h</small></div><div class="project-text">Créer un chapitre de « La Ferme de l’avenir »</div></div>
+        <div class="project-row saturday"><div class="project-day">SAMEDI</div><div class="project-text"><strong>9 h — 12 h</strong> · Projet MAPAT<br><br><strong>14 h — 17 h</strong> · Créer ou monter une vidéo</div></div>
+        <div class="project-row sunday"><div class="project-day">DIMANCHE<small>15 h — 17 h</small></div><div class="project-text">Écrire une histoire</div></div>
+      </div>
+    </div>
+
+    <div class="schedule-footer">Une priorité à la fois • rester régulier</div>
+  </div>`;
+  app.appendChild(section);
+
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    section.classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+})();
+'''
+          (root / 'part-05a.txt').write_text(schedule_js, encoding='utf-8')
+
+          assembled=''.join(p.read_text(encoding='utf-8') for p in sorted(root.glob('part-*.txt')))
+          checks={
+              'V14 title':'Second Cerveau IA — V14' in assembled,
+              'V14 constants':"APP_VERSION='14.0.0'" in assembled and 'SCHEMA_VERSION=14' in assembled,
+              'schedule tab':"data-page='schedule'" in assembled or 'data-page="schedule"' in assembled,
+              '40h badge':'40 h D’ÉTUDES PAR SEMAINE' in assembled,
+              'MAPAT':'Projet MAPAT' in assembled,
+              'no atob':'atob(' not in assembled,
+          }
+          bad=[k for k,v in checks.items() if not v]
+          if bad: raise SystemExit('Validation failed: '+', '.join(bad))
+
+      - name: Commit V14
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add second-cerveau/source
+          git diff --cached --quiet || git commit -m "Upgrade Second Cerveau IA to V14 schedule tab"
+          git push
+
+      - name: Build GitHub Pages artifact
+        run: |
+          mkdir -p public
+          cat second-cerveau/source/part-*.txt > public/index.html
+          grep -q 'Second Cerveau IA — V14' public/index.html
+          grep -q 'Emploi du temps' public/index.html
+          if grep -q 'atob(' public/index.html; then exit 1; fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: upgrade
+    steps:
+      - name: Deploy V14 to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
