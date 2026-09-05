@@ -1,0 +1,126 @@
+
+// V15 — Ma relation avec Jésus, extension directe de V14
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V15';
+    const pill=document.querySelector('.pill'); if(pill)pill.textContent='Second Cerveau IA — V15';
+    const vs=document.getElementById('versionStatus'); if(vs)vs.textContent='Version actuelle V15 · cette version hérite directement de V14 et ajoute l’onglet Ma relation avec Jésus à partir du fichier Excel de référence.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v15){
+      versions.dataset.v15='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V15 · actuelle</strong><small>Ajout de l’onglet Ma relation avec Jésus, reproduit à partir du classeur Excel de référence, avec réponses modifiables et sauvegarde locale.</small></div><div class="item"><strong>V14</strong><small>Ajout de l’onglet Emploi du temps en conservant la carte extensible et toutes les fonctions précédentes.</small></div>');
+      const oldCurrent=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V13 · actuelle'));
+      if(oldCurrent)oldCurrent.textContent='V13';
+    }
+  }catch(e){}
+
+  const nav=document.querySelector('.tabs'), app=document.querySelector('.app');
+  if(!nav||!app||document.querySelector('[data-page="jesus-relation"]'))return;
+
+  const REL_KEY='second-brain-relation-jesus-v1';
+  const defaults={
+    activeSheet:'nutriments',
+    nutriments:{
+      prompt:'est ce que je recherche le royaume des cieux PREMIEREMEMT?',
+      date:'pour le 03 mars 2026',
+      rows:[
+        ['la prière','oui'],
+        ['la Parole','oui'],
+        ["L'obéissance (crainte envers Jehovah)",'oui'],
+        ["L'humilité",'tu es ma force'],
+        ['la maîtrise de soi','aide moi père'],
+        ['Le pardon','je pardonne tout le monde'],
+        ['identité selon Jéhovah','je suis née de nouveau , je vis pour jesus'],
+        ['mission de jehovah',"glorifier jesus , rendre temoignage de l'amour de Dieu"],
+        ['patience',' je suis patient'],
+        ['confiance',"j'ai confiance de Dieu"],
+        ["est ce que je juge les autres en m'oubliant que je suis aussi imparfait?",'je vais me corriger pardon'],
+        ['est ce que tu as peur du futur ?','OUI'],
+        ['est ce que tu es bloquer a te rappelant de ton passé?','je suis délivré de mes actions passées par le sang de Jésus'],
+        ['as-tu des relations toxic?','je ne vois plus de relation toxic'],
+        ['as-tu toujours bésoin de tout controler (force tu les resultats)ou tu laisse Jéhovah prendre le relai a travers jesus-Christ','je laisse tout dans les mains de Dieu'],
+        ["Te compare tu avec d'autre personnes ?",'oui quand, mais je n oublie pas que mon histoire , c est juste entre toi et moi ,père et cela decoulera naturellement vers les etres humains'],
+        ['est ce que tu doutes de toi, croit -tu etre prêt ? As tu la foi ? Avance tu , par pas?','oui'],
+        ["est ce que je veille jusqu'à l'arriver du seigneur Jesus-Christ?(Marc 13:33)","oui , je veille jusqu'à l'arrivé du seigneur Jesus-Christ"]
+      ]
+    },
+    bilan:{
+      headers:['oui','non'],
+      rows:[
+        ['est ce que je recherche premierement le royaume des cieux','durant mon périble de 40 jours , oui , je l ai fait','mais tout hooneté non et u le sais seigneur ka raison '],
+        ['est ce que je me pardoones? Et je pardonnes les aures?','oui',''],
+        ['est ce que je savoure le processus de croissance?','quand meme , je vois plus claire',''],
+        ['Est-ce que l amour vient de jesus-christ??','cette amour , oui  c est fraternel','']
+      ]
+    },
+    feuil2:{
+      headers:['oui','non'],
+      rows:[
+        ['est ce que je recherche premierement le royaume des cieux','de tout mon cœur , je la cherche , je suis fatigué',''],
+        ['est ce que je me pardoones? Et je pardonnes les aures?','oui ',''],
+        ['est ce que je savoure le processus de croissance?','oui',''],
+        ['Est-ce que l amour vient de jesus-christ??','oui','']
+      ]
+    }
+  };
+
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  let relState;
+  try{relState=JSON.parse(localStorage.getItem(REL_KEY)||'null')||clone(defaults)}catch(e){relState=clone(defaults)}
+  if(!relState.nutriments||!relState.bilan||!relState.feuil2)relState=clone(defaults);
+
+  const style=document.createElement('style');
+  style.textContent=`
+  .rel-shell{display:grid;gap:16px}.rel-hero{padding:24px;border-radius:22px;background:linear-gradient(135deg,#244d40,#456d52);color:#fff;position:relative;overflow:hidden}.rel-hero:after{content:'✦';position:absolute;right:24px;top:14px;font-size:86px;opacity:.08}.rel-hero h2{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:-.04em}.rel-hero p{margin:8px 0 0;opacity:.9;max-width:800px;line-height:1.55}.rel-subtabs{display:flex;gap:8px;flex-wrap:wrap}.rel-subtab{min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:#fff;font-weight:850;cursor:pointer}.rel-subtab.active{background:#244d40;color:#fff;border-color:#244d40}.rel-sheet{display:none}.rel-sheet.active{display:block}.rel-toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:12px}.rel-note{color:var(--muted);font-size:12px}.rel-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow)}.rel-table{width:100%;border-collapse:collapse;min-width:760px}.rel-table th,.rel-table td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px;vertical-align:top}.rel-table th:last-child,.rel-table td:last-child{border-right:0}.rel-table tr:last-child td{border-bottom:0}.rel-table th{background:#eef4ec;text-align:left;color:#244d40;font-size:12px;text-transform:uppercase;letter-spacing:.06em}.rel-question{font-weight:800;line-height:1.45;min-width:300px}.rel-answer{width:100%;min-height:70px;padding:9px 10px;border:1px solid #dfe5db;border-radius:10px;resize:vertical;background:#fffdf8;color:var(--ink)}.rel-nutrient-head{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:16px;margin-bottom:12px;border:1px solid var(--line);border-radius:16px;background:#f7faf5}.rel-nutrient-head strong{font-size:17px;line-height:1.45}.rel-date{padding:8px 12px;border-radius:999px;background:#f3c762;color:#3d402b;font-weight:900;white-space:nowrap}.rel-save{font-size:12px;color:#4f6f59;min-height:18px}.rel-actions{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:700px){.rel-hero{padding:19px}.rel-nutrient-head{grid-template-columns:1fr}.rel-date{justify-self:start}.rel-table{min-width:650px}}
+  `;
+  document.head.appendChild(style);
+
+  const tab=document.createElement('button');
+  tab.className='tab';tab.dataset.page='jesus-relation';tab.textContent='Ma relation avec Jésus';
+  nav.appendChild(tab);
+
+  const section=document.createElement('section');
+  section.className='page';section.id='page-jesus-relation';
+  section.innerHTML=`<div class="rel-shell">
+    <div class="rel-hero"><h2>Ma relation avec Jésus</h2><p>Suivi personnel inspiré directement du fichier Excel de référence. Les formulations du classeur sont conservées et tes modifications sont enregistrées dans ce navigateur.</p></div>
+    <div class="rel-toolbar"><div class="rel-subtabs"><button class="rel-subtab" data-rel-sheet="nutriments">Nutriments</button><button class="rel-subtab" data-rel-sheet="bilan">Bilan</button><button class="rel-subtab" data-rel-sheet="feuil2">Feuil2</button></div><div class="rel-actions"><button class="btn" id="relReset">Réinitialiser depuis Excel</button><button class="btn primary" id="relSave">Enregistrer</button></div></div>
+    <div class="rel-save" id="relSaveStatus"></div>
+    <div id="relContent"></div>
+  </div>`;
+  app.appendChild(section);
+
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const saveRel=msg=>{try{localStorage.setItem(REL_KEY,JSON.stringify(relState));const el=document.getElementById('relSaveStatus');if(el)el.textContent=msg||'Enregistré automatiquement.'}catch(e){}};
+
+  function renderNutriments(){
+    const d=relState.nutriments;
+    return `<div class="rel-sheet active"><div class="rel-nutrient-head"><strong>${esc(d.prompt)}</strong><input class="field rel-date-input" value="${esc(d.date)}" aria-label="Date de référence"></div><div class="rel-table-wrap"><table class="rel-table"><thead><tr><th>Nutriment / question</th><th>Réponse</th></tr></thead><tbody>${d.rows.map((r,i)=>`<tr><td class="rel-question">${esc(r[0])}</td><td><textarea class="rel-answer" data-rel-kind="nutriments" data-rel-row="${i}" data-rel-col="1">${esc(r[1])}</textarea></td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  function renderThreeCols(kind){
+    const d=relState[kind];
+    return `<div class="rel-sheet active"><div class="rel-table-wrap"><table class="rel-table"><thead><tr><th>Question</th><th>${esc(d.headers[0])}</th><th>${esc(d.headers[1])}</th></tr></thead><tbody>${d.rows.map((r,i)=>`<tr><td class="rel-question">${esc(r[0])}</td><td><textarea class="rel-answer" data-rel-kind="${kind}" data-rel-row="${i}" data-rel-col="1">${esc(r[1])}</textarea></td><td><textarea class="rel-answer" data-rel-kind="${kind}" data-rel-row="${i}" data-rel-col="2">${esc(r[2])}</textarea></td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  function bindInputs(){
+    document.querySelectorAll('#page-jesus-relation .rel-answer').forEach(el=>el.addEventListener('input',()=>{const k=el.dataset.relKind,i=+el.dataset.relRow,c=+el.dataset.relCol;relState[k].rows[i][c]=el.value;saveRel('Enregistré automatiquement.')}));
+    const date=document.querySelector('#page-jesus-relation .rel-date-input');if(date)date.addEventListener('input',()=>{relState.nutriments.date=date.value;saveRel('Date enregistrée automatiquement.')});
+  }
+  function renderSheet(kind){
+    relState.activeSheet=kind;saveRel('');
+    document.querySelectorAll('#page-jesus-relation .rel-subtab').forEach(b=>b.classList.toggle('active',b.dataset.relSheet===kind));
+    document.getElementById('relContent').innerHTML=kind==='nutriments'?renderNutriments():renderThreeCols(kind);
+    bindInputs();
+  }
+
+  section.querySelectorAll('.rel-subtab').forEach(b=>b.onclick=()=>renderSheet(b.dataset.relSheet));
+  document.getElementById('relSave').onclick=()=>saveRel('Tes réponses sont enregistrées.');
+  document.getElementById('relReset').onclick=()=>{if(!confirm('Réinitialiser cet onglet avec les réponses présentes dans le fichier Excel de référence ?'))return;relState=clone(defaults);saveRel('Réinitialisé depuis la référence Excel.');renderSheet('nutriments')};
+
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    section.classList.add('active');
+    renderSheet(relState.activeSheet||'nutriments');
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+  renderSheet(relState.activeSheet||'nutriments');
+})();
