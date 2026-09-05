@@ -1,0 +1,113 @@
+
+// V16 — Historique des sauvegardes de « Ma relation avec Jésus »
+(()=>{
+  const REL_KEY='second-brain-relation-jesus-v1';
+  const HIST_KEY='second-brain-relation-jesus-history-v1';
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  try{
+    document.title='Second Cerveau IA — V16';
+    const pill=document.querySelector('.pill'); if(pill)pill.textContent='Second Cerveau IA — V16';
+    const vs=document.getElementById('versionStatus'); if(vs)vs.textContent='Version actuelle V16 · cette version hérite directement de V15 et ajoute l’historique des sauvegardes de Ma relation avec Jésus.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v16){
+      versions.dataset.v16='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V16 · actuelle</strong><small>Historique daté des sauvegardes de Ma relation avec Jésus : consultation, restauration et suppression.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V15 · actuelle'));
+      if(old)old.textContent='V15';
+    }
+  }catch(e){}
+
+  const section=document.getElementById('page-jesus-relation');
+  if(!section)return;
+  const saveBtn=document.getElementById('relSave');
+  if(saveBtn)saveBtn.textContent='Enregistrer une sauvegarde';
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .rel-history-panel{margin-top:6px;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--soft)}
+    .rel-history-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}
+    .rel-history-head h3{margin:0;font-size:19px}.rel-history-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+    .rel-history-list{display:grid;gap:9px}.rel-history-item{padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .rel-history-item strong{display:block}.rel-history-item small{display:block;color:var(--muted);margin-top:4px}.rel-history-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+    .rel-preview{display:none;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:15px;background:#fff}.rel-preview.open{display:block}
+    .rel-preview h4{margin:0 0 8px}.rel-preview-grid{display:grid;gap:8px}.rel-preview-row{padding:9px 10px;border-radius:11px;background:#f7f9f5;border:1px solid #e7ebe3}.rel-preview-row b{display:block;font-size:12px;margin-bottom:4px}.rel-preview-row span{font-size:12px;color:var(--muted);white-space:pre-wrap}
+  `;
+  document.head.appendChild(style);
+
+  const panel=document.createElement('div');
+  panel.className='rel-history-panel';
+  panel.innerHTML=`<div class="rel-history-head"><div><h3>Mes sauvegardes</h3><p>Chaque clic sur « Enregistrer une sauvegarde » garde une copie datée. Tu peux ensuite la revoir sans modifier la version actuelle, ou la restaurer.</p></div><button class="btn" id="relHistoryRefresh">Actualiser</button></div><div class="rel-history-list" id="relHistoryList"></div><div class="rel-preview" id="relHistoryPreview"></div>`;
+  const shell=section.querySelector('.rel-shell');
+  if(shell)shell.appendChild(panel);
+
+  function readHistory(){try{const h=JSON.parse(localStorage.getItem(HIST_KEY)||'[]');return Array.isArray(h)?h:[]}catch(e){return[]}}
+  function writeHistory(h){try{localStorage.setItem(HIST_KEY,JSON.stringify(h.slice(0,60)))}catch(e){}}
+  function currentState(){try{return JSON.parse(localStorage.getItem(REL_KEY)||'null')}catch(e){return null}}
+  function snapshot(){
+    const data=currentState(); if(!data)return;
+    let h=readHistory();
+    const now=new Date();
+    h.unshift({id:'rel-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),at:now.toISOString(),label:'Sauvegarde du '+now.toLocaleString('fr-CA'),state:clone(data)});
+    writeHistory(h); renderHistory();
+    const status=document.getElementById('relSaveStatus'); if(status)status.textContent='Sauvegarde datée créée. Tu peux la retrouver dans « Mes sauvegardes ».';
+  }
+
+  function summarize(s){
+    const n=s?.nutriments?.rows?.filter(r=>String(r?.[1]||'').trim()).length||0;
+    const b=s?.bilan?.rows?.filter(r=>String(r?.[1]||'').trim()||String(r?.[2]||'').trim()).length||0;
+    const f=s?.feuil2?.rows?.filter(r=>String(r?.[1]||'').trim()||String(r?.[2]||'').trim()).length||0;
+    return `${n} réponses Nutriments · ${b} réponses Bilan · ${f} réponses Feuil2`;
+  }
+
+  function previewSnapshot(entry){
+    const box=document.getElementById('relHistoryPreview'); if(!box)return;
+    const s=entry.state||{};
+    const rows=[];
+    (s.nutriments?.rows||[]).forEach(r=>rows.push(`<div class="rel-preview-row"><b>${esc(r[0])}</b><span>${esc(r[1])}</span></div>`));
+    (s.bilan?.rows||[]).forEach(r=>rows.push(`<div class="rel-preview-row"><b>Bilan — ${esc(r[0])}</b><span>Oui : ${esc(r[1])}\nNon : ${esc(r[2])}</span></div>`));
+    (s.feuil2?.rows||[]).forEach(r=>rows.push(`<div class="rel-preview-row"><b>Feuil2 — ${esc(r[0])}</b><span>Oui : ${esc(r[1])}\nNon : ${esc(r[2])}</span></div>`));
+    box.innerHTML=`<div class="rel-history-head"><div><h4>${esc(entry.label||'Sauvegarde')}</h4><small>${esc(new Date(entry.at).toLocaleString('fr-CA'))}</small></div><button class="btn" id="relClosePreview">Fermer</button></div><div class="rel-preview-grid">${rows.join('')||'<span class="muted">Aucune réponse dans cette sauvegarde.</span>'}</div>`;
+    box.classList.add('open');
+    document.getElementById('relClosePreview').onclick=()=>box.classList.remove('open');
+    box.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function restoreSnapshot(entry){
+    if(!confirm('Restaurer cette sauvegarde ? La version actuelle de cet onglet sera remplacée.'))return;
+    const cur=currentState();
+    if(cur){
+      let h=readHistory();
+      h.unshift({id:'rel-auto-'+Date.now(),at:new Date().toISOString(),label:'Sauvegarde automatique avant restauration',state:clone(cur)});
+      writeHistory(h);
+    }
+    try{localStorage.setItem(REL_KEY,JSON.stringify(entry.state));sessionStorage.setItem('open-relation-after-restore','1')}catch(e){}
+    location.reload();
+  }
+
+  function removeSnapshot(id){
+    if(!confirm('Supprimer définitivement cette sauvegarde ?'))return;
+    writeHistory(readHistory().filter(x=>x.id!==id));
+    const box=document.getElementById('relHistoryPreview'); if(box)box.classList.remove('open');
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const list=document.getElementById('relHistoryList'); if(!list)return;
+    const h=readHistory();
+    list.innerHTML=h.length?h.map((x,i)=>`<div class="rel-history-item"><strong>${esc(x.label||('Sauvegarde '+(i+1)))}</strong><small>${esc(new Date(x.at).toLocaleString('fr-CA'))} · ${esc(summarize(x.state))}</small><div class="rel-history-actions"><button class="btn" data-rel-view="${esc(x.id)}">Voir</button><button class="btn primary" data-rel-restore="${esc(x.id)}">Restaurer</button><button class="btn warn" data-rel-delete="${esc(x.id)}">Supprimer</button></div></div>`).join(''):'<div class="muted">Aucune sauvegarde datée pour le moment. Remplis le tableau puis clique sur « Enregistrer une sauvegarde ».</div>';
+    list.querySelectorAll('[data-rel-view]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.relView);if(e)previewSnapshot(e)});
+    list.querySelectorAll('[data-rel-restore]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.relRestore);if(e)restoreSnapshot(e)});
+    list.querySelectorAll('[data-rel-delete]').forEach(b=>b.onclick=()=>removeSnapshot(b.dataset.relDelete));
+  }
+
+  if(saveBtn)saveBtn.addEventListener('click',()=>setTimeout(snapshot,0));
+  const refresh=document.getElementById('relHistoryRefresh'); if(refresh)refresh.onclick=renderHistory;
+  renderHistory();
+
+  if(sessionStorage.getItem('open-relation-after-restore')==='1'){
+    sessionStorage.removeItem('open-relation-after-restore');
+    setTimeout(()=>{const t=document.querySelector('[data-page="jesus-relation"]');if(t)t.click()},80);
+  }
+})();
