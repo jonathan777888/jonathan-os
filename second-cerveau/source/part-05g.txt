@@ -1,0 +1,120 @@
+
+// V20 — Jesus Christ et la fleche attaches a la grande ligne verticale centrale
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V20';
+    const pill=document.querySelector('.pill');
+    if(pill)pill.textContent='Second Cerveau IA — V20';
+    const vs=document.getElementById('versionStatus');
+    if(vs)vs.textContent='Version actuelle V20 · cette version hérite directement de V19 et aligne Jesus Christ et la fleche sur la grande ligne verticale centrale du Bible Study Canvas.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v20){
+      versions.dataset.v20='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V20 · actuelle</strong><small>Correction Bible Study Canvas : Jesus Christ et la fleche sont maintenant attaches au sommet de la grande ligne verticale centrale, comme sur le croquis de reference.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V19 · actuelle'));
+      if(old)old.textContent='V19';
+    }
+  }catch(e){}
+
+  const section=document.getElementById('page-bible-canvas');
+  if(!section)return;
+  const paper=section.querySelector('.bsc-paper');
+  const left=section.querySelector('.bsc-left');
+  const right=section.querySelector('.bsc-right');
+  if(!paper||!left||!right)return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    #page-bible-canvas .bsc-left{
+      border-right:3px solid #26312c;
+      position:relative;
+    }
+    #page-bible-canvas .bsc-right{
+      position:relative;
+      z-index:11;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:35px 8%;
+    }
+    #page-bible-canvas .bsc-top-marker{
+      position:absolute;
+      left:-2px;
+      top:18px;
+      z-index:20;
+      display:flex;
+      align-items:center;
+      margin:0;
+      pointer-events:none;
+    }
+    #page-bible-canvas .bsc-divider-junction{
+      width:10px;
+      height:10px;
+      margin-left:-4px;
+      border-radius:50%;
+      background:#26312c;
+      flex:0 0 auto;
+    }
+    #page-bible-canvas .bsc-arrow-line{
+      position:relative;
+      width:78px;
+      height:3px;
+      margin-left:0;
+      background:#c95768;
+      flex:0 0 auto;
+    }
+    #page-bible-canvas .bsc-arrow-line:after{
+      content:'';
+      position:absolute;
+      right:-1px;
+      top:50%;
+      width:12px;
+      height:12px;
+      border-top:3px solid #c95768;
+      border-right:3px solid #c95768;
+      transform:translateY(-50%) rotate(45deg);
+      transform-origin:center;
+    }
+    #page-bible-canvas .bsc-symbol{
+      margin:0 0 0 18px;
+      color:#276d46;
+      text-align:left;
+      font:700 22px "Segoe Print","Bradley Hand",cursive;
+      white-space:nowrap;
+      background:#fffdf6;
+      padding:2px 6px;
+      border-radius:8px;
+    }
+    #page-bible-canvas .bsc-vertical-line{
+      display:none!important;
+    }
+    #page-bible-canvas .bsc-verse{
+      margin-top:145px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  let marker=right.querySelector('.bsc-top-marker');
+  if(!marker){
+    marker=document.createElement('div');
+    marker.className='bsc-top-marker';
+    right.insertBefore(marker,right.firstChild);
+  }
+
+  marker.innerHTML='';
+
+  const junction=document.createElement('span');
+  junction.className='bsc-divider-junction';
+  junction.setAttribute('aria-hidden','true');
+  marker.appendChild(junction);
+
+  const arrow=document.createElement('span');
+  arrow.className='bsc-arrow-line';
+  arrow.setAttribute('aria-hidden','true');
+  marker.appendChild(arrow);
+
+  const label=document.createElement('span');
+  label.className='bsc-symbol';
+  label.textContent='Jesus Christ';
+  marker.appendChild(label);
+})();
