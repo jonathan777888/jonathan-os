@@ -1,0 +1,137 @@
+
+// V18 — Bible Study Canvas intégré au Second Cerveau
+(()=>{
+  const CURRENT_KEY='second-brain-bible-canvas-v18-current';
+  const HISTORY_KEY='second-brain-bible-canvas-v18-history';
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  try{
+    document.title='Second Cerveau IA — V18';
+    const pill=document.querySelector('.pill'); if(pill)pill.textContent='Second Cerveau IA — V18';
+    const vs=document.getElementById('versionStatus'); if(vs)vs.textContent='Version actuelle V18 · cette version hérite directement de V17 et ajoute Bible Study Canvas avec sauvegardes et historique.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v18){
+      versions.dataset.v18='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V18 · actuelle</strong><small>Ajout de Bible Study Canvas : notes, dessin, surligneur, gomme, verset/référence, feuille extensible et historique des études sauvegardées.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V17 · actuelle'));
+      if(old)old.textContent='V17';
+    }
+  }catch(e){}
+
+  const nav=document.querySelector('.tabs'), app=document.querySelector('.app');
+  if(!nav||!app||document.querySelector('[data-page="bible-canvas"]'))return;
+
+  const defaults={
+    title:'Étude biblique',
+    date:new Date().toISOString().slice(0,10),
+    notes:'',
+    verse:'Dieu fait ce qu’il promet et il est juste. Alors, si nous avouons nos péchés, il nous les pardonnera et il enlèvera tout le mal qui est en nous.',
+    reference:'1 Jean 1:9',
+    sheetHeight:1150,
+    strokes:[],
+    updatedAt:new Date().toISOString()
+  };
+  function readCurrent(){try{return Object.assign(clone(defaults),JSON.parse(localStorage.getItem(CURRENT_KEY)||'null')||{})}catch(e){return clone(defaults)}}
+  function readHistory(){try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(e){return[]}}
+  function writeHistory(h){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,60)))}catch(e){alert('Le stockage du navigateur est plein. Supprime quelques anciennes études ou exporte-les.')}}
+  let study=readCurrent(), tool='pen', color='#1f312a', drawing=false, currentStroke=null;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .bsc-shell{display:grid;gap:16px}.bsc-hero{padding:22px;border-radius:22px;background:linear-gradient(135deg,#2b5f4c,#4b745d);color:#fff;position:relative;overflow:hidden}.bsc-hero:after{content:'✦';position:absolute;right:26px;top:6px;font-size:105px;opacity:.07}.bsc-hero h2{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:-.04em}.bsc-hero p{margin:7px 0 0;opacity:.9;line-height:1.5}
+    .bsc-toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff}.bsc-tool{min-height:38px;padding:0 12px;border:1px solid transparent;border-radius:10px;background:#f7f8f5;font-weight:800;cursor:pointer}.bsc-tool.active{background:#eaf3e8;border-color:#aac0a5;color:#315f4b}.bsc-swatch{width:29px;height:29px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #a9afa7;cursor:pointer;padding:0}.bsc-swatch.active{box-shadow:0 0 0 3px #315f4b}.bsc-toolbar-spacer{flex:1}.bsc-save-status{font-size:12px;color:var(--muted)}
+    .bsc-meta{display:grid;grid-template-columns:1.2fr .8fr;gap:10px}.bsc-meta .field{background:#fff}
+    .bsc-paper-wrap{overflow:auto;border:1px solid #ded7ca;border-radius:18px;background:#eee9df;padding:14px}.bsc-paper{position:relative;display:grid;grid-template-columns:48% 52%;width:1100px;min-height:1150px;margin:auto;background:#fffdf6;border:1px solid #ded7ca;border-radius:16px;overflow:hidden;box-shadow:0 13px 40px rgba(76,68,52,.13)}.bsc-paper:after{content:'';position:absolute;inset:0;pointer-events:none;opacity:.22;background-image:radial-gradient(#9b907d .45px,transparent .6px);background-size:7px 7px}.bsc-draw{position:absolute;inset:0;width:100%;height:100%;z-index:10;touch-action:none}.bsc-paper.typing .bsc-draw{pointer-events:none}.bsc-col{position:relative;z-index:5}.bsc-left{border-right:3px solid #26312c}.bsc-notes{position:relative;z-index:11;width:100%;height:100%;min-height:1080px;padding:48px 34px;border:0;outline:0;background:transparent;color:#17231f;font:24px/1.65 "Segoe Print","Bradley Hand",cursive;resize:none;overflow:hidden}.bsc-right{position:relative;z-index:11;display:flex;flex-direction:column;align-items:center;padding:35px 8%}.bsc-symbol{margin-top:18px;color:#276d46;text-align:center;font:700 22px "Segoe Print","Bradley Hand",cursive}.bsc-arrow{font-size:36px;color:#c95768;line-height:1}.bsc-verse{width:100%;height:390px;margin-top:80px;border:0;outline:0;background:transparent;text-align:center;color:#17231f;font:clamp(25px,2.1vw,37px)/1.7 "Segoe Print","Bradley Hand",cursive;resize:none}.bsc-reference{width:270px;border:0;border-bottom:3px solid #1e2723;outline:0;background:transparent;text-align:center;font:30px "Segoe Print","Bradley Hand",cursive}.bsc-paper-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:10px}
+    .bsc-history{padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--soft)}.bsc-history-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}.bsc-history h3{margin:0;font-size:20px}.bsc-history p{margin:5px 0 0;color:var(--muted);font-size:12px}.bsc-history-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.bsc-history-item{padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.bsc-history-item strong{display:block}.bsc-history-item small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}.bsc-history-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.bsc-preview{display:none;margin-top:12px;padding:15px;border:1px solid var(--line);border-radius:15px;background:#fff}.bsc-preview.open{display:block}.bsc-preview-note{white-space:pre-wrap;padding:12px;border-radius:12px;background:#f8f7f1;color:#454f49;font:15px/1.55 system-ui}.bsc-preview-verse{margin-top:10px;padding:14px;border-left:4px solid #5c8954;background:#f5f8f3;font:17px/1.6 "Segoe Print","Bradley Hand",cursive}
+    @media(max-width:800px){.bsc-meta{grid-template-columns:1fr}.bsc-history-list{grid-template-columns:1fr}.bsc-paper-wrap{padding:8px}.bsc-toolbar-spacer{display:none}}
+  `;
+  document.head.appendChild(style);
+
+  const tab=document.createElement('button');
+  tab.className='tab';tab.dataset.page='bible-canvas';tab.textContent='Bible Study Canvas';
+  nav.appendChild(tab);
+
+  const section=document.createElement('section');
+  section.className='page';section.id='page-bible-canvas';
+  section.innerHTML=`<div class="bsc-shell">
+    <div class="bsc-hero"><h2>Bible Study Canvas</h2><p>Une feuille d’étude biblique tactile et extensible : écris, dessine, surligne, ajoute ton passage biblique, puis sauvegarde chaque étude pour la revoir plus tard.</p></div>
+    <div class="bsc-meta"><input class="field" id="bscTitle" placeholder="Titre de l’étude"><input class="field" id="bscDate" type="date"></div>
+    <div class="bsc-toolbar" aria-label="Outils Bible Study Canvas">
+      <button class="bsc-tool active" data-bsc-tool="pen">✎ Stylo</button><button class="bsc-tool" data-bsc-tool="highlighter">▰ Surligneur</button><button class="bsc-tool" data-bsc-tool="eraser">◇ Gomme</button><button class="bsc-tool" data-bsc-tool="text">⌨ Clavier</button>
+      <button class="bsc-swatch active" data-bsc-color="#1f312a" style="background:#1f312a" aria-label="Noir"></button><button class="bsc-swatch" data-bsc-color="#2f72ae" style="background:#2f72ae" aria-label="Bleu"></button><button class="bsc-swatch" data-bsc-color="#e3bd32" style="background:#e3bd32" aria-label="Jaune"></button><button class="bsc-swatch" data-bsc-color="#c95d6d" style="background:#c95d6d" aria-label="Rose"></button>
+      <span class="bsc-toolbar-spacer"></span><button class="btn" id="bscClearDrawing">Effacer dessin</button><button class="btn primary" id="bscSaveSnapshot">Sauvegarder cette étude</button>
+    </div>
+    <div class="bsc-save-status" id="bscStatus">Sauvegarde automatique sur cet appareil.</div>
+    <div class="bsc-paper-wrap"><div class="bsc-paper" id="bscPaper"><canvas class="bsc-draw" id="bscCanvas"></canvas><section class="bsc-col bsc-left"><textarea class="bsc-notes" id="bscNotes" placeholder="Choisis Clavier et commence à écrire…" spellcheck="true"></textarea></section><section class="bsc-col bsc-right"><div class="bsc-symbol">Seigneur Jésus Christ<div class="bsc-arrow">→</div></div><textarea class="bsc-verse" id="bscVerse"></textarea><input class="bsc-reference" id="bscReference"></section></div></div>
+    <div class="bsc-paper-actions"><button class="btn" id="bscMoreSpace">＋ Ajouter de l’espace à la feuille</button><button class="btn" id="bscNewStudy">＋ Nouvelle étude vierge</button></div>
+    <div class="bsc-history"><div class="bsc-history-head"><div><h3>Mes études sauvegardées</h3><p>Les sauvegardes datées restent distinctes de l’étude en cours. Tu peux les voir, les restaurer ou les supprimer.</p></div><button class="btn" id="bscRefreshHistory">Actualiser</button></div><div class="bsc-history-list" id="bscHistoryList"></div><div class="bsc-preview" id="bscPreview"></div></div>
+  </div>`;
+  app.appendChild(section);
+
+  const paper=section.querySelector('#bscPaper'), canvas=section.querySelector('#bscCanvas'), ctx=canvas.getContext('2d');
+  const notes=section.querySelector('#bscNotes'), verse=section.querySelector('#bscVerse'), reference=section.querySelector('#bscReference'), title=section.querySelector('#bscTitle'), date=section.querySelector('#bscDate'), status=section.querySelector('#bscStatus');
+  const W=1600;
+
+  function saveCurrent(message='Sauvegardé automatiquement sur cet appareil.'){
+    study.title=title.value.trim()||'Étude biblique';study.date=date.value||new Date().toISOString().slice(0,10);study.notes=notes.value;study.verse=verse.value;study.reference=reference.value;study.updatedAt=new Date().toISOString();
+    try{localStorage.setItem(CURRENT_KEY,JSON.stringify(study));status.textContent=message}catch(e){status.textContent='Stockage plein : pense à supprimer ou exporter d’anciennes études.'}
+  }
+  function sizeCanvas(){
+    paper.style.minHeight=study.sheetHeight+'px';notes.style.minHeight=Math.max(1000,study.sheetHeight-70)+'px';
+    const ratio=study.sheetHeight/1100, newH=Math.max(1600,Math.round(W*ratio));
+    if(canvas.width!==W||canvas.height!==newH){canvas.width=W;canvas.height=newH;replay()}
+  }
+  function replay(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    (study.strokes||[]).forEach(s=>drawStroke(s));
+  }
+  function drawStroke(s){
+    if(!s?.points?.length)return;
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    if(s.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=s.width||34}
+    else if(s.tool==='highlighter'){ctx.globalCompositeOperation='source-over';ctx.globalAlpha=.28;ctx.strokeStyle=s.color||'#e3bd32';ctx.lineWidth=s.width||28}
+    else{ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.strokeStyle=s.color||'#1f312a';ctx.lineWidth=s.width||5}
+    ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);s.points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();ctx.restore();
+  }
+  function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*(canvas.width/r.width),y:(e.clientY-r.top)*(canvas.height/r.height)}}
+  function selectTool(next){tool=next;paper.classList.toggle('typing',tool==='text');section.querySelectorAll('[data-bsc-tool]').forEach(b=>b.classList.toggle('active',b.dataset.bscTool===tool));if(tool==='text')notes.focus()}
+
+  canvas.addEventListener('pointerdown',e=>{if(tool==='text')return;e.preventDefault();drawing=true;const p=point(e);currentStroke={tool,color,width:tool==='eraser'?38:tool==='highlighter'?30:5,points:[p]};canvas.setPointerCapture?.(e.pointerId)});
+  canvas.addEventListener('pointermove',e=>{if(!drawing||!currentStroke)return;e.preventDefault();const p=point(e),prev=currentStroke.points[currentStroke.points.length-1];currentStroke.points.push(p);ctx.save();ctx.lineCap='round';ctx.lineJoin='round';if(tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.lineWidth=38;ctx.strokeStyle='#000'}else if(tool==='highlighter'){ctx.globalCompositeOperation='source-over';ctx.globalAlpha=.28;ctx.lineWidth=30;ctx.strokeStyle=color}else{ctx.lineWidth=5;ctx.strokeStyle=color}ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.restore()});
+  const endStroke=e=>{if(!drawing)return;drawing=false;canvas.releasePointerCapture?.(e.pointerId);if(currentStroke?.points?.length){study.strokes=study.strokes||[];study.strokes.push(currentStroke);saveCurrent()}currentStroke=null};canvas.addEventListener('pointerup',endStroke);canvas.addEventListener('pointercancel',endStroke);
+
+  section.querySelectorAll('[data-bsc-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.bscTool));
+  section.querySelectorAll('[data-bsc-color]').forEach(b=>b.onclick=()=>{color=b.dataset.bscColor;section.querySelectorAll('[data-bsc-color]').forEach(x=>x.classList.toggle('active',x===b));if(tool==='eraser'||tool==='text')selectTool('pen')});
+  [notes,verse,reference,title,date].forEach(el=>el.addEventListener('input',()=>saveCurrent()));
+  section.querySelector('#bscMoreSpace').onclick=()=>{study.sheetHeight+=450;sizeCanvas();saveCurrent('Espace ajouté et sauvegardé.')};
+  section.querySelector('#bscClearDrawing').onclick=()=>{if(!confirm('Effacer uniquement le dessin de l’étude actuelle ?'))return;study.strokes=[];replay();saveCurrent('Dessin effacé. Le texte et le verset sont conservés.')};
+
+  function snapshot(){
+    saveCurrent();let h=readHistory();const now=new Date();h.unshift({id:'bsc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),savedAt:now.toISOString(),state:clone(study)});writeHistory(h);renderHistory();status.textContent='Étude sauvegardée dans « Mes études sauvegardées ».';
+  }
+  section.querySelector('#bscSaveSnapshot').onclick=snapshot;
+  section.querySelector('#bscNewStudy').onclick=()=>{if(!confirm('Commencer une nouvelle étude vierge ? L’étude actuelle reste disponible seulement si tu l’as sauvegardée dans l’historique.'))return;study=clone(defaults);study.date=new Date().toISOString().slice(0,10);loadStudy();saveCurrent('Nouvelle étude vierge créée.')};
+
+  function preview(entry){
+    const box=section.querySelector('#bscPreview'),s=entry.state||{};
+    box.innerHTML=`<div class="bsc-history-head"><div><h3>${esc(s.title||'Étude biblique')}</h3><p>${esc(s.date||'')} · sauvegardée ${esc(new Date(entry.savedAt).toLocaleString('fr-CA'))}</p></div><button class="btn" id="bscClosePreview">Fermer</button></div><div class="bsc-preview-note">${esc(s.notes||'Aucune note écrite.')}</div><div class="bsc-preview-verse">${esc(s.verse||'')}<br><strong>${esc(s.reference||'')}</strong></div><p class="muted">Cette prévisualisation montre les textes. Pour revoir aussi le dessin exactement comme il était, utilise « Restaurer ».</p>`;
+    box.classList.add('open');section.querySelector('#bscClosePreview').onclick=()=>box.classList.remove('open');box.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function restore(entry){
+    if(!confirm('Restaurer cette étude sauvegardée ? Une copie de l’étude actuelle sera créée automatiquement avant la restauration.'))return;
+    const cur=clone(study);let h=readHistory();h.unshift({id:'bsc-auto-'+Date.now(),savedAt:new Date().toISOString(),state:cur,automatic:true});writeHistory(h);study=clone(entry.state);loadStudy();saveCurrent('Étude restaurée. Une sauvegarde automatique de l’ancienne étude a été créée.');renderHistory();
+  }
+  function removeHistory(id){if(!confirm('Supprimer définitivement cette étude sauvegardée ?'))return;writeHistory(readHistory().filter(x=>x.id!==id));section.querySelector('#bscPreview').classList.remove('open');renderHistory()}
+  function renderHistory(){
+    const h=readHistory(),list=section.querySelector('#bscHistoryList');
+    list.innerHTML=h.length?h.map((x,i)=>{const s=x.state||{};return`<div class="bsc-history-item"><strong>${esc(s.title||'Étude biblique')}</strong><small>${esc(s.date||'Sans date')} · ${esc(new Date(x.savedAt).toLocaleString('fr-CA'))}${x.automatic?' · sauvegarde automatique':''}<br>${(s.strokes||[]).length} trait${(s.strokes||[]).length>1?'s':''} de dessin</small><div class="bsc-history-actions"><button class="btn" data-bsc-view="${esc(x.id)}">Voir</button><button class="btn primary" data-bsc-restore="${esc(x.id)}">Restaurer</button><button class="btn warn" data-bsc-delete="${esc(x.id)}">Supprimer</button></div></div>`}).join(''):'<div class="muted">Aucune étude sauvegardée. Clique sur « Sauvegarder cette étude » lorsque tu veux conserver une version datée.</div>';
+    list.querySelectorAll('[data-bsc-view]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.bscView);if(e)preview(e)});list.querySelectorAll('[data-bsc-restore]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.bscRestore);if(e)restore(e)});list.querySelectorAll('[data-bsc-delete]').forEach(b=>b.onclick=()=>removeHistory(b.dataset.bscDelete));
+  }
+  section.querySelector('#bscRefreshHistory').onclick=renderHistory;
+
+  function loadStudy(){title.value=study.title||'Étude biblique';date.value=study.date||new Date().toISOString().slice(0,10);notes.value=study.notes||'';verse.value=study.verse||'';reference.value=study.reference||'';study.strokes=Array.isArray(study.strokes)?study.strokes:[];study.sheetHeight=Math.max(900,Number(study.sheetHeight)||1150);sizeCanvas();selectTool('pen')}
+  loadStudy();renderHistory();
+
+  tab.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));section.classList.add('active');requestAnimationFrame(()=>{sizeCanvas();replay()});window.scrollTo({top:0,behavior:'smooth'})};
+})();
