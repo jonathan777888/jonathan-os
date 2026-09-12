@@ -1,0 +1,106 @@
+
+// V19 — Position de Jesus Christ et de la fleche au-dessus de la ligne verticale
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V19';
+    const pill=document.querySelector('.pill');
+    if(pill)pill.textContent='Second Cerveau IA — V19';
+    const vs=document.getElementById('versionStatus');
+    if(vs)vs.textContent='Version actuelle V19 · cette version hérite directement de V18 et corrige la disposition de Jesus Christ, de la fleche et de la ligne verticale dans Bible Study Canvas.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v19){
+      versions.dataset.v19='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V19 · actuelle</strong><small>Correction Bible Study Canvas : Jesus Christ et la fleche sont places au-dessus de la ligne verticale, avant le verset et la reference.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V18 · actuelle'));
+      if(old)old.textContent='V18';
+    }
+  }catch(e){}
+
+  const section=document.getElementById('page-bible-canvas');
+  if(!section)return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    #page-bible-canvas .bsc-right{
+      position:relative;
+      z-index:11;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:35px 8%;
+    }
+    #page-bible-canvas .bsc-top-marker{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      margin-top:10px;
+      margin-bottom:30px;
+      position:relative;
+      z-index:12;
+    }
+    #page-bible-canvas .bsc-symbol{
+      margin:0 0 8px;
+      color:#276d46;
+      text-align:center;
+      font:700 22px "Segoe Print","Bradley Hand",cursive;
+      white-space:nowrap;
+    }
+    #page-bible-canvas .bsc-arrow{
+      font-size:36px;
+      color:#c95768;
+      line-height:1;
+      margin-bottom:8px;
+    }
+    #page-bible-canvas .bsc-vertical-line{
+      width:3px;
+      height:90px;
+      background:#26312c;
+      border-radius:999px;
+      flex:0 0 auto;
+    }
+    #page-bible-canvas .bsc-verse{
+      width:100%;
+      height:390px;
+      margin-top:10px;
+      border:0;
+      outline:0;
+      background:transparent;
+      text-align:center;
+      color:#17231f;
+      font:clamp(25px,2.1vw,37px)/1.7 "Segoe Print","Bradley Hand",cursive;
+      resize:none;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const right=section.querySelector('.bsc-right');
+  if(!right)return;
+
+  const oldSymbol=right.querySelector('.bsc-symbol');
+  if(!oldSymbol)return;
+
+  const oldArrow=oldSymbol.querySelector('.bsc-arrow');
+  if(oldArrow)oldArrow.remove();
+
+  oldSymbol.textContent='Jesus Christ';
+
+  let marker=right.querySelector('.bsc-top-marker');
+  if(!marker){
+    marker=document.createElement('div');
+    marker.className='bsc-top-marker';
+    right.insertBefore(marker,right.firstChild);
+  }
+
+  marker.appendChild(oldSymbol);
+
+  const arrow=document.createElement('div');
+  arrow.className='bsc-arrow';
+  arrow.textContent='→';
+  marker.appendChild(arrow);
+
+  const vertical=document.createElement('div');
+  vertical.className='bsc-vertical-line';
+  vertical.setAttribute('aria-hidden','true');
+  marker.appendChild(vertical);
+})();
