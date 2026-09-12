@@ -1,0 +1,111 @@
+
+// V21 — Jesus Christ centre au-dessus de la grande ligne verticale, fleche sur la jonction
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V21';
+    const pill=document.querySelector('.pill');
+    if(pill)pill.textContent='Second Cerveau IA — V21';
+    const vs=document.getElementById('versionStatus');
+    if(vs)vs.textContent='Version actuelle V21 · cette version hérite directement de V20 et place Jesus Christ au-dessus de la grande ligne verticale, avec la fleche sur la meme jonction.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v21){
+      versions.dataset.v21='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V21 · actuelle</strong><small>Correction Bible Study Canvas : Jesus Christ est centre au-dessus du sommet de la grande ligne verticale et la fleche part de cette meme jonction.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V20 · actuelle'));
+      if(old)old.textContent='V20';
+    }
+  }catch(e){}
+
+  const section=document.getElementById('page-bible-canvas');
+  if(!section)return;
+  const right=section.querySelector('.bsc-right');
+  if(!right)return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    #page-bible-canvas .bsc-top-marker{
+      position:absolute!important;
+      left:-1px!important;
+      top:8px!important;
+      width:1px!important;
+      height:82px!important;
+      z-index:25!important;
+      display:block!important;
+      margin:0!important;
+      pointer-events:none!important;
+      overflow:visible!important;
+    }
+    #page-bible-canvas .bsc-divider-junction{
+      position:absolute!important;
+      left:-4px!important;
+      top:44px!important;
+      width:9px!important;
+      height:9px!important;
+      margin:0!important;
+      border-radius:50%!important;
+      background:#26312c!important;
+    }
+    #page-bible-canvas .bsc-arrow-line{
+      position:absolute!important;
+      left:-82px!important;
+      top:47px!important;
+      width:118px!important;
+      height:3px!important;
+      margin:0!important;
+      background:#c95768!important;
+      border-radius:999px!important;
+    }
+    #page-bible-canvas .bsc-arrow-line:after{
+      content:''!important;
+      position:absolute!important;
+      right:-1px!important;
+      top:50%!important;
+      width:13px!important;
+      height:13px!important;
+      border-top:3px solid #c95768!important;
+      border-right:3px solid #c95768!important;
+      transform:translateY(-50%) rotate(45deg)!important;
+      transform-origin:center!important;
+    }
+    #page-bible-canvas .bsc-symbol{
+      position:absolute!important;
+      left:0!important;
+      top:0!important;
+      transform:translateX(-50%)!important;
+      margin:0!important;
+      padding:0 8px!important;
+      background:#fffdf6!important;
+      color:#276d46!important;
+      text-align:center!important;
+      white-space:nowrap!important;
+      font:700 22px "Segoe Print","Bradley Hand",cursive!important;
+      border-radius:8px!important;
+    }
+    #page-bible-canvas .bsc-vertical-line{display:none!important;}
+    #page-bible-canvas .bsc-verse{margin-top:145px!important;}
+  `;
+  document.head.appendChild(style);
+
+  let marker=right.querySelector('.bsc-top-marker');
+  if(!marker){
+    marker=document.createElement('div');
+    marker.className='bsc-top-marker';
+    right.insertBefore(marker,right.firstChild);
+  }
+  marker.innerHTML='';
+
+  const label=document.createElement('span');
+  label.className='bsc-symbol';
+  label.textContent='Jesus Christ';
+  marker.appendChild(label);
+
+  const junction=document.createElement('span');
+  junction.className='bsc-divider-junction';
+  junction.setAttribute('aria-hidden','true');
+  marker.appendChild(junction);
+
+  const arrow=document.createElement('span');
+  arrow.className='bsc-arrow-line';
+  arrow.setAttribute('aria-hidden','true');
+  marker.appendChild(arrow);
+})();
