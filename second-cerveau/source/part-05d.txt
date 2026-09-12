@@ -1,0 +1,144 @@
+
+// V17 — Branches repliables pour une carte plus calme
+(()=>{
+  const COLLAPSE_KEY='second-brain-collapsed-branches-v17';
+  const STATE_KEYS=['second-brain-current','second-brain-v7'];
+
+  try{
+    document.title='Second Cerveau IA — V17';
+    const pill=document.querySelector('.pill'); if(pill)pill.textContent='Second Cerveau IA — V17';
+    const vs=document.getElementById('versionStatus'); if(vs)vs.textContent='Version actuelle V17 · cette version hérite directement de V16 et permet de masquer puis réafficher les sous-branches de la carte.';
+    const versions=document.getElementById('versionList');
+    if(versions && !versions.dataset.v17){
+      versions.dataset.v17='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V17 · actuelle</strong><small>Vue plus calme : chaque branche peut être réduite ou dépliée sans supprimer aucune donnée. Ajout de « Tout réduire » et « Tout afficher ».</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V16 · actuelle'));
+      if(old)old.textContent='V16';
+    }
+  }catch(e){}
+
+  const canvas=document.getElementById('canvas'), svg=document.getElementById('lines');
+  if(!canvas||!svg)return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .node-branch-toggle{position:absolute;left:-11px;top:-11px;width:31px;height:31px;border:0;border-radius:999px;background:#315f55;color:#fff;font-size:19px;font-weight:900;line-height:31px;text-align:center;box-shadow:0 5px 14px rgba(30,70,60,.22);cursor:pointer;z-index:9;padding:0}
+    .node-branch-toggle:hover{transform:scale(1.07)}
+    .node-branch-toggle.is-collapsed{background:#b48a3e}
+    .node-branch-toggle:focus-visible{outline:3px solid rgba(49,95,85,.3);outline-offset:2px}
+    .calm-map-note{font-size:11px;color:var(--muted);margin-left:4px;align-self:center}
+  `;
+  document.head.appendChild(style);
+
+  function readState(){
+    for(const key of STATE_KEYS){
+      try{const value=JSON.parse(localStorage.getItem(key)||'null');if(value?.tree)return value}catch(e){}
+    }
+    return null;
+  }
+  function flatten(root,depth=0,parent=null,out=[]){
+    if(!root)return out;
+    out.push({node:root,depth,parent});
+    (root.children||[]).forEach(c=>flatten(c,depth+1,root,out));
+    return out;
+  }
+  function readCollapsed(){
+    try{const a=JSON.parse(localStorage.getItem(COLLAPSE_KEY)||'[]');return new Set(Array.isArray(a)?a:[])}catch(e){return new Set()}
+  }
+  let collapsed=readCollapsed();
+  function saveCollapsed(){try{localStorage.setItem(COLLAPSE_KEY,JSON.stringify([...collapsed]))}catch(e){}}
+
+  function hiddenIds(root){
+    const hidden=new Set();
+    const walk=(node,hideSelf=false)=>{
+      if(hideSelf)hidden.add(node.id);
+      const hideChildren=hideSelf||collapsed.has(node.id);
+      (node.children||[]).forEach(c=>walk(c,hideChildren));
+    };
+    walk(root,false);
+    return hidden;
+  }
+
+  let applying=false;
+  function applyCollapsedView(){
+    if(applying)return;
+    applying=true;
+    try{
+      const state=readState();
+      if(!state?.tree)return;
+      const flat=flatten(state.tree), valid=new Set(flat.map(x=>x.node.id));
+      let changed=false;
+      [...collapsed].forEach(id=>{if(!valid.has(id)){collapsed.delete(id);changed=true}});
+      if(changed)saveCollapsed();
+      const hidden=hiddenIds(state.tree);
+      const nodeEls=[...canvas.querySelectorAll(':scope > .node')];
+
+      nodeEls.forEach((el,i)=>{
+        const entry=flat[i]; if(!entry)return;
+        const node=entry.node, hasChildren=(node.children||[]).length>0;
+        el.dataset.collapseNodeId=node.id;
+        el.style.display=hidden.has(node.id)?'none':'';
+        let btn=el.querySelector('.node-branch-toggle');
+        if(!hasChildren){if(btn)btn.remove();return}
+        if(!btn){
+          btn=document.createElement('button');
+          btn.type='button';
+          btn.className='node-branch-toggle';
+          btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation()});
+          btn.addEventListener('click',e=>{
+            e.preventDefault();e.stopPropagation();
+            const id=el.dataset.collapseNodeId;
+            if(collapsed.has(id))collapsed.delete(id);else collapsed.add(id);
+            saveCollapsed();applyCollapsedView();
+          });
+          el.appendChild(btn);
+        }
+        const isClosed=collapsed.has(node.id);
+        btn.classList.toggle('is-collapsed',isClosed);
+        btn.textContent=isClosed?'＋':'−';
+        btn.title=isClosed?'Afficher les sous-branches':'Masquer les sous-branches';
+        btn.setAttribute('aria-label',btn.title+' de '+node.title);
+        btn.setAttribute('aria-expanded',String(!isClosed));
+      });
+
+      const paths=[...svg.querySelectorAll('path')];
+      const treeEdges=flat.slice(1);
+      treeEdges.forEach((entry,i)=>{
+        if(paths[i])paths[i].style.display=(hidden.has(entry.node.id)||hidden.has(entry.parent?.id))?'none':'';
+      });
+      (state.relations||[]).forEach((r,j)=>{
+        const p=paths[treeEdges.length+j];
+        if(p)p.style.display=(hidden.has(r.from)||hidden.has(r.to))?'none':'';
+      });
+    }finally{applying=false}
+  }
+
+  const actions=document.querySelector('#page-map .maphead .actions');
+  if(actions&&!document.getElementById('collapseAllBranches')){
+    const reduce=document.createElement('button');
+    reduce.className='btn';reduce.id='collapseAllBranches';reduce.textContent='Tout réduire';
+    reduce.title='Masquer les sous-branches pour alléger la carte';
+    reduce.onclick=()=>{
+      const s=readState();if(!s?.tree)return;
+      collapsed=new Set(flatten(s.tree).filter(x=>x.node.id!=='jesus'&&(x.node.children||[]).length).map(x=>x.node.id));
+      saveCollapsed();applyCollapsedView();
+      const status=document.getElementById('mapStatus');if(status)status.textContent='Vue calme activée : les sous-branches sont masquées, mais rien n’est supprimé.';
+    };
+    const show=document.createElement('button');
+    show.className='btn';show.id='expandAllBranches';show.textContent='Tout afficher';
+    show.title='Réafficher toutes les branches';
+    show.onclick=()=>{
+      collapsed.clear();saveCollapsed();applyCollapsedView();
+      const status=document.getElementById('mapStatus');if(status)status.textContent='Toutes les branches sont de nouveau visibles.';
+    };
+    actions.appendChild(reduce);actions.appendChild(show);
+    const note=document.createElement('span');note.className='calm-map-note';note.textContent='− masque · + réaffiche';actions.appendChild(note);
+  }
+
+  const observer=new MutationObserver(mutations=>{
+    if(applying)return;
+    if(mutations.some(m=>m.type==='childList'))requestAnimationFrame(applyCollapsedView);
+  });
+  observer.observe(canvas,{childList:true,subtree:false});
+  requestAnimationFrame(applyCollapsedView);
+})();
