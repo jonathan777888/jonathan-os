@@ -1,0 +1,15 @@
+
+// V24 — ajout de la question sur le regard des autres dans Nutriments
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V24';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V24';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V24 · cette version hérite directement de V23 et ajoute dans Nutriments la question sur la peur du regard des autres.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v24){
+      versions.dataset.v24='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V24 · actuelle</strong><small>Ajout dans Ma relation avec Jésus → Nutriments : « Est-ce que j’ai peur du regard des autres ? », sans supprimer les réponses existantes.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V23 · actuelle'));if(old)old.textContent='V23';
+    }
+  }catch(e){}
+})();
