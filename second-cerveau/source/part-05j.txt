@@ -1,0 +1,90 @@
+
+// V23 — Onglet Prière : personnelle, pour les autres, reconnaissance
+(()=>{
+  const PRAYER_CURRENT_KEY='second-brain-prayer-v23-current';
+  const PRAYER_HISTORY_KEY='second-brain-prayer-v23-history';
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const today=()=>new Date().toISOString().slice(0,10);
+
+  try{
+    document.title='Second Cerveau IA — V23';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V23';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V23 · cette version hérite directement de V22 et ajoute un journal de prière en trois parties avec historique daté.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v23){
+      versions.dataset.v23='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V23 · actuelle</strong><small>Ajout de l’onglet Prière : prière personnelle, prière pour les autres et prière de reconnaissance, avec sauvegardes datées consultables et restaurables.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V22 · actuelle'));if(old)old.textContent='V22';
+    }
+  }catch(e){}
+
+  const nav=document.querySelector('.tabs'),app=document.querySelector('.app');
+  if(!nav||!app||document.querySelector('[data-page="prayer"]'))return;
+
+  const defaults={date:today(),personal:'',others:'',gratitude:'',updatedAt:new Date().toISOString()};
+  function readCurrent(){try{return Object.assign(clone(defaults),JSON.parse(localStorage.getItem(PRAYER_CURRENT_KEY)||'null')||{})}catch(e){return clone(defaults)}}
+  function readHistory(){try{const h=JSON.parse(localStorage.getItem(PRAYER_HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(e){return[]}}
+  function writeHistory(h){try{localStorage.setItem(PRAYER_HISTORY_KEY,JSON.stringify(h.slice(0,120)))}catch(e){}}
+  let prayer=readCurrent();
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .prayer-shell{display:grid;gap:16px}.prayer-hero{padding:23px;border-radius:22px;background:linear-gradient(135deg,#31483f,#6b7b65);color:#fff;position:relative;overflow:hidden}.prayer-hero:after{content:'✦';position:absolute;right:28px;top:-18px;font-size:120px;opacity:.07}.prayer-hero h2{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:-.04em}.prayer-hero p{margin:8px 0 0;max-width:830px;line-height:1.55;opacity:.9}.prayer-datebar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.prayer-datebar label{font-weight:850;color:#315f55}.prayer-datebar .field{width:auto;min-width:180px;background:#fff}.prayer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.prayer-card{border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow);overflow:hidden}.prayer-card-head{padding:15px 16px;font-weight:900;font-size:17px}.prayer-card.personal .prayer-card-head{background:#e8f1ed;color:#315f55}.prayer-card.others .prayer-card-head{background:#eef0f8;color:#53628a}.prayer-card.gratitude .prayer-card-head{background:#fff1d4;color:#966f1b}.prayer-card p{margin:0;padding:0 16px 10px;color:var(--muted);font-size:12px;line-height:1.45}.prayer-text{width:calc(100% - 24px);min-height:290px;margin:0 12px 12px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fffdf9;resize:vertical;font:15px/1.6 system-ui;color:var(--ink)}.prayer-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.prayer-status{font-size:12px;color:var(--muted);min-height:18px}.prayer-history{border:1px solid var(--line);border-radius:18px;background:var(--soft);padding:16px}.prayer-history-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}.prayer-history-head h3{margin:0}.prayer-history-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.prayer-history-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.prayer-history-item{padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.prayer-history-item strong{display:block}.prayer-history-item small{display:block;margin-top:4px;color:var(--muted);line-height:1.45}.prayer-history-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.prayer-preview{display:none;margin-top:12px;padding:15px;border:1px solid var(--line);border-radius:15px;background:#fff}.prayer-preview.open{display:block}.prayer-preview-section{padding:11px;border-radius:12px;background:#fafbf8;border:1px solid #e8ece7;margin-top:9px}.prayer-preview-section b{display:block;margin-bottom:5px;color:#315f55}.prayer-preview-section div{white-space:pre-wrap;line-height:1.55}.prayer-empty{color:var(--muted);font-style:italic}@media(max-width:900px){.prayer-grid{grid-template-columns:1fr}.prayer-history-list{grid-template-columns:1fr}.prayer-text{min-height:210px}}
+  `;
+  document.head.appendChild(style);
+
+  const tab=document.createElement('button');tab.className='tab';tab.dataset.page='prayer';tab.textContent='Prière';nav.appendChild(tab);
+  const section=document.createElement('section');section.className='page';section.id='page-prayer';
+  section.innerHTML=`<div class="prayer-shell">
+    <div class="prayer-hero"><h2>Mon temps de prière</h2><p>Un espace simple pour prier en trois temps : parler de ce que tu vis, penser aux autres, puis terminer par la reconnaissance.</p></div>
+    <div class="prayer-datebar"><label for="prayerDate">Date</label><input class="field" id="prayerDate" type="date"><button class="btn" id="prayerToday">Aujourd’hui</button></div>
+    <div class="prayer-grid">
+      <section class="prayer-card personal"><div class="prayer-card-head">1. Prière personnelle</div><p>Ce que je veux confier à Jéhovah : ce que je vis, mes besoins, mes difficultés, mes choix et mes demandes d’aide par Jésus-Christ.</p><textarea class="prayer-text" id="prayerPersonal" placeholder="Écris ici ta prière personnelle…"></textarea></section>
+      <section class="prayer-card others"><div class="prayer-card-head">2. Prière pour les autres</div><p>Les personnes pour lesquelles je veux prier : famille, amis, congrégation, personnes qui souffrent ou qui ont besoin d’aide.</p><textarea class="prayer-text" id="prayerOthers" placeholder="Écris ici les personnes et les sujets pour lesquels tu veux prier…"></textarea></section>
+      <section class="prayer-card gratitude"><div class="prayer-card-head">3. Prière de reconnaissance</div><p>Ce pour quoi je veux remercier Jéhovah : Jésus-Christ, la vie, l’aide reçue, les progrès et les petites choses de la journée.</p><textarea class="prayer-text" id="prayerGratitude" placeholder="Écris ici ce pour quoi tu es reconnaissant…"></textarea></section>
+    </div>
+    <div class="prayer-actions"><button class="btn primary" id="prayerSave">Enregistrer cette prière</button><button class="btn" id="prayerNew">Nouvelle journée</button><span class="prayer-status" id="prayerStatus">Sauvegarde automatique du brouillon sur cet appareil.</span></div>
+    <div class="prayer-history"><div class="prayer-history-head"><div><h3>Mes prières sauvegardées</h3><p>Tu peux revoir une ancienne journée, la restaurer ou la supprimer.</p></div><button class="btn" id="prayerRefresh">Actualiser</button></div><div class="prayer-history-list" id="prayerHistoryList"></div><div class="prayer-preview" id="prayerPreview"></div></div>
+  </div>`;
+  app.appendChild(section);
+
+  const dateEl=section.querySelector('#prayerDate'),personalEl=section.querySelector('#prayerPersonal'),othersEl=section.querySelector('#prayerOthers'),gratitudeEl=section.querySelector('#prayerGratitude'),statusEl=section.querySelector('#prayerStatus');
+  function syncFromUi(){prayer.date=dateEl.value||today();prayer.personal=personalEl.value;prayer.others=othersEl.value;prayer.gratitude=gratitudeEl.value;prayer.updatedAt=new Date().toISOString()}
+  function saveDraft(message='Brouillon enregistré automatiquement sur cet appareil.'){syncFromUi();try{localStorage.setItem(PRAYER_CURRENT_KEY,JSON.stringify(prayer));statusEl.textContent=message}catch(e){statusEl.textContent='Impossible d’enregistrer le brouillon dans ce navigateur.'}}
+  function loadCurrent(){dateEl.value=prayer.date||today();personalEl.value=prayer.personal||'';othersEl.value=prayer.others||'';gratitudeEl.value=prayer.gratitude||''}
+  [dateEl,personalEl,othersEl,gratitudeEl].forEach(el=>el.addEventListener('input',()=>saveDraft()));
+
+  function saveSnapshot(){
+    saveDraft();const h=readHistory();const same=h.findIndex(x=>x.state?.date===prayer.date);
+    const entry={id:'prayer-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),savedAt:new Date().toISOString(),state:clone(prayer)};
+    if(same>=0){if(confirm('Une prière est déjà sauvegardée pour cette date. Remplacer cette sauvegarde ?'))h.splice(same,1,entry);else return}else h.unshift(entry);
+    writeHistory(h.sort((a,b)=>String(b.state?.date||'').localeCompare(String(a.state?.date||''))));renderHistory();statusEl.textContent='Prière sauvegardée. Tu pourras la retrouver dans « Mes prières sauvegardées ».';
+  }
+  function preview(entry){
+    const box=section.querySelector('#prayerPreview'),s=entry.state||{};
+    box.innerHTML=`<div class="prayer-history-head"><div><h3>Prière du ${esc(s.date||'')}</h3><p>Sauvegardée ${esc(new Date(entry.savedAt).toLocaleString('fr-CA'))}</p></div><button class="btn" id="prayerClosePreview">Fermer</button></div><div class="prayer-preview-section"><b>1. Prière personnelle</b><div>${esc(s.personal||'—')}</div></div><div class="prayer-preview-section"><b>2. Prière pour les autres</b><div>${esc(s.others||'—')}</div></div><div class="prayer-preview-section"><b>3. Prière de reconnaissance</b><div>${esc(s.gratitude||'—')}</div></div>`;
+    box.classList.add('open');section.querySelector('#prayerClosePreview').onclick=()=>box.classList.remove('open');box.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function restore(entry){
+    if(!confirm('Restaurer cette prière dans l’éditeur actuel ?'))return;
+    prayer=clone(entry.state);loadCurrent();saveDraft('Ancienne prière restaurée dans l’éditeur.');window.scrollTo({top:section.offsetTop,behavior:'smooth'});
+  }
+  function removeEntry(id){if(!confirm('Supprimer définitivement cette prière sauvegardée ?'))return;writeHistory(readHistory().filter(x=>x.id!==id));section.querySelector('#prayerPreview').classList.remove('open');renderHistory()}
+  function summary(s){const parts=[];if(String(s.personal||'').trim())parts.push('personnelle');if(String(s.others||'').trim())parts.push('autres');if(String(s.gratitude||'').trim())parts.push('reconnaissance');return parts.length?parts.join(' · '):'aucun texte'}
+  function renderHistory(){
+    const list=section.querySelector('#prayerHistoryList'),h=readHistory().sort((a,b)=>String(b.state?.date||'').localeCompare(String(a.state?.date||'')));
+    list.innerHTML=h.length?h.map(x=>`<div class="prayer-history-item"><strong>${esc(x.state?.date||'Sans date')}</strong><small>${esc(summary(x.state||{}))}<br>Sauvegardée ${esc(new Date(x.savedAt).toLocaleString('fr-CA'))}</small><div class="prayer-history-actions"><button class="btn" data-prayer-view="${esc(x.id)}">Voir</button><button class="btn primary" data-prayer-restore="${esc(x.id)}">Restaurer</button><button class="btn warn" data-prayer-delete="${esc(x.id)}">Supprimer</button></div></div>`).join(''):'<div class="prayer-empty">Aucune prière sauvegardée pour le moment.</div>';
+    list.querySelectorAll('[data-prayer-view]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.prayerView);if(e)preview(e)});
+    list.querySelectorAll('[data-prayer-restore]').forEach(b=>b.onclick=()=>{const e=readHistory().find(x=>x.id===b.dataset.prayerRestore);if(e)restore(e)});
+    list.querySelectorAll('[data-prayer-delete]').forEach(b=>b.onclick=()=>removeEntry(b.dataset.prayerDelete));
+  }
+
+  section.querySelector('#prayerSave').onclick=saveSnapshot;
+  section.querySelector('#prayerRefresh').onclick=renderHistory;
+  section.querySelector('#prayerToday').onclick=()=>{dateEl.value=today();saveDraft('Date remise à aujourd’hui.')};
+  section.querySelector('#prayerNew').onclick=()=>{if((personalEl.value||othersEl.value||gratitudeEl.value)&&!confirm('Commencer une nouvelle journée ? Le brouillon actuel sera remplacé. Sauvegarde-le d’abord si tu veux le conserver.'))return;prayer=clone(defaults);prayer.date=today();loadCurrent();saveDraft('Nouvelle journée de prière prête.')};
+
+  loadCurrent();renderHistory();
+  tab.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));section.classList.add('active');window.scrollTo({top:0,behavior:'smooth'})};
+})();
