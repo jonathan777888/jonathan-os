@@ -1,0 +1,15 @@
+
+// V25 — ajout du nutriment sur l'autorité suprême de Jéhovah à travers Jésus-Christ
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V25';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V25';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V25 · cette version hérite directement de V24 et ajoute dans Nutriments la question sur l’autorité suprême de Jéhovah à travers Jésus-Christ par rapport aux autorités relatives.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v25){
+      versions.dataset.v25='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V25 · actuelle</strong><small>Ajout dans Ma relation avec Jésus → Nutriments : mettre l’autorité suprême de Jéhovah à travers Jésus-Christ au-dessus de l’argent, des gouvernements et des personnes en position d’autorité, et se rappeler l’influence du Diable sur le monde actuel.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V24 · actuelle'));if(old)old.textContent='V24';
+    }
+  }catch(e){}
+})();
