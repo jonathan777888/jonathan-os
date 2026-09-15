@@ -1,0 +1,206 @@
+
+// V22 — Agent IA local du Second Cerveau
+(()=>{
+  const AGENT_HISTORY_KEY='second-brain-agent-v22-history';
+  const AGENT_DRAFT_KEY='second-brain-agent-v22-draft';
+  const REL_KEY='second-brain-relation-jesus-v1';
+  const BIBLE_KEY='second-brain-bible-canvas-v18-current';
+  const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+
+  try{
+    document.title='Second Cerveau IA — V22';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V22';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V22 · cette version hérite directement de V21 et ajoute un Agent IA local capable d’utiliser le contexte du Second Cerveau.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v22){
+      versions.dataset.v22='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V22 · actuelle</strong><small>Ajout de l’Agent IA local : recherche dans le contexte du Second Cerveau, réponses personnalisées, historique des conversations et actions vers Tâches/Mémoires.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V21 · actuelle'));if(old)old.textContent='V21';
+    }
+  }catch(e){}
+
+  const nav=document.querySelector('.tabs'),app=document.querySelector('.app');
+  if(!nav||!app||document.querySelector('[data-page="agent-ia"]'))return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .agent-shell{display:grid;gap:16px}.agent-hero{padding:23px;border-radius:22px;background:linear-gradient(135deg,#213f37,#3e6c59);color:#fff;position:relative;overflow:hidden}.agent-hero:after{content:'✦';position:absolute;right:25px;top:-13px;font-size:120px;opacity:.07}.agent-hero h2{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:-.04em}.agent-hero p{margin:8px 0 0;max-width:850px;line-height:1.55;opacity:.9}.agent-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.agent-badge{padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.13);font-size:12px;font-weight:800}
+    .agent-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.75fr);gap:14px}.agent-card{border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow);padding:16px}.agent-card h3{margin:0 0 10px}.agent-source-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.agent-check{display:flex;gap:7px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:11px;background:#fafbf8;font-size:12px;font-weight:750}.agent-quick{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.agent-quick button{min-height:34px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:#f6f8f4;cursor:pointer;font-weight:750;color:#315f55}.agent-input{width:100%;min-height:116px;padding:13px;border:1px solid #cfd8cf;border-radius:13px;resize:vertical;font:15px/1.55 system-ui;background:#fff}.agent-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px}.agent-status{font-size:12px;color:var(--muted);line-height:1.45;margin-top:9px;min-height:18px}.agent-answer{margin-top:13px;min-height:130px;padding:15px;border:1px solid var(--line);border-radius:14px;background:#fafbf8;white-space:pre-wrap;font:15px/1.6 system-ui}.agent-answer:empty:before{content:'La réponse de ton agent apparaîtra ici.';color:#969f98}.agent-context{margin-top:11px}.agent-context summary{cursor:pointer;font-weight:800;color:#315f55}.agent-context-box{margin-top:8px;max-height:230px;overflow:auto;padding:11px;border-radius:11px;background:#f5f7f3;white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;color:#59655f}.agent-history{display:grid;gap:8px;max-height:510px;overflow:auto}.agent-history-item{padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfa}.agent-history-item strong{display:block;font-size:13px}.agent-history-item small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}.agent-history-buttons{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}.agent-actionbox{display:grid;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.agent-actionbox .field{min-height:38px}.agent-minirow{display:grid;grid-template-columns:1fr 1fr;gap:7px}.agent-source-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.agent-source-chip{padding:5px 8px;border-radius:999px;background:#edf3ed;color:#456052;font-size:11px;font-weight:750}
+    @media(max-width:900px){.agent-layout{grid-template-columns:1fr}.agent-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.agent-source-grid{grid-template-columns:1fr}.agent-minirow{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  const tab=document.createElement('button');tab.className='tab';tab.dataset.page='agent-ia';tab.textContent='Agent IA';nav.appendChild(tab);
+  const section=document.createElement('section');section.className='page';section.id='page-agent-ia';
+  section.innerHTML=`<div class="agent-shell">
+    <div class="agent-hero"><h2>✦ Agent IA</h2><p>Ton assistant personnel du Second Cerveau. Il recherche d’abord les éléments pertinents dans tes propres données, puis utilise une IA locale pour t’aider à comprendre, organiser et décider.</p><div class="agent-badges"><span class="agent-badge">🔒 Notes traitées sur cet appareil</span><span class="agent-badge">🧠 Contexte du Second Cerveau</span><span class="agent-badge">💾 Conversations sauvegardées</span></div></div>
+    <div class="agent-layout">
+      <div class="agent-card">
+        <h3>Parler à mon agent</h3>
+        <div class="agent-source-grid">
+          <label class="agent-check"><input type="checkbox" data-agent-source="map" checked> Carte</label>
+          <label class="agent-check"><input type="checkbox" data-agent-source="memories" checked> Mémoires</label>
+          <label class="agent-check"><input type="checkbox" data-agent-source="tasks" checked> Tâches</label>
+          <label class="agent-check"><input type="checkbox" data-agent-source="reviews" checked> Bilans</label>
+          <label class="agent-check"><input type="checkbox" data-agent-source="relation" checked> Relation avec Jésus</label>
+          <label class="agent-check"><input type="checkbox" data-agent-source="bible" checked> Bible Study Canvas</label>
+        </div>
+        <div class="agent-quick"><button data-agent-quick="Quelles sont mes priorités les plus importantes maintenant ?">Mes priorités</button><button data-agent-quick="Quelles tâches devrais-je faire en premier ?">Mes prochaines tâches</button><button data-agent-quick="Résume les éléments importants de mon Second Cerveau qui concernent ma situation actuelle.">Résumer mon contexte</button><button data-agent-quick="Aide-moi à faire un plan simple à partir de mes objectifs et de mes tâches actuelles.">Faire un plan</button></div>
+        <textarea class="agent-input" id="agentQuestion" placeholder="Exemple : Qu’est-ce que je devrais faire aujourd’hui pour avancer sans me disperser ?"></textarea>
+        <div class="agent-actions"><button class="btn primary" id="agentAsk">✦ Demander à l’agent</button><button class="btn" id="agentNew">Nouvelle conversation</button></div>
+        <div class="agent-status" id="agentStatus">Le modèle local sera téléchargé à la première question. Sur téléphone, une version plus légère sera utilisée.</div>
+        <div class="agent-answer" id="agentAnswer" aria-live="polite"></div>
+        <div class="agent-source-list" id="agentSources"></div>
+        <details class="agent-context"><summary>Voir le contexte retrouvé</summary><div class="agent-context-box" id="agentContext">Aucun contexte recherché pour le moment.</div></details>
+        <div class="agent-actionbox"><strong>Faire agir l’agent dans le Second Cerveau</strong><input class="field" id="agentTaskTitle" placeholder="Titre de la tâche à créer"><div class="agent-minirow"><input class="field" id="agentTaskDomain" placeholder="Domaine"><input class="field" id="agentTaskDue" type="date"></div><div class="agent-actions"><button class="btn" id="agentCreateTask">＋ Créer la tâche</button><button class="btn" id="agentSaveMemory">＋ Enregistrer la dernière réponse comme mémoire</button></div><span class="muted">L’agent ne modifie tes données qu’après un clic explicite sur l’un de ces boutons.</span></div>
+      </div>
+      <aside class="agent-card"><div class="agent-actions" style="justify-content:space-between;margin-top:0"><h3 style="margin:0">Conversations</h3><button class="btn" id="agentClearHistory">Effacer</button></div><div class="agent-history" id="agentHistory"></div></aside>
+    </div>
+  </div>`;
+  app.appendChild(section);
+
+  const qEl=section.querySelector('#agentQuestion'),answerEl=section.querySelector('#agentAnswer'),statusEl=section.querySelector('#agentStatus'),contextEl=section.querySelector('#agentContext'),sourcesEl=section.querySelector('#agentSources'),askBtn=section.querySelector('#agentAsk');
+  let worker=null,responseTimer=null,lastAnswer='',lastQuestion='',lastSources=[];
+
+  function safeJson(key,fallback){try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}}
+  function sourceEnabled(name){return !!section.querySelector(`[data-agent-source="${name}"]`)?.checked}
+  function addItem(arr,kind,title,text,ref=''){text=String(text||'').trim();if(!text&&!title)return;arr.push({kind,title:String(title||kind),text,ref})}
+  function collectCorpus(){
+    const out=[];
+    try{
+      if(typeof state!=='undefined'){
+        if(sourceEnabled('map')&&typeof flattenTree==='function')flattenTree(state.tree).forEach(({node})=>addItem(out,'Carte',node.title,[node.body,(node.tags||[]).join(', '),node.link].filter(Boolean).join(' · '),node.id));
+        if(sourceEnabled('memories'))(state.memories||[]).forEach(m=>addItem(out,'Mémoire',m.title,[m.domain,m.content,(m.tags||[]).join(', ')].filter(Boolean).join(' · '),m.id));
+        if(sourceEnabled('tasks'))(state.tasks||[]).forEach(t=>addItem(out,'Tâche',t.title,[t.domain,t.due,t.status,typeof findNode==='function'?(findNode(t.nodeId)?.title||''):''].filter(Boolean).join(' · '),t.id));
+        if(sourceEnabled('reviews'))Object.entries(state.reviews||{}).forEach(([d,r])=>addItem(out,'Bilan','Bilan '+d,[r.worked,r.notWorked,r.improve].filter(Boolean).join(' | '),d));
+      }
+    }catch(e){}
+    if(sourceEnabled('relation')){
+      const rel=safeJson(REL_KEY,null);
+      if(rel){
+        (rel.nutriments?.rows||[]).forEach((r,i)=>addItem(out,'Relation avec Jésus',r[0],r[1],String(i)));
+        ['bilan','feuil2'].forEach(k=>(rel[k]?.rows||[]).forEach((r,i)=>addItem(out,'Relation avec Jésus',`${k} — ${r[0]}`,[r[1]?'Oui : '+r[1]:'',r[2]?'Non : '+r[2]:''].filter(Boolean).join(' | '),`${k}-${i}`)));
+      }
+    }
+    if(sourceEnabled('bible')){
+      const b=safeJson(BIBLE_KEY,null);if(b){addItem(out,'Bible Study Canvas',b.title||'Étude biblique',[b.notes,b.verse,b.reference].filter(Boolean).join('\n'),b.date||'');}
+    }
+    return out;
+  }
+  function tokens(s){return [...new Set(norm(s).split(' ').filter(x=>x.length>2))]}
+  function retrieve(question){
+    const qt=tokens(question),corpus=collectCorpus();
+    const scored=corpus.map(x=>{const title=norm(x.title),hay=norm(x.title+' '+x.text);let score=0;qt.forEach(t=>{if(title.includes(t))score+=5;if(hay.includes(t))score+=2});if(x.kind==='Tâche'&&/open|ouvert/i.test(x.text))score+=2;return{...x,score}});
+    let chosen=scored.filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,mobile?7:12);
+    const open=scored.filter(x=>x.kind==='Tâche'&&/open|ouvert/i.test(x.text)).slice(0,4);
+    open.forEach(x=>{if(!chosen.some(y=>y.kind===x.kind&&y.ref===x.ref))chosen.push(x)});
+    if(!chosen.length)chosen=scored.slice(0,mobile?6:10);
+    return chosen.slice(0,mobile?9:14);
+  }
+  function buildContext(items){return items.map((x,i)=>`${i+1}. [${x.kind}] ${x.title}\n${x.text}`).join('\n\n').slice(0,mobile?4300:11000)}
+  function fallback(question,items){
+    if(!items.length)return`Je n’ai pas trouvé assez d’informations dans ton Second Cerveau pour répondre précisément à « ${question} ». Ajoute ou sélectionne davantage de contexte, puis réessaie.`;
+    const tasks=items.filter(x=>x.kind==='Tâche').slice(0,4),other=items.filter(x=>x.kind!=='Tâche').slice(0,4);
+    let text='Le moteur IA local n’a pas pu produire une réponse fiable, mais j’ai retrouvé ce contexte pertinent :\n\n';
+    other.forEach(x=>text+=`• ${x.title} : ${x.text.slice(0,220)}\n`);
+    if(tasks.length){text+='\nTâches retrouvées :\n';tasks.forEach(x=>text+=`• ${x.title}${x.text?' — '+x.text.slice(0,140):''}\n`)}
+    text+='\nUtilise ces éléments comme base de décision. Je n’ajoute pas d’information personnelle qui ne soit pas déjà présente dans ton Second Cerveau.';
+    return text;
+  }
+  function reliable(text){if(!text||text.trim().length<35)return false;const words=norm(text).split(' ').filter(Boolean);if(words.length<10)return false;return new Set(words).size/words.length>.35}
+
+  const workerCode=String.raw`
+    import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1";
+    env.allowLocalModels=false;
+    let generator=null;
+    const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
+    const modelId=mobile?"onnx-community/SmolLM2-135M-Instruct-ONNX":"onnx-community/Qwen3-0.6B-ONNX";
+    async function load(){
+      if(generator)return generator;
+      const options=mobile?{dtype:"q4"}:(navigator.gpu?{device:"webgpu",dtype:"q4f16"}:{dtype:"q4"});
+      options.progress_callback=p=>self.postMessage({type:"progress",progress:p,mobile});
+      self.postMessage({type:"loading",mobile});
+      generator=await pipeline("text-generation",modelId,options);
+      self.postMessage({type:"ready",mobile});return generator;
+    }
+    self.onmessage=async e=>{
+      if(e.data?.type!=="ask")return;
+      try{
+        const pipe=await load();const {question,context}=e.data;
+        const messages=[{role:"system",content:"Tu es l'Agent IA personnel d'un Second Cerveau. Réponds en français. Pour les faits personnels, utilise uniquement le CONTEXTE fourni et n'invente rien. Tu peux organiser, résumer, prioriser, comparer et proposer un plan concret. Distingue clairement les faits trouvés des recommandations. Pour toute question biblique, utilise seulement les versets et références présents dans le contexte; n'invente jamais de verset et ne prétends jamais parler au nom de Dieu. Si le contexte est insuffisant, dis-le. Sois bref, pratique et structuré."},{role:"user",content:"CONTEXTE DU SECOND CERVEAU :\n"+(context||"Aucun contexte retrouvé.")+"\n\nQUESTION :\n"+question}];
+        self.postMessage({type:"generating",mobile});
+        const out=await pipe(messages,{max_new_tokens:mobile?100:230,do_sample:false,repetition_penalty:1.18,no_repeat_ngram_size:4});
+        let generated=out?.[0]?.generated_text;let answer=Array.isArray(generated)?generated.at(-1)?.content||"":String(generated||"");
+        answer=answer.replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/^assistant\s*/i,"").trim();
+        self.postMessage({type:"answer",answer,mobile});
+      }catch(err){self.postMessage({type:"error",message:err?.message||"Le modèle local n'a pas pu démarrer.",mobile});}
+    };
+  `;
+
+  function getWorker(){
+    if(worker)return worker;
+    const url=URL.createObjectURL(new Blob([workerCode],{type:'text/javascript'}));
+    worker=new Worker(url,{type:'module'});URL.revokeObjectURL(url);
+    worker.onmessage=e=>{
+      const d=e.data||{};
+      if(d.type==='loading')statusEl.textContent=d.mobile?'Préparation du modèle léger sur ton appareil…':'Préparation du modèle IA local…';
+      else if(d.type==='progress'){const p=d.progress||{},pct=Number.isFinite(p.progress)?' '+Math.round(p.progress)+' %':'';statusEl.textContent='Téléchargement du modèle'+pct+' — garde cette page ouverte.'}
+      else if(d.type==='ready')statusEl.textContent='Modèle chargé. Analyse de ton contexte…';
+      else if(d.type==='generating')statusEl.textContent='L’agent réfléchit à partir de ton contexte…';
+      else if(d.type==='answer'){clearTimeout(responseTimer);askBtn.disabled=false;const items=lastSources;lastAnswer=reliable(d.answer)?d.answer:fallback(lastQuestion,items);answerEl.textContent=lastAnswer;statusEl.textContent=reliable(d.answer)?'Réponse produite localement. Tes notes personnelles n’ont pas été envoyées à un serveur d’IA.':'Réponse locale non fiable rejetée : contexte pertinent affiché à la place.';saveConversation();}
+      else if(d.type==='error'){clearTimeout(responseTimer);askBtn.disabled=false;lastAnswer=fallback(lastQuestion,lastSources);answerEl.textContent=lastAnswer;statusEl.textContent='Le moteur local n’a pas pu démarrer. J’affiche le contexte pertinent à la place.';saveConversation();worker?.terminate();worker=null;}
+    };
+    worker.onerror=()=>{clearTimeout(responseTimer);askBtn.disabled=false;lastAnswer=fallback(lastQuestion,lastSources);answerEl.textContent=lastAnswer;statusEl.textContent='Le navigateur a arrêté le moteur local. Essaie Chrome ou Edge sur ordinateur.';saveConversation();worker?.terminate();worker=null;};
+    return worker;
+  }
+
+  function readHistory(){try{const h=JSON.parse(localStorage.getItem(AGENT_HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(e){return[]}}
+  function writeHistory(h){try{localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(h.slice(0,40)))}catch(e){}}
+  function saveConversation(){
+    if(!lastQuestion||!lastAnswer)return;let h=readHistory();
+    if(h[0]?.question===lastQuestion&&h[0]?.answer===lastAnswer)return;
+    h.unshift({id:'agent-'+Date.now(),at:new Date().toISOString(),question:lastQuestion,answer:lastAnswer,sources:lastSources.map(x=>({kind:x.kind,title:x.title,ref:x.ref}))});writeHistory(h);renderHistory();
+  }
+  function renderHistory(){
+    const list=section.querySelector('#agentHistory'),h=readHistory();
+    list.innerHTML=h.length?h.map(x=>`<div class="agent-history-item"><strong>${esc(x.question)}</strong><small>${esc(new Date(x.at).toLocaleString('fr-CA'))}<br>${esc(String(x.answer||'').slice(0,120))}${String(x.answer||'').length>120?'…':''}</small><div class="agent-history-buttons"><button class="btn" data-agent-open="${esc(x.id)}">Revoir</button><button class="btn warn" data-agent-delete="${esc(x.id)}">×</button></div></div>`).join(''):'<div class="muted">Aucune conversation enregistrée.</div>';
+    list.querySelectorAll('[data-agent-open]').forEach(b=>b.onclick=()=>{const x=readHistory().find(y=>y.id===b.dataset.agentOpen);if(!x)return;qEl.value=x.question;answerEl.textContent=x.answer;lastQuestion=x.question;lastAnswer=x.answer;sourcesEl.innerHTML=(x.sources||[]).map(s=>`<span class="agent-source-chip">${esc(s.kind)} · ${esc(s.title)}</span>`).join('');statusEl.textContent='Ancienne conversation chargée.'});
+    list.querySelectorAll('[data-agent-delete]').forEach(b=>b.onclick=()=>{writeHistory(readHistory().filter(x=>x.id!==b.dataset.agentDelete));renderHistory()});
+  }
+
+  function ask(){
+    const question=qEl.value.trim();if(!question){statusEl.textContent='Écris d’abord une question.';qEl.focus();return}
+    lastQuestion=question;lastSources=retrieve(question);const context=buildContext(lastSources);lastAnswer='';answerEl.textContent='';contextEl.textContent=context||'Aucun contexte pertinent trouvé.';sourcesEl.innerHTML=lastSources.map(x=>`<span class="agent-source-chip">${esc(x.kind)} · ${esc(x.title)}</span>`).join('');
+    try{localStorage.setItem(AGENT_DRAFT_KEY,question)}catch(e){}
+    askBtn.disabled=true;statusEl.textContent=mobile?'Chargement de l’IA locale légère…':'Chargement de l’IA locale…';
+    clearTimeout(responseTimer);responseTimer=setTimeout(()=>{worker?.terminate();worker=null;askBtn.disabled=false;lastAnswer=fallback(lastQuestion,lastSources);answerEl.textContent=lastAnswer;statusEl.textContent='Le modèle a pris trop de temps. J’affiche le contexte pertinent à la place.';saveConversation()},mobile?75000:180000);
+    try{getWorker().postMessage({type:'ask',question,context})}catch(e){clearTimeout(responseTimer);askBtn.disabled=false;lastAnswer=fallback(lastQuestion,lastSources);answerEl.textContent=lastAnswer;statusEl.textContent='Impossible de démarrer le modèle local dans ce navigateur.';saveConversation()}
+  }
+
+  askBtn.onclick=ask;
+  section.querySelectorAll('[data-agent-quick]').forEach(b=>b.onclick=()=>{qEl.value=b.dataset.agentQuick;ask()});
+  section.querySelector('#agentNew').onclick=()=>{qEl.value='';answerEl.textContent='';contextEl.textContent='Aucun contexte recherché pour le moment.';sourcesEl.innerHTML='';lastQuestion='';lastAnswer='';statusEl.textContent='Nouvelle conversation prête.';qEl.focus()};
+  section.querySelector('#agentClearHistory').onclick=()=>{if(!confirm('Effacer tout l’historique de l’Agent IA ?'))return;writeHistory([]);renderHistory()};
+  qEl.value=localStorage.getItem(AGENT_DRAFT_KEY)||'';
+
+  section.querySelector('#agentCreateTask').onclick=()=>{
+    const t=section.querySelector('#agentTaskTitle'),domain=section.querySelector('#agentTaskDomain'),due=section.querySelector('#agentTaskDue');let title=t.value.trim()||lastQuestion.trim();if(!title){statusEl.textContent='Écris un titre de tâche.';t.focus();return}
+    try{
+      if(typeof state==='undefined'||typeof save!=='function')throw new Error('state unavailable');
+      state.tasks=state.tasks||[];state.tasks.push({id:typeof uid==='function'?uid():'agent-task-'+Date.now(),title,domain:domain.value.trim()||'Agent IA',due:due.value,nodeId:'',status:'open',createdAt:new Date().toISOString()});save();if(typeof renderTasks==='function')renderTasks();t.value='';statusEl.textContent='Tâche créée dans l’onglet Tâches.';
+    }catch(e){statusEl.textContent='Impossible de créer la tâche dans cette version du site.'}
+  };
+  section.querySelector('#agentSaveMemory').onclick=()=>{
+    if(!lastAnswer){statusEl.textContent='Demande d’abord quelque chose à l’agent.';return}
+    try{
+      if(typeof state==='undefined'||typeof save!=='function')throw new Error('state unavailable');
+      state.memories=state.memories||[];state.memories.push({id:typeof uid==='function'?uid():'agent-memory-'+Date.now(),title:'Agent IA — '+(lastQuestion||'Réponse').slice(0,70),domain:'Agent IA',content:lastAnswer,tags:['agent-ia'],createdAt:new Date().toISOString()});save();if(typeof renderMemories==='function')renderMemories();statusEl.textContent='Dernière réponse enregistrée dans Mémoire & contexte.';
+    }catch(e){statusEl.textContent='Impossible d’enregistrer cette mémoire dans cette version du site.'}
+  };
+
+  renderHistory();
+  tab.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));section.classList.add('active');window.scrollTo({top:0,behavior:'smooth'})};
+})();
