@@ -18,6 +18,7 @@
   if(!nav||!app||document.querySelector('[data-page="jesus-relation"]'))return;
 
   const REL_KEY='second-brain-relation-jesus-v1';
+  const FEAR_OF_OTHERS_QUESTION="est ce que j'ai peur du regard des autres ?";
   const defaults={
     activeSheet:'nutriments',
     nutriments:{
@@ -41,7 +42,8 @@
         ['as-tu toujours bésoin de tout controler (force tu les resultats)ou tu laisse Jéhovah prendre le relai a travers jesus-Christ','je laisse tout dans les mains de Dieu'],
         ["Te compare tu avec d'autre personnes ?",'oui quand, mais je n oublie pas que mon histoire , c est juste entre toi et moi ,père et cela decoulera naturellement vers les etres humains'],
         ['est ce que tu doutes de toi, croit -tu etre prêt ? As tu la foi ? Avance tu , par pas?','oui'],
-        ["est ce que je veille jusqu'à l'arriver du seigneur Jesus-Christ?(Marc 13:33)","oui , je veille jusqu'à l'arrivé du seigneur Jesus-Christ"]
+        ["est ce que je veille jusqu'à l'arriver du seigneur Jesus-Christ?(Marc 13:33)","oui , je veille jusqu'à l'arrivé du seigneur Jesus-Christ"],
+        [FEAR_OF_OTHERS_QUESTION,'']
       ]
     },
     bilan:{
@@ -68,6 +70,11 @@
   let relState;
   try{relState=JSON.parse(localStorage.getItem(REL_KEY)||'null')||clone(defaults)}catch(e){relState=clone(defaults)}
   if(!relState.nutriments||!relState.bilan||!relState.feuil2)relState=clone(defaults);
+  if(!Array.isArray(relState.nutriments.rows))relState.nutriments.rows=[];
+  if(!relState.nutriments.rows.some(r=>String(r?.[0]||'').trim().toLowerCase()===FEAR_OF_OTHERS_QUESTION.toLowerCase())){
+    relState.nutriments.rows.push([FEAR_OF_OTHERS_QUESTION,'']);
+    try{localStorage.setItem(REL_KEY,JSON.stringify(relState))}catch(e){}
+  }
 
   const style=document.createElement('style');
   style.textContent=`
