@@ -20,6 +20,7 @@
   const REL_KEY='second-brain-relation-jesus-v1';
   const FEAR_OF_OTHERS_QUESTION="est ce que j'ai peur du regard des autres ?";
   const SUPREME_AUTHORITY_QUESTION="est ce que je mets en avant l'autorité suprême de Jéhovah à travers Jésus-Christ, au-dessus des autorités relatives : l'argent, les gouvernements et les personnes ayant autorité ? est ce que je me rappelle que Jéhovah a laissé le Diable dominer le monde actuel ?";
+  const FAITH_GOALS_QUESTION="est ce que ma foi me permet d'atteindre mes buts ?";
   const defaults={
     activeSheet:'nutriments',
     nutriments:{
@@ -45,7 +46,8 @@
         ['est ce que tu doutes de toi, croit -tu etre prêt ? As tu la foi ? Avance tu , par pas?','oui'],
         ["est ce que je veille jusqu'à l'arriver du seigneur Jesus-Christ?(Marc 13:33)","oui , je veille jusqu'à l'arrivé du seigneur Jesus-Christ"],
         [FEAR_OF_OTHERS_QUESTION,''],
-        [SUPREME_AUTHORITY_QUESTION,'']
+        [SUPREME_AUTHORITY_QUESTION,''],
+        [FAITH_GOALS_QUESTION,'']
       ]
     },
     bilan:{
@@ -73,7 +75,7 @@
   try{relState=JSON.parse(localStorage.getItem(REL_KEY)||'null')||clone(defaults)}catch(e){relState=clone(defaults)}
   if(!relState.nutriments||!relState.bilan||!relState.feuil2)relState=clone(defaults);
   if(!Array.isArray(relState.nutriments.rows))relState.nutriments.rows=[];
-  [[FEAR_OF_OTHERS_QUESTION,''],[SUPREME_AUTHORITY_QUESTION,'']].forEach(required=>{
+  [[FEAR_OF_OTHERS_QUESTION,''],[SUPREME_AUTHORITY_QUESTION,''],[FAITH_GOALS_QUESTION,'']].forEach(required=>{
     if(!relState.nutriments.rows.some(r=>String(r?.[0]||'').trim().toLowerCase()===required[0].toLowerCase()))relState.nutriments.rows.push(required);
   });
   try{localStorage.setItem(REL_KEY,JSON.stringify(relState))}catch(e){}
