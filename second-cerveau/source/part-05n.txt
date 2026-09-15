@@ -1,0 +1,15 @@
+
+// V27 — questions séparées : foi, amélioration, positif, négatif
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V27';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V27';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V27 · cette version hérite directement de V26 et ajoute quatre questions séparées dans Nutriments : foi/rêves, amélioration, positif et négatif.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v27){
+      versions.dataset.v27='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V27 · actuelle</strong><small>Ajout séparé dans Ma relation avec Jésus → Nutriments : « Est-ce que ma foi est assez forte pour atteindre mes rêves ? », « Est-ce que je sais ce que je dois améliorer ? », « Est-ce que je sais ce qui est positif ? » et « Est-ce que je sais ce qui est négatif ? ».</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V26 · actuelle'));if(old)old.textContent='V26';
+    }
+  }catch(e){}
+})();
