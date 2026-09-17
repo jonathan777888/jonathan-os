@@ -23,19 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V27 from GitHub source parts
+      - name: Build current Second Cerveau V28 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V27' public/index.html
-          grep -q "FAITH_DREAMS_QUESTION" public/index.html
-          grep -q "IMPROVE_QUESTION" public/index.html
-          grep -q "POSITIVE_QUESTION" public/index.html
-          grep -q "NEGATIVE_QUESTION" public/index.html
-          grep -q "atteindre mes rêves" public/index.html
-          grep -q "ce que je dois améliorer" public/index.html
-          grep -q "ce qui est positif" public/index.html
-          grep -q "ce qui est négatif" public/index.html
+          grep -q 'Second Cerveau IA — V28' public/index.html
+          grep -q 'second-brain-site-zoom-v28' public/index.html
+          grep -q 'sbZoomOut' public/index.html
+          grep -q 'sbZoomIn' public/index.html
+          grep -q 'Revenir à 100 %' public/index.html
           if grep -q 'atob(' public/index.html; then exit 1; fi
 
       - uses: actions/configure-pages@v5
