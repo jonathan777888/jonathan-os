@@ -1,0 +1,51 @@
+
+// V28 — zoom et dézoom directement dans le Second Cerveau
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V28';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V28';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V28 · cette version hérite directement de V27 et ajoute le zoom/dézoom intégré au site avec mémorisation du niveau choisi.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v28){
+      versions.dataset.v28='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V28 · actuelle</strong><small>Ajout des contrôles de zoom intégrés au Second Cerveau : dézoomer, revenir à 100 % et zoomer. Le niveau choisi est mémorisé sur cet appareil.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V27 · actuelle'));if(old)old.textContent='V27';
+    }
+  }catch(e){}
+
+  const ZOOM_KEY='second-brain-site-zoom-v28';
+  const MIN_ZOOM=70, MAX_ZOOM=150, STEP=10;
+  let siteZoom=100;
+  try{
+    const saved=Number(localStorage.getItem(ZOOM_KEY));
+    if(Number.isFinite(saved)&&saved>=MIN_ZOOM&&saved<=MAX_ZOOM)siteZoom=saved;
+  }catch(e){}
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .sb-zoom-controls{position:fixed;right:18px;bottom:18px;z-index:99999;display:flex;align-items:center;gap:6px;padding:7px;border:1px solid rgba(35,49,44,.18);border-radius:16px;background:rgba(255,255,255,.96);box-shadow:0 10px 28px rgba(30,45,38,.18);backdrop-filter:blur(8px)}
+    .sb-zoom-btn{width:42px;height:42px;border:1px solid #dfe5db;border-radius:12px;background:#fff;color:#26312c;font-size:22px;font-weight:900;cursor:pointer;display:grid;place-items:center;line-height:1}
+    .sb-zoom-btn:hover{background:#eef4ec}.sb-zoom-value{min-width:62px;height:42px;border:1px solid #dfe5db;border-radius:12px;background:#f7faf5;color:#244d40;font-weight:900;cursor:pointer;padding:0 10px}
+    @media(max-width:700px){.sb-zoom-controls{right:10px;bottom:10px;padding:5px}.sb-zoom-btn{width:38px;height:38px}.sb-zoom-value{height:38px;min-width:58px}}
+  `;
+  document.head.appendChild(style);
+
+  const controls=document.createElement('div');
+  controls.className='sb-zoom-controls';
+  controls.setAttribute('aria-label','Contrôles de zoom du Second Cerveau');
+  controls.innerHTML=`<button class="sb-zoom-btn" id="sbZoomOut" type="button" title="Dézoomer" aria-label="Dézoomer">−</button><button class="sb-zoom-value" id="sbZoomReset" type="button" title="Revenir à 100 %" aria-label="Revenir au zoom 100 %">100%</button><button class="sb-zoom-btn" id="sbZoomIn" type="button" title="Zoomer" aria-label="Zoomer">+</button>`;
+  document.body.appendChild(controls);
+
+  const value=controls.querySelector('#sbZoomReset');
+  const applyZoom=next=>{
+    siteZoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,Math.round(next/STEP)*STEP));
+    document.body.style.zoom=String(siteZoom/100);
+    if(value)value.textContent=`${siteZoom}%`;
+    try{localStorage.setItem(ZOOM_KEY,String(siteZoom))}catch(e){}
+  };
+
+  controls.querySelector('#sbZoomOut').onclick=()=>applyZoom(siteZoom-STEP);
+  controls.querySelector('#sbZoomIn').onclick=()=>applyZoom(siteZoom+STEP);
+  controls.querySelector('#sbZoomReset').onclick=()=>applyZoom(100);
+  applyZoom(siteZoom);
+})();
