@@ -1,0 +1,127 @@
+
+// V30 — protection et récupération renforcées des sauvegardes et branches
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V30';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V30';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V30 · cette version hérite directement de V29 et renforce la protection des branches et des sauvegardes locales.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v30){
+      versions.dataset.v30='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V30 · actuelle</strong><small>Protection renforcée : historique élargi, sauvegarde automatique avant restauration, réaffichage des branches et outil de récupération des anciennes sauvegardes locales encore présentes dans le navigateur.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V29 · actuelle'));if(old)old.textContent='V29';
+    }
+  }catch(e){}
+
+  const HIST_KEY='second-brain-history';
+  const COLLAPSE_KEY='second-brain-collapsed-branches-v17';
+  const RECOVERY_FLAG='second-brain-v30-unhide-done';
+
+  // Une seule fois lors du passage à V30 : réafficher toutes les branches.
+  try{
+    if(!localStorage.getItem(RECOVERY_FLAG)){
+      localStorage.setItem(COLLAPSE_KEY,'[]');
+      localStorage.setItem(RECOVERY_FLAG,new Date().toISOString());
+    }
+  }catch(e){}
+
+  function safeParse(raw){try{return JSON.parse(raw)}catch(e){return null}}
+  function clone(v){try{return JSON.parse(JSON.stringify(v))}catch(e){return v}}
+  function stateFromCandidate(v){
+    if(!v||typeof v!=='object')return null;
+    if(v.state?.tree)return clone(v.state);
+    if(v.tree)return clone(v);
+    if(v.map&&typeof v.map==='object')return {tree:clone(v.map),relations:[],reviews:{},memories:[],tasks:[],linkArchive:[],meta:{recoveredFromLegacyMap:true}};
+    if(v.id&&Array.isArray(v.children))return {tree:clone(v),relations:[],reviews:{},memories:[],tasks:[],linkArchive:[],meta:{recoveredFromLegacyTree:true}};
+    return null;
+  }
+  function treeFingerprint(s){
+    try{return JSON.stringify(s?.tree||null)}catch(e){return ''}
+  }
+  function collectCandidate(value,key,out,depth=0){
+    if(!value||depth>4)return;
+    if(Array.isArray(value)){
+      value.forEach((x,i)=>collectCandidate(x,key+' #'+(i+1),out,depth+1));
+      return;
+    }
+    if(typeof value!=='object')return;
+    const s=stateFromCandidate(value);
+    if(s){
+      out.push({
+        at:value.at||value.time||value.updatedAt||s.updatedAt||s.meta?.lastSavedAt||new Date().toISOString(),
+        appVersion:value.appVersion||s.meta?.appVersion||'ancienne version',
+        reason:'récupérée depuis '+key,
+        state:s
+      });
+    }
+    if(value.state)collectCandidate(value.state,key+' state',out,depth+1);
+    if(value.data)collectCandidate(value.data,key+' data',out,depth+1);
+  }
+
+  function recoverLocalBackups(){
+    const found=[];
+    const keyNames=[];
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&(k.includes('second-brain')||k.includes('jonathan-racines')||k.includes('carte-racines')))keyNames.push(k);
+      }
+    }catch(e){}
+    keyNames.forEach(k=>{
+      try{
+        const v=safeParse(localStorage.getItem(k));
+        if(v)collectCandidate(v,k,found,0);
+      }catch(e){}
+    });
+
+    let current=safeParse(localStorage.getItem(HIST_KEY));
+    if(!Array.isArray(current))current=[];
+    const merged=[...current];
+    const seen=new Set(current.map(x=>treeFingerprint(x?.state)).filter(Boolean));
+    let added=0;
+    for(const item of found){
+      const fp=treeFingerprint(item.state);
+      if(!fp||seen.has(fp))continue;
+      seen.add(fp);merged.push(item);added++;
+    }
+    merged.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+    const kept=merged.slice(0,100);
+    try{
+      localStorage.setItem(HIST_KEY,JSON.stringify(kept));
+      localStorage.setItem('second-brain-v7-history',JSON.stringify(kept));
+    }catch(e){
+      alert('La récupération a trouvé des données, mais le stockage du navigateur est plein. Exporte immédiatement la sauvegarde actuelle en JSON avant de continuer.');
+      return;
+    }
+    alert(added
+      ? added+' ancienne(s) sauvegarde(s) locale(s) retrouvée(s). La page va se recharger pour les afficher.'
+      : 'Aucune sauvegarde supplémentaire n’a été retrouvée dans les données locales encore présentes sur ce navigateur.');
+    location.reload();
+  }
+
+  const backupList=document.getElementById('backupList');
+  if(backupList&&!document.getElementById('recoverLocalBackupsV30')){
+    const box=document.createElement('div');
+    box.className='actions';
+    box.style.marginBottom='12px';
+    const recover=document.createElement('button');
+    recover.type='button';
+    recover.className='btn primary';
+    recover.id='recoverLocalBackupsV30';
+    recover.textContent='Récupérer anciennes sauvegardes locales';
+    recover.title='Recherche les anciennes sauvegardes encore présentes dans ce navigateur sans remplacer la carte actuelle';
+    recover.onclick=recoverLocalBackups;
+    const show=document.createElement('button');
+    show.type='button';
+    show.className='btn';
+    show.id='showAllBranchesV30';
+    show.textContent='Réafficher toutes les branches';
+    show.onclick=()=>{
+      try{localStorage.setItem(COLLAPSE_KEY,'[]')}catch(e){}
+      const existing=document.getElementById('expandAllBranches');
+      if(existing)existing.click();else location.reload();
+    };
+    box.appendChild(recover);box.appendChild(show);
+    backupList.parentElement.insertBefore(box,backupList);
+  }
+})();
