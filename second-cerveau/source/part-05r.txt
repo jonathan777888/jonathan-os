@@ -1,0 +1,15 @@
+
+// V31 — correction du bug de zoom qui pouvait désynchroniser la carte
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V31';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V31';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V31 · cette version hérite directement de V30 et corrige le bug de zoom qui pouvait désynchroniser l’affichage et les coordonnées de la carte.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v31){
+      versions.dataset.v31='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V31 · actuelle</strong><small>Correction critique : le zoom global du body a été supprimé. Le zoom est maintenant sûr et ne modifie plus les coordonnées enregistrées des branches de la carte.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V30 · actuelle'));if(old)old.textContent='V30';
+    }
+  }catch(e){}
+})();
