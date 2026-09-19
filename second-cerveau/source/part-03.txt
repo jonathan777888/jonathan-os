@@ -21,7 +21,62 @@ function enableDrag(el,node){let active=false,moved=false,startX=0,startY=0,star
 function renderLinesOnly(){const svg=$('lines');svg.innerHTML='';flattenTree(state.tree).forEach(({node,parent})=>{if(!parent)return;const p=document.createElementNS('http://www.w3.org/2000/svg','path');const mx=(parent.x+node.x)/2;p.setAttribute('d',`M ${parent.x} ${parent.y} C ${mx} ${parent.y}, ${mx} ${node.y}, ${node.x} ${node.y}`);p.setAttribute('fill','none');p.setAttribute('stroke','#d3d9ce');p.setAttribute('stroke-width','2.4');svg.appendChild(p)});state.relations.forEach(r=>{const a=findNode(r.from),b=findNode(r.to);if(!a||!b)return;const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',`M ${a.x} ${a.y} Q ${(a.x+b.x)/2} ${(a.y+b.y)/2-70}, ${b.x} ${b.y}`);p.setAttribute('fill','none');p.setAttribute('stroke','#7990a3');p.setAttribute('stroke-width','2');p.setAttribute('stroke-dasharray','7 6');svg.appendChild(p)})}
 function renderEditor(){const n=findNode(selected)||state.tree;$('nodeSideTitle').textContent=n.title;$('nodeTitle').value=n.title||'';$('nodeBody').value=n.body||'';$('nodeLink').value=n.link||'';$('nodeTags').value=(n.tags||[]).join(', ');$('deleteNode').disabled=n.id==='jesus';$('relationsList').innerHTML=state.relations.filter(r=>r.from===n.id||r.to===n.id).map(r=>{const other=findNode(r.from===n.id?r.to:r.from);return `<span class="relation-chip">${esc(r.label||'relation')} → ${esc(other?.title||'?')} <button data-rel="${r.id}" style="border:0;background:none;cursor:pointer">×</button></span>`}).join('')||'Aucune relation multiple.';document.querySelectorAll('[data-rel]').forEach(b=>b.addEventListener('click',()=>{state.relations=state.relations.filter(r=>r.id!==b.dataset.rel);save();renderMap()}))}
 function renderSelects(){const opts=flattenTree(state.tree).map(({node})=>`<option value="${node.id}">${esc(node.title)}</option>`).join('');$('relationTarget').innerHTML=opts;$('taskNode').innerHTML='<option value="">Aucune branche</option>'+opts}
-$('addRoot').onclick=()=>{const wrap=$('canvasWrap'),cx=wrap.scrollLeft+wrap.clientWidth/2,cy=wrap.scrollTop+wrap.clientHeight/2;const n={id:uid(),title:'Nouvelle racine',body:'',link:'',tags:[],x:Math.max(120,cx+Math.round(Math.random()*360-180)),y:Math.max(100,cy+Math.round(Math.random()*300-150)),children:[]};state.tree.children.push(n);selected=n.id;growCanvasForAll();save(false);renderMap()};$('addChild').onclick=()=>{const p=findNode(selected);if(!p)return;const n={id:uid(),title:'Nouvelle sous-racine',body:'',link:'',tags:[],x:(Number(p.x)||650)+190,y:(Number(p.y)||430)+140,children:[]};p.children=p.children||[];p.children.push(n);selected=n.id;growCanvasForAll();save(false);renderMap()};let nodeAutosaveTimer=null;
+function nodePositionIsFree(x,y,excludeId=''){
+  return flattenTree(state.tree).every(({node})=>{
+    if(node.id===excludeId)return true;
+    const dx=Math.abs((Number(node.x)||0)-x),dy=Math.abs((Number(node.y)||0)-y);
+    return dx>230||dy>150;
+  });
+}
+function findFreeNodePosition(baseX,baseY,excludeId=''){
+  const offsets=[
+    [220,140],[220,-140],[-220,140],[-220,-140],
+    [330,0],[-330,0],[0,220],[0,-220],
+    [420,180],[420,-180],[-420,180],[-420,-180],
+    [520,0],[-520,0],[0,340],[0,-340]
+  ];
+  for(const [dx,dy] of offsets){
+    const x=Math.max(120,baseX+dx),y=Math.max(100,baseY+dy);
+    if(nodePositionIsFree(x,y,excludeId))return{x,y};
+  }
+  for(let ring=1;ring<=12;ring++){
+    const radius=260+ring*110;
+    for(let i=0;i<16;i++){
+      const a=(Math.PI*2*i)/16;
+      const x=Math.max(120,Math.round(baseX+Math.cos(a)*radius));
+      const y=Math.max(100,Math.round(baseY+Math.sin(a)*radius));
+      if(nodePositionIsFree(x,y,excludeId))return{x,y};
+    }
+  }
+  return{x:Math.max(120,baseX+260),y:Math.max(100,baseY+180)};
+}
+function findOverlappingNodes(){
+  const flat=flattenTree(state.tree),bad=[];
+  for(let i=0;i<flat.length;i++)for(let j=i+1;j<flat.length;j++){
+    const a=flat[i].node,b=flat[j].node;
+    if(a.id==='jesus'||b.id==='jesus')continue;
+    const dx=Math.abs((Number(a.x)||0)-(Number(b.x)||0));
+    const dy=Math.abs((Number(a.y)||0)-(Number(b.y)||0));
+    if(dx<180&&dy<110)bad.push({entry:flat[j],withNode:a});
+  }
+  const seen=new Set();
+  return bad.filter(x=>!seen.has(x.entry.node.id)&&(seen.add(x.entry.node.id),true));
+}
+function repairOverlappingNodes(){
+  const overlaps=findOverlappingNodes();
+  if(!overlaps.length){$('mapStatus').textContent='Aucune branche superposée détectée.';return}
+  pushHistory('before-overlap-repair');
+  overlaps.forEach(({entry})=>{
+    const node=entry.node,parent=entry.parent;
+    const baseX=Number(parent?.x??node.x??650),baseY=Number(parent?.y??node.y??430);
+    const pos=findFreeNodePosition(baseX,baseY,node.id);
+    node.x=pos.x;node.y=pos.y;
+  });
+  growCanvasForAll();save(false);renderMap();
+  $('mapStatus').textContent=`${overlaps.length} branche${overlaps.length>1?'s':''} superposée${overlaps.length>1?'s':''} séparée${overlaps.length>1?'s':''}. Une sauvegarde de sécurité a été créée avant la réparation.`;
+}
+
+$('addRoot').onclick=()=>{const wrap=$('canvasWrap'),cx=wrap.scrollLeft+wrap.clientWidth/2,cy=wrap.scrollTop+wrap.clientHeight/2,pos=findFreeNodePosition(cx,cy);const n={id:uid(),title:'Nouvelle racine',body:'',link:'',tags:[],x:pos.x,y:pos.y,children:[]};state.tree.children.push(n);selected=n.id;growCanvasForAll();save(false);renderMap();$('mapStatus').textContent='Nouvelle racine créée dans un espace libre.'};$('addChild').onclick=()=>{const p=findNode(selected);if(!p)return;const pos=findFreeNodePosition(Number(p.x)||650,Number(p.y)||430);const n={id:uid(),title:'Nouvelle sous-racine',body:'',link:'',tags:[],x:pos.x,y:pos.y,children:[]};p.children=p.children||[];p.children.push(n);selected=n.id;growCanvasForAll();save(false);renderMap();$('mapStatus').textContent='Nouvelle sous-racine créée dans un espace libre.'};let nodeAutosaveTimer=null;
 function updateSelectedFromEditor(){
   const n=findNode(selected);if(!n)return false;
   n.title=$('nodeTitle').value.trim()||'Sans titre';
@@ -38,6 +93,11 @@ function queueNodeAutosave(){
 ['nodeTitle','nodeBody','nodeLink','nodeTags'].forEach(id=>$(id).addEventListener('input',queueNodeAutosave));
 window.addEventListener('beforeunload',()=>{if(nodeAutosaveTimer){clearTimeout(nodeAutosaveTimer);nodeAutosaveTimer=null;if(updateSelectedFromEditor())save()}});
 $('saveNode').onclick=()=>{if(!updateSelectedFromEditor())return;clearTimeout(nodeAutosaveTimer);nodeAutosaveTimer=null;save();$('mapStatus').textContent='Bloc enregistré.';renderMap()};$('deleteNode').onclick=()=>deleteBlock(selected);$('addRelation').onclick=()=>{const to=$('relationTarget').value;if(!to||to===selected)return;state.relations.push({id:uid(),from:selected,to,label:$('relationLabel').value.trim()});$('relationLabel').value='';save();renderMap()};$('saveNow').onclick=()=>{save(true);$('mapStatus').textContent='Sauvegarde créée.'};$('fitMap').onclick=()=>centerOnNode('jesus');
+const mapActions=document.querySelector('#page-map .maphead .actions');
+if(mapActions&&!document.getElementById('repairOverlapsV32')){
+  const b=document.createElement('button');b.type='button';b.className='btn';b.id='repairOverlapsV32';b.textContent='Séparer branches superposées';b.onclick=repairOverlappingNodes;mapActions.appendChild(b);
+}
+requestAnimationFrame(()=>{const n=findOverlappingNodes().length;if(n&&$('mapStatus'))$('mapStatus').textContent=n+' branche(s) superposée(s) détectée(s). Clique sur « Séparer branches superposées ».'});
 function localDate(){const d=new Date(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return`${d.getFullYear()}-${m}-${day}`}
 $('reviewDate').value=localDate();function loadReview(){const r=normalizeReview(state.reviews[$('reviewDate').value]);$('worked').value=r.worked||'';$('notWorked').value=r.notWorked||'';$('improve').value=r.improve||'';renderReviewList()}function renderReviewList(){const entries=Object.entries(state.reviews).filter(([,r])=>reviewHasText(r)).sort((a,b)=>b[0].localeCompare(a[0]));$('reviewList').innerHTML=entries.map(([date,r])=>{const preview=(r.worked||r.notWorked||r.improve||'Bilan enregistré').slice(0,110);return `<div class="item"><strong>${esc(date)}</strong><small>${esc(preview)}</small><button class="btn" data-review-date="${esc(date)}" style="margin-top:7px;min-height:30px">Ouvrir</button></div>`}).join('')||'<div class="muted">Aucun bilan retrouvé dans ce navigateur.</div>';document.querySelectorAll('[data-review-date]').forEach(b=>b.onclick=()=>{$('reviewDate').value=b.dataset.reviewDate;loadReview();$('reviewStatus').textContent='Ancien bilan chargé.'})}$('reviewDate').onchange=loadReview;$('saveReview').onclick=()=>{state.reviews[$('reviewDate').value]={worked:$('worked').value,notWorked:$('notWorked').value,improve:$('improve').value,updatedAt:new Date().toISOString()};save();$('reviewStatus').textContent='Bilan sauvegardé.';renderReviewList()};$('recoverReviews').onclick=()=>{const n=recoverLegacyReviews(state);save(n>0);renderReviewList();loadReview();$('reviewStatus').textContent=n?`${n} ancien${n>1?'s':''} bilan${n>1?'s':''} récupéré${n>1?'s':''}.`:'Aucun autre ancien bilan accessible sur ce domaine.'};loadReview();if(recoveredOnStart)$('reviewStatus').textContent=`${recoveredOnStart} ancien${recoveredOnStart>1?'s':''} bilan${recoveredOnStart>1?'s':''} récupéré${recoveredOnStart>1?'s':''} automatiquement.`;
 function renderMemories(){$('memoryList').innerHTML=state.memories.slice().reverse().map(m=>`<div class="item"><strong>${esc(m.title)}</strong><small>${esc(m.domain||'')} · ${esc((m.tags||[]).join(', '))}<br>${esc(m.content)}</small><button class="btn" data-delmem="${m.id}" style="margin-top:7px;min-height:30px">Supprimer</button></div>`).join('')||'<div class="muted">Aucune mémoire.</div>';document.querySelectorAll('[data-delmem]').forEach(b=>b.onclick=()=>{state.memories=state.memories.filter(m=>m.id!==b.dataset.delmem);save();renderMemories()})}$('addMemory').onclick=()=>{const title=$('memoryTitle').value.trim(),content=$('memoryContent').value.trim();if(!title&&!content)return;state.memories.push({id:uid(),title:title||'Mémoire',domain:$('memoryDomain').value.trim(),content,tags:$('memoryTags').value.split(',').map(x=>x.trim()).filter(Boolean),createdAt:new Date().toISOString()});['memoryTitle','memoryDomain','memoryContent','memoryTags'].forEach(id=>$(id).value='');save();renderMemories()};renderMemories();
