@@ -6,10 +6,63 @@ function prepareInfiniteCanvas(s){s.meta=s.meta||{};if(!s.meta.infiniteCanvasV13
 function updateCanvasSize(){const c=$('canvas'),svg=$('lines');if(!c||!svg)return;const w=Math.max(MAP_MIN_W,Number(state.meta?.canvasWidth)||MAP_MIN_W),h=Math.max(MAP_MIN_H,Number(state.meta?.canvasHeight)||MAP_MIN_H);state.meta.canvasWidth=w;state.meta.canvasHeight=h;c.style.width=w+'px';c.style.height=h+'px';c.style.minWidth=w+'px';c.style.minHeight=h+'px';svg.setAttribute('viewBox',`0 0 ${w} ${h}`)}
 function growCanvasForAll(){const nodes=[];walkWorldNodes(state.tree,n=>nodes.push(n));if(!nodes.length)return;state.meta.canvasWidth=Math.max(MAP_MIN_W,Number(state.meta.canvasWidth)||MAP_MIN_W);state.meta.canvasHeight=Math.max(MAP_MIN_H,Number(state.meta.canvasHeight)||MAP_MIN_H);let minX=Math.min(...nodes.map(n=>Number(n.x)||0)),minY=Math.min(...nodes.map(n=>Number(n.y)||0)),maxX=Math.max(...nodes.map(n=>Number(n.x)||0)),maxY=Math.max(...nodes.map(n=>Number(n.y)||0)),shiftX=0,shiftY=0;while(minX+shiftX<MAP_MARGIN){shiftX+=MAP_GROW;state.meta.canvasWidth+=MAP_GROW}while(minY+shiftY<MAP_MARGIN){shiftY+=MAP_GROW;state.meta.canvasHeight+=MAP_GROW}if(shiftX||shiftY){nodes.forEach(n=>{n.x=(Number(n.x)||0)+shiftX;n.y=(Number(n.y)||0)+shiftY});maxX+=shiftX;maxY+=shiftY}while(maxX>state.meta.canvasWidth-MAP_MARGIN)state.meta.canvasWidth+=MAP_GROW;while(maxY>state.meta.canvasHeight-MAP_MARGIN)state.meta.canvasHeight+=MAP_GROW;updateCanvasSize();if(shiftX||shiftY){const wrap=$('canvasWrap');requestAnimationFrame(()=>{wrap.scrollLeft+=shiftX;wrap.scrollTop+=shiftY})}}
 function centerOnNode(id='jesus',behavior='smooth'){const n=findNode(id),wrap=$('canvasWrap');if(!n||!wrap)return;wrap.scrollTo({left:Math.max(0,(Number(n.x)||0)-wrap.clientWidth/2),top:Math.max(0,(Number(n.y)||0)-wrap.clientHeight/2),behavior})}
-let state=migrate(),selected='jesus';prepareInfiniteCanvas(state);const recoveredOnStart=recoverLegacyReviews(state);const recoveredLinksOnStart=recoverLegacyLinks(state);state.meta=state.meta||{};state.meta.appVersion=APP_VERSION;state.meta.schemaVersion=SCHEMA_VERSION;localStorage.setItem(KEY,JSON.stringify(state));localStorage.setItem(LEGACY_STATE_KEY,JSON.stringify(state));
+function removeExactLegacyDuplicates(){
+  try{
+    const currentRaw=localStorage.getItem(KEY),legacyRaw=localStorage.getItem(LEGACY_STATE_KEY);
+    if(currentRaw&&legacyRaw===currentRaw)localStorage.removeItem(LEGACY_STATE_KEY);
+    const histRaw=localStorage.getItem(HIST),legacyHistRaw=localStorage.getItem(LEGACY_HIST);
+    if(histRaw&&legacyHistRaw===histRaw)localStorage.removeItem(LEGACY_HIST);
+  }catch(e){}
+}
+function storageBytes(){
+  let total=0;
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'',v=localStorage.getItem(k)||'';total+=(k.length+v.length)*2}}catch(e){}
+  return total;
+}
+function storeCurrentStateRaw(raw){
+  try{localStorage.setItem(KEY,raw);return true}catch(e){return false}
+}
+function emergencyFreeSpace(){
+  try{
+    removeExactLegacyDuplicates();
+    localStorage.removeItem(LEGACY_STATE_KEY);
+    localStorage.removeItem(LEGACY_HIST);
+    let h=readJson(HIST,[]);
+    if(Array.isArray(h)&&h.length>12)localStorage.setItem(HIST,JSON.stringify(h.slice(0,12)));
+  }catch(e){}
+}
+let state=migrate(),selected='jesus';prepareInfiniteCanvas(state);const recoveredOnStart=recoverLegacyReviews(state);const recoveredLinksOnStart=recoverLegacyLinks(state);state.meta=state.meta||{};state.meta.appVersion=APP_VERSION;state.meta.schemaVersion=SCHEMA_VERSION;removeExactLegacyDuplicates();
+{
+  const raw=JSON.stringify(state);
+  if(!storeCurrentStateRaw(raw)){emergencyFreeSpace();storeCurrentStateRaw(raw)}
+}
 function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
-function save(snapshot=false){state.updatedAt=new Date().toISOString();state.meta=state.meta||{};state.meta.appVersion=APP_VERSION;state.meta.schemaVersion=SCHEMA_VERSION;state.meta.lastSavedAt=state.updatedAt;localStorage.setItem(KEY,JSON.stringify(state));localStorage.setItem(LEGACY_STATE_KEY,JSON.stringify(state));if(snapshot)pushHistory();}
-function pushHistory(reason='manual'){let h=readJson(HIST,[]);if(!Array.isArray(h))h=[];h.unshift({at:new Date().toISOString(),appVersion:APP_VERSION,reason,state:clone(state)});h=h.slice(0,100);localStorage.setItem(HIST,JSON.stringify(h));localStorage.setItem(LEGACY_HIST,JSON.stringify(h));renderHistory()}
+function save(snapshot=false){
+  state.updatedAt=new Date().toISOString();state.meta=state.meta||{};state.meta.appVersion=APP_VERSION;state.meta.schemaVersion=SCHEMA_VERSION;state.meta.lastSavedAt=state.updatedAt;
+  const raw=JSON.stringify(state);
+  let ok=storeCurrentStateRaw(raw);
+  if(!ok){emergencyFreeSpace();ok=storeCurrentStateRaw(raw)}
+  if(!ok){
+    const status=$('mapStatus');if(status)status.textContent='ERREUR : stockage du navigateur plein. La modification est visible mais ne survivra pas à un rechargement. Exporte immédiatement une sauvegarde JSON.';
+    return false;
+  }
+  if(snapshot)pushHistory();
+  const status=$('mapStatus');
+  if(status&&storageBytes()>4*1024*1024)status.textContent='Sauvegardé, mais le stockage local dépasse 4 Mo. Pense à exporter une sauvegarde JSON.';
+  return true;
+}
+function pushHistory(reason='manual'){
+  let h=readJson(HIST,[]);if(!Array.isArray(h))h=[];
+  h.unshift({at:new Date().toISOString(),appVersion:APP_VERSION,reason,state:clone(state)});
+  h=h.slice(0,30);
+  let saved=false;
+  for(const limit of [30,20,12,6]){
+    try{localStorage.setItem(HIST,JSON.stringify(h.slice(0,limit)));saved=true;break}catch(e){}
+  }
+  try{localStorage.removeItem(LEGACY_HIST)}catch(e){}
+  if(!saved){const status=$('mapStatus');if(status)status.textContent='La carte actuelle est sauvegardée, mais l’historique est plein. Exporte une copie JSON.'}
+  renderHistory()
+}
 function flattenTree(root,depth=0,parent=null,out=[]){out.push({node:root,depth,parent});(root.children||[]).forEach(c=>flattenTree(c,depth+1,root,out));return out}
 function findNode(id){return flattenTree(state.tree).find(x=>x.node.id===id)?.node||null}
 function removeNode(parent,id){if(!parent.children)return false;const i=parent.children.findIndex(n=>n.id===id);if(i>=0){parent.children.splice(i,1);return true}return parent.children.some(c=>removeNode(c,id))}
