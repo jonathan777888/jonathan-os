@@ -113,6 +113,19 @@
     }finally{applying=false}
   }
 
+  const addChildButton=document.getElementById('addChild');
+  if(addChildButton&&!addChildButton.dataset.v29AutoExpand){
+    addChildButton.dataset.v29AutoExpand='1';
+    addChildButton.addEventListener('click',()=>{
+      const current=canvas.querySelector(':scope > .node.selected');
+      const id=current?.dataset?.collapseNodeId;
+      if(id&&collapsed.has(id)){
+        collapsed.delete(id);
+        saveCollapsed();
+      }
+    },true);
+  }
+
   const actions=document.querySelector('#page-map .maphead .actions');
   if(actions&&!document.getElementById('collapseAllBranches')){
     const reduce=document.createElement('button');
