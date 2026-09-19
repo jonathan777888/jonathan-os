@@ -1,0 +1,15 @@
+
+// V32 — correction des branches superposées qui semblaient disparaître
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V32';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V32';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V32 · cette version hérite directement de V31 et corrige les branches créées au même emplacement qui donnaient l’impression de disparaître.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v32){
+      versions.dataset.v32='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V32 · actuelle</strong><small>Correction : chaque nouvelle branche cherche une position libre. Ajout d’un outil « Séparer branches superposées » pour réparer les branches déjà empilées.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V31 · actuelle'));if(old)old.textContent='V31';
+    }
+  }catch(e){}
+})();
