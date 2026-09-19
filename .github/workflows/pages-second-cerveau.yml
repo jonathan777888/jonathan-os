@@ -23,11 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V28 from GitHub source parts
+      - name: Build current Second Cerveau V29 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V28' public/index.html
+          grep -q 'Second Cerveau IA — V29' public/index.html
+          grep -q 'Autosauvegardé.' public/index.html
+          grep -q 'v29AutoExpand' public/index.html
           grep -q 'second-brain-site-zoom-v28' public/index.html
           grep -q 'sbZoomOut' public/index.html
           grep -q 'sbZoomIn' public/index.html
