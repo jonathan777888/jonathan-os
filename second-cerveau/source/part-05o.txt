@@ -1,5 +1,5 @@
 
-// V28 — zoom et dézoom directement dans le Second Cerveau
+// V28/V31 — zoom sécurisé du Second Cerveau
 (()=>{
   try{
     document.title='Second Cerveau IA — V28';
@@ -21,11 +21,18 @@
     if(Number.isFinite(saved)&&saved>=MIN_ZOOM&&saved<=MAX_ZOOM)siteZoom=saved;
   }catch(e){}
 
+  // IMPORTANT V31 : ne jamais utiliser CSS zoom sur body.
+  // La carte travaille avec ses propres coordonnées x/y ; zoomer body désynchronisait
+  // l'affichage, le scroll et les déplacements enregistrés.
+  document.body.style.zoom='';
+
   const style=document.createElement('style');
   style.textContent=`
+    :root{--sb-safe-ui-scale:1;--sb-safe-node-scale:1}
     .sb-zoom-controls{position:fixed;right:18px;bottom:18px;z-index:99999;display:flex;align-items:center;gap:6px;padding:7px;border:1px solid rgba(35,49,44,.18);border-radius:16px;background:rgba(255,255,255,.96);box-shadow:0 10px 28px rgba(30,45,38,.18);backdrop-filter:blur(8px)}
     .sb-zoom-btn{width:42px;height:42px;border:1px solid #dfe5db;border-radius:12px;background:#fff;color:#26312c;font-size:22px;font-weight:900;cursor:pointer;display:grid;place-items:center;line-height:1}
     .sb-zoom-btn:hover{background:#eef4ec}.sb-zoom-value{min-width:62px;height:42px;border:1px solid #dfe5db;border-radius:12px;background:#f7faf5;color:#244d40;font-weight:900;cursor:pointer;padding:0 10px}
+    #page-map .canvas .node{transform:translate(-50%,-50%) scale(var(--sb-safe-node-scale))!important;transform-origin:center center}
     @media(max-width:700px){.sb-zoom-controls{right:10px;bottom:10px;padding:5px}.sb-zoom-btn{width:38px;height:38px}.sb-zoom-value{height:38px;min-width:58px}}
   `;
   document.head.appendChild(style);
@@ -37,9 +44,29 @@
   document.body.appendChild(controls);
 
   const value=controls.querySelector('#sbZoomReset');
+  const safeTargets=()=>{
+    const targets=[];
+    const top=document.querySelector('.top');if(top)targets.push(top);
+    const tabs=document.querySelector('.tabs');if(tabs)targets.push(tabs);
+    document.querySelectorAll('.page').forEach(p=>{if(p.id!=='page-map')targets.push(p)});
+    const maphead=document.querySelector('#page-map .maphead');if(maphead)targets.push(maphead);
+    const side=document.querySelector('#page-map .side');if(side)targets.push(side);
+    return targets;
+  };
+
   const applyZoom=next=>{
     siteZoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,Math.round(next/STEP)*STEP));
-    document.body.style.zoom=String(siteZoom/100);
+    const scale=siteZoom/100;
+
+    // Réinitialise tout ancien zoom global pouvant corrompre la carte.
+    document.body.style.zoom='';
+
+    // Les panneaux non-cartographiques peuvent être zoomés sans modifier les x/y de la carte.
+    safeTargets().forEach(el=>{el.style.zoom=String(scale)});
+
+    // Dans la carte, seuls les blocs sont agrandis visuellement : left/top/x/y restent intacts.
+    document.documentElement.style.setProperty('--sb-safe-node-scale',String(scale));
+
     if(value)value.textContent=`${siteZoom}%`;
     try{localStorage.setItem(ZOOM_KEY,String(siteZoom))}catch(e){}
   };
