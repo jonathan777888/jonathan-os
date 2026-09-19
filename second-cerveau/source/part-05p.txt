@@ -1,0 +1,15 @@
+
+// V29 — fiabilité de la carte : autosauvegarde et sous-branches visibles
+(()=>{
+  try{
+    document.title='Second Cerveau IA — V29';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V29';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V29 · cette version hérite directement de V28 et renforce la fiabilité de la carte : autosauvegarde des modifications et affichage automatique des nouvelles sous-branches.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v29){
+      versions.dataset.v29='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V29 · actuelle</strong><small>Correction de la carte : les modifications d’un bloc sont autosauvegardées pendant la saisie et une branche repliée se déplie automatiquement lorsque tu ajoutes une nouvelle sous-branche.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V28 · actuelle'));if(old)old.textContent='V28';
+    }
+  }catch(e){}
+})();
