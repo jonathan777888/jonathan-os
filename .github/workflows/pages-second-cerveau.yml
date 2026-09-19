@@ -23,11 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V30 from GitHub source parts
+      - name: Build current Second Cerveau V31 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V30' public/index.html
+          grep -q 'Second Cerveau IA — V31' public/index.html
+          grep -q 'document.body.style.zoom' public/index.html
+          grep -q -- '--sb-safe-node-scale' public/index.html
+          grep -q 'Correction critique' public/index.html
           grep -q 'recoverLocalBackupsV30' public/index.html
           grep -q 'before-restore' public/index.html
           grep -q 'slice(0,100)' public/index.html
