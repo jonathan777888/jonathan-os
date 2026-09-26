@@ -1,0 +1,307 @@
+
+// V43 — Vérification d'apprentissage par documents + recherche web
+(()=>{
+  const LEARN_KEY='second-brain-learning-v33';
+  const WORK_KEY='second-brain-method-workspaces-v35';
+  const CORNELL_KEY='second-brain-cornell-v37';
+  const VERIFY_KEY='second-brain-verify-v43';
+  const TOKEN_KEY='second-brain-verify-token-v43';
+  const ENDPOINT='https://wuhbalxjpcfemsxdnggp.supabase.co/functions/v1/second-brain-verify';
+
+  try{
+    document.title='Second Cerveau IA — V43';
+    const pill=document.querySelector('.pill'); if(pill) pill.textContent='Second Cerveau IA — V43';
+    const vs=document.getElementById('versionStatus');
+    if(vs) vs.textContent='Version actuelle V43 · vérification d’apprentissage après réponse : documents + recherche web + correction sourcée + Cornell vérifiée.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v43){
+      versions.dataset.v43='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V43 · actuelle</strong><small>Tu réponds d’abord seul, puis le système vérifie avec tes documents et des sources web fiables avant de produire une Cornell vérifiée.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V42 · actuelle'));
+      if(old) old.textContent='V42';
+    }
+  }catch(e){}
+
+  const page=document.getElementById('page-learning');
+  if(!page)return;
+
+  const readJson=(k,f={})=>{try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch(e){return f}};
+  const clean=v=>String(v??'').trim();
+
+  const coreDefs=[
+    ['what','What? — C’est quoi ?'],['who','Who? — Qui est concerné ?'],['where','Where? — Où ?'],
+    ['when','When? — Quand ?'],['why','Why? — Pourquoi ?'],['how','How? — Comment ?'],
+    ['whatif','What if? — Que se passe-t-il si… ?'],['feynman','Méthode Feynman — Explique avec tes propres mots'],
+    ['example','Exemple concret'],['analogy','Analogie'],['practice','Exercices pratiques / rappel actif'],
+    ['errors','Méthode des erreurs'],['miniTest','Mini-examen']
+  ];
+  const methodNames=[
+    'Méthode Feynman','Rappel actif','Répétition espacée','Exercices pratiques','Pourquoi / Comment',
+    'Carte mentale / conceptuelle','Double codage','Exemples concrets','Comparaison','Apprentissage par projet',
+    'Entrelacement','Auto-évaluation','Méthode Cornell','SQ3R','Enseigner à quelqu’un','Méthode des erreurs',
+    'Analogies','Chunking','Pré-test','Révision cumulative'
+  ];
+
+  const methodPrompts=[
+    ['Explique la notion comme à un débutant','Quels mots ou passages sont encore difficiles ?','Réexplique encore plus simplement','Quelle question poserais-tu pour vérifier que l’autre personne a compris ?'],
+    ['Écris les questions auxquelles tu veux répondre sans regarder le cours','Réponds de mémoire','Vérifie ensuite : qu’est-ce qui était correct ?','Qu’est-ce que tu dois corriger ou revoir ?'],
+    ['Qu’est-ce que tu arrives encore à rappeler sans aide ?','Qu’as-tu oublié depuis la dernière révision ?','Réponse corrigée / notion à renforcer','Quand feras-tu la prochaine révision ?'],
+    ['Quel exercice ou petit programme dois-tu réaliser ?','Écris ton raisonnement ou ton code','Quel résultat as-tu obtenu ?','Que vas-tu modifier pour le prochain essai ?'],
+    ['Quelle ligne, commande ou notion veux-tu comprendre ?','Pourquoi existe-t-elle ?','Comment l’ordinateur l’exécute-t-il ?','Que se passe-t-il si tu la retires ou la modifies ?'],
+    ['Quel est le concept central ?','Quels sont les composants principaux ?','Comment ces composants sont-ils reliés ?','Résume le flux complet avec des flèches ou des relations'],
+    ['Explique la notion avec des mots','Dessine-la avec du texte, des flèches ou un mini-schéma','Quel élément visuel correspond à quelle partie ?','Que comprends-tu mieux grâce au schéma ?'],
+    ['Quelle notion abstraite veux-tu comprendre ?','Donne un exemple dans une situation réelle','Transforme cet exemple en petit exemple','Pourquoi cet exemple représente-t-il bien la notion ?'],
+    ['Concept A','Concept B','Ressemblances et différences','Quand utiliser A ? Quand utiliser B ?'],
+    ['Quel produit ou mini-projet veux-tu construire ?','Quelles fonctionnalités faut-il créer ?','Quelles compétences sont nécessaires ?','Quelle est la prochaine petite étape ?'],
+    ['Quels sujets vas-tu mélanger aujourd’hui ?','Exercice 1 et ta réponse','Exercice 2 et ta réponse','Exercice 3 : quelle méthode fallait-il reconnaître ?'],
+    ['Écris tes questions de test','Réponds sans regarder les notes','Résultat : maîtrisé / hésitation / erreur','Quelles notions dois-tu retravailler ?'],
+    ['Notes principales','Colonne questions / mots-clés','Résumé du sujet en quelques phrases','Réponds maintenant aux questions sans regarder tes notes'],
+    ['Survey : quels titres et sections vois-tu ?','Question : transforme les titres en questions','Read + Recite : réponds avec tes propres mots','Review : quels points dois-tu revoir ?'],
+    ['Prépare ta mini-leçon','Donne un exemple concret','Quelle erreur fréquente veux-tu expliquer ?','Pose une question finale et donne la réponse'],
+    ['Erreur / mauvaise réponse','Quelle était la cause réelle ?','Quelle correction as-tu faite ?','Règle à retenir + nouvel exercice similaire'],
+    ['Quelle nouvelle notion veux-tu comprendre ?','À quoi de connu peux-tu la comparer ?','Quelles parties correspondent entre les deux ?','Où l’analogie devient-elle incorrecte ou limitée ?'],
+    ['Quel gros sujet veux-tu découper ?','Bloc 1 et son rôle','Blocs suivants et leurs rôles','Comment tous les blocs fonctionnent-ils ensemble ?'],
+    ['Écris 5 questions avant d’étudier','Tes réponses initiales, même incertaines','Après le cours : quelles réponses changent ?','Qu’as-tu appris que tu ne savais pas au départ ?'],
+    ['Quelle nouvelle notion étudies-tu aujourd’hui ?','Quelles anciennes notions vas-tu revoir ?','Réponds à quelques questions mélangées','Quelles anciennes notions commencent à s’affaiblir ?']
+  ];
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .verify-v43{margin-top:24px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow);padding:16px}
+    .verify-v43 h3{margin:0 0 8px}.verify-grid-v43{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .verify-card-v43{border:1px solid var(--line);border-radius:14px;padding:13px;background:#fafbf8}
+    .verify-card-v43 h4{margin:0 0 8px}.verify-docs-v43{display:grid;gap:8px;margin-top:8px}
+    .verify-doc-v43{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:12px}
+    .verify-result-v43{border:1px solid var(--line);border-radius:13px;padding:12px;margin-top:10px;background:#fff}
+    .verify-status-v43{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef3ee;font-size:11px;font-weight:900;margin-bottom:7px}
+    .verify-answer-v43{white-space:pre-wrap;line-height:1.5}
+    .verify-sources-v43 a{display:block;margin-top:4px;overflow-wrap:anywhere}
+    .verify-summary-v43{margin-top:14px;padding:14px;border-radius:14px;background:#f6f8f4;border:1px solid var(--line)}
+    @media(max-width:800px){.verify-grid-v43{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  let box=document.getElementById('learningVerifyV43');
+  if(!box){
+    box=document.createElement('div');
+    box.id='learningVerifyV43';
+    box.className='verify-v43';
+    box.innerHTML=`
+      <h3>🔎 Vérifier mon apprentissage</h3>
+      <p class="muted">Tu réponds d’abord seul. Ensuite seulement, cette étape compare tes réponses avec tes documents et des sources web fiables.</p>
+      <div class="verify-grid-v43">
+        <div class="verify-card-v43">
+          <h4>1. Documents de référence</h4>
+          <input id="verifyFilesV43" type="file" multiple accept=".txt,.md,.json,.csv,.html,.htm,.docx,.pdf">
+          <div class="muted" style="margin-top:6px">TXT, Markdown, CSV, HTML, DOCX et PDF. Les fichiers sont lus dans ton navigateur puis envoyés uniquement quand tu lances la vérification.</div>
+          <div id="verifyDocsV43" class="verify-docs-v43"></div>
+        </div>
+        <div class="verify-card-v43">
+          <h4>2. Sources Internet prioritaires</h4>
+          <select class="field" id="verifyProfileV43">
+            <option value="general">Général — sources fiables du web</option>
+            <option value="bible">Bible — jw.org / wol.jw.org</option>
+            <option value="agriculture">Agriculture — sources gouvernementales / CRAAQ / AgriRéseau</option>
+            <option value="software">Logiciel — documentation officielle / IBM / GitHub</option>
+          </select>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn" id="verifyTokenV43" type="button">Configurer l’accès sécurisé</button>
+            <button class="btn primary" id="verifyRunV43" type="button">✓ Vérifier mon travail</button>
+          </div>
+          <div class="status" id="verifyStatusV43" style="margin-top:8px">Prêt. Tes réponses originales ne seront pas remplacées.</div>
+        </div>
+      </div>
+      <div id="verifyResultsV43" style="margin-top:14px"></div>
+    `;
+    const target=document.getElementById('cornellSheetV37')||page.lastElementChild;
+    if(target) target.insertAdjacentElement('beforebegin',box); else page.appendChild(box);
+  }
+
+  const filesEl=document.getElementById('verifyFilesV43');
+  const docsEl=document.getElementById('verifyDocsV43');
+  const profileEl=document.getElementById('verifyProfileV43');
+  const tokenBtn=document.getElementById('verifyTokenV43');
+  const runBtn=document.getElementById('verifyRunV43');
+  const statusEl=document.getElementById('verifyStatusV43');
+  const resultsEl=document.getElementById('verifyResultsV43');
+  let documents=[];
+
+  function collectAnswers(){
+    const learn=readJson(LEARN_KEY,{})||{};
+    const work=readJson(WORK_KEY,{})||{};
+    const out=[];
+    coreDefs.forEach(([key,q],i)=>{
+      const a=clean(learn[key]);
+      if(a) out.push({id:'core-'+key,question:q,answer:a});
+    });
+    methodNames.forEach((name,mi)=>{
+      const saved=work[String(mi)]||{};
+      const answers=Array.isArray(saved.answers)?saved.answers:[];
+      answers.forEach((a,qi)=>{
+        const value=clean(a);
+        if(value) out.push({id:'m'+(mi+1)+'-q'+(qi+1),question:name+' — '+(methodPrompts[mi]?.[qi]||('Question '+(qi+1))),answer:value});
+      });
+    });
+    return out;
+  }
+
+  function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  async function extractDocx(file){
+    const mod=await import('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/+esm');
+    const buf=await file.arrayBuffer();
+    const res=await mod.extractRawText({arrayBuffer:buf});
+    return res.value||'';
+  }
+
+  async function extractPdf(file){
+    const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjs.getDocument({data:buf}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const content=await page.getTextContent();
+      text+='\n'+content.items.map(x=>x.str||'').join(' ');
+    }
+    return text;
+  }
+
+  async function extractFile(file){
+    const n=file.name.toLowerCase();
+    if(n.endsWith('.docx')) return await extractDocx(file);
+    if(n.endsWith('.pdf')) return await extractPdf(file);
+    return await file.text();
+  }
+
+  function renderDocs(){
+    docsEl.innerHTML=documents.length?documents.map((d,i)=>`
+      <div class="verify-doc-v43"><strong>${escapeHtml(d.name)}</strong><br><span class="muted">${Math.round(d.text.length/100)/10} k caractères</span>
+      <button class="btn" data-remove-doc="${i}" style="float:right;min-height:26px;padding:2px 8px">×</button></div>
+    `).join(''):'<div class="muted">Aucun document ajouté.</div>';
+    docsEl.querySelectorAll('[data-remove-doc]').forEach(b=>b.onclick=()=>{documents.splice(Number(b.dataset.removeDoc),1);renderDocs()});
+  }
+
+  filesEl.onchange=async()=>{
+    const files=[...filesEl.files].slice(0,6);
+    for(const file of files){
+      statusEl.textContent='Lecture de '+file.name+'…';
+      try{
+        const text=clean(await extractFile(file)).slice(0,50000);
+        if(text) documents.push({name:file.name,text});
+      }catch(e){
+        statusEl.textContent='Impossible de lire '+file.name+'.';
+      }
+    }
+    filesEl.value='';
+    renderDocs();
+    statusEl.textContent=documents.length+' document(s) prêt(s).';
+  };
+
+  tokenBtn.onclick=()=>{
+    const current=localStorage.getItem(TOKEN_KEY)||'';
+    const value=prompt('Colle ton code d’accès V43. Il restera uniquement dans ce navigateur.',current);
+    if(value===null)return;
+    if(value.trim()){
+      localStorage.setItem(TOKEN_KEY,value.trim());
+      statusEl.textContent='Accès sécurisé configuré sur cet appareil.';
+    }else{
+      localStorage.removeItem(TOKEN_KEY);
+      statusEl.textContent='Code d’accès effacé.';
+    }
+  };
+
+  const statusLabels={
+    correct:'Correct',
+    correct_incomplete:'Correct mais incomplet',
+    clarify:'À préciser',
+    unsupported:'Non soutenu par les sources',
+    contradicted:'Contradictoire avec la source',
+    not_externally_verifiable:'Non vérifiable extérieurement'
+  };
+
+  function applyCornell(c){
+    if(!c)return;
+    const keywords=document.getElementById('cornellKeywordsV37');
+    const notes=document.getElementById('cornellNotesV37');
+    const summary=document.getElementById('cornellSummaryV37');
+    if(keywords) keywords.value=(c.keywords||[]).join(' · ');
+    if(notes) notes.value=c.notes||'';
+    if(summary) summary.value=c.summary||'';
+    const old=readJson(CORNELL_KEY,{})||{};
+    try{
+      localStorage.setItem(CORNELL_KEY,JSON.stringify({...old,keywords:(c.keywords||[]).join(' · '),notes:c.notes||'',summary:c.summary||'',verifiedByV43:true,updatedAt:new Date().toISOString()}));
+    }catch(e){}
+  }
+
+  function renderResults(data,answers){
+    const map=new Map(answers.map(a=>[a.id,a]));
+    const sourceTitle=new Map((data.sources||[]).map(s=>[s.url,s.title||s.url]));
+    const items=data.items||[];
+    resultsEl.innerHTML=`
+      <div class="verify-summary-v43"><strong>Vérification terminée</strong><br>
+      <span class="muted">${items.length} réponse(s) vérifiée(s) · ${(data.sources||[]).length} source(s) web trouvée(s) · ${documents.length} document(s) fourni(s).</span></div>
+      ${items.map(item=>{
+        const original=map.get(item.id)||{};
+        return `<div class="verify-result-v43">
+          <span class="verify-status-v43">${escapeHtml(statusLabels[item.status]||item.status)}</span>
+          <div><strong>Question</strong><div class="verify-answer-v43">${escapeHtml(original.question||'')}</div></div>
+          <div style="margin-top:8px"><strong>Ta réponse originale</strong><div class="verify-answer-v43">${escapeHtml(original.answer||'')}</div></div>
+          <div style="margin-top:8px"><strong>Réponse vérifiée et corrigée</strong><div class="verify-answer-v43">${escapeHtml(item.corrected_answer||'')}</div></div>
+          <div style="margin-top:8px"><strong>Pourquoi</strong><div class="verify-answer-v43">${escapeHtml(item.explanation||'')}</div></div>
+          ${(item.document_support||[]).length?'<div style="margin-top:8px"><strong>Documents utilisés</strong><div>'+item.document_support.map(x=>escapeHtml(x)).join(' · ')+'</div></div>':''}
+          ${(item.source_urls||[]).length?'<div class="verify-sources-v43" style="margin-top:8px"><strong>Sources web</strong>'+item.source_urls.map(u=>'<a href="'+escapeHtml(u)+'" target="_blank" rel="noopener">'+escapeHtml(sourceTitle.get(u)||u)+'</a>').join('')+'</div>':''}
+        </div>`;
+      }).join('')}
+    `;
+  }
+
+  runBtn.onclick=async()=>{
+    const token=localStorage.getItem(TOKEN_KEY)||'';
+    if(!token){statusEl.textContent='Configure d’abord ton accès sécurisé V43.';tokenBtn.click();return}
+    const learn=readJson(LEARN_KEY,{})||{};
+    const answers=collectAnswers();
+    if(!answers.length){statusEl.textContent='Aucune réponse à vérifier. Remplis d’abord les méthodes.';return}
+    runBtn.disabled=true;
+    statusEl.textContent='Vérification en cours : documents + recherche web + correction…';
+    resultsEl.innerHTML='<div class="verify-summary-v43">La vérification peut prendre un peu de temps. Garde cette page ouverte.</div>';
+
+    try{
+      const res=await fetch(ENDPOINT,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-second-brain-token':token},
+        body:JSON.stringify({topic:learn.topic||'',profile:profileEl.value,answers,documents})
+      });
+      const data=await res.json();
+      if(!res.ok){
+        if(data.error==='setup_required') throw new Error('Le serveur V43 n’a pas encore sa clé IA privée configurée.');
+        if(data.error==='unauthorized') throw new Error('Code d’accès V43 incorrect.');
+        throw new Error('Erreur de vérification : '+(data.error||res.status));
+      }
+      localStorage.setItem(VERIFY_KEY,JSON.stringify({...data,answers,at:new Date().toISOString()}));
+      renderResults(data,answers);
+      applyCornell(data.cornell);
+      statusEl.textContent='Vérification terminée. La Cornell a été reconstruite à partir des réponses vérifiées.';
+    }catch(e){
+      resultsEl.innerHTML='';
+      statusEl.textContent=e?.message||'La vérification a échoué.';
+    }finally{runBtn.disabled=false}
+  };
+
+  const saved=readJson(VERIFY_KEY,null);
+  if(saved?.items&&saved?.answers){
+    renderResults(saved,saved.answers);
+    statusEl.textContent='Dernière vérification restaurée.';
+  }
+  renderDocs();
+
+  // V42 n'est plus le chemin principal.
+  const aiBtn=document.getElementById('cornellAiCorrectV40');
+  if(aiBtn){
+    aiBtn.style.display='none';
+    const mode=document.getElementById('cornellAiModeV42');if(mode)mode.style.display='none';
+  }
+  const aiStatus=document.getElementById('cornellAiStatusV40');
+  if(aiStatus) aiStatus.textContent='La correction locale a été remplacée par la vérification V43 avec documents et sources web.';
+})();
