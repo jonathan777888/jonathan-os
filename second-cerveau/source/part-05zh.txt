@@ -132,9 +132,21 @@
       if(summary)summary.textContent='SYNTHÈSE — automatique avec ton propre vocabulaire';
     }
   }
+  function snapshotMatches(data){
+    try{
+      if(!window.SecondBrainV45?.collect||!Array.isArray(data.answers))return true;
+      const now=window.SecondBrainV45.collect(data.scope||'all',false);
+      const map=new Map((now.units||[]).map(u=>[u.id,u]));
+      return data.answers.filter(a=>a.kind!=='drawing').every(a=>{
+        const u=map.get(a.id);
+        return !!u&&clean(u.answer)===clean(a.answer)&&clean(u.question)===clean(a.question);
+      });
+    }catch{return true;}
+  }
   function applyVerified(){
     const data=read(VERIFY,null),current=read(CORNELL,{});
     if(!data||data.schema_version!==45||data.verification_complete!==true||current.verifiedByV45!==true)return false;
+    if(!snapshotMatches(data)){invalidate();return false;}
     const patch=buildVerified(data,current);
     if(!write(CORNELL,patch))return false;
     Object.entries(ids).forEach(([k,id])=>{const el=$(id);if(el)el.value=patch[k]||'';});
