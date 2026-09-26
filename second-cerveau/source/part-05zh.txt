@@ -1,195 +1,133 @@
-
-// V47: make verified/corrected material the source of truth for the Cornell sheet.
+// V48: one Cornell view, derived from saved review items, never from success flags.
 (() => {
-  'use strict';
-  const VERIFY='second-brain-verify-v43';
-  const CORNELL='second-brain-cornell-v37';
-  const $=id=>document.getElementById(id);
-  const read=(k,f={})=>{try{return JSON.parse(localStorage.getItem(k)||'null')??f;}catch{return f;}};
-  const write=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true;}catch{return false;}};
-  const ids={
-    title:'cornellTitleV37',keywords:'cornellKeywordsV37',formulas:'cornellFormulasV37',
-    doubts:'cornellDoubtsV37',essentials:'cornellEssentialsV37',dates:'cornellDatesV37',
-    authors:'cornellAuthorsV37',notes:'cornellNotesV37',summary:'cornellSummaryV37'
-  };
-  const labels={
-    keywords:'Mots-clés — vérifiés',
-    notes:'PRISE DE NOTES — réponses vérifiées et corrigées',
-    summary:'SYNTHÈSE — à partir des réponses vérifiées'
-  };
-  const statusName={
-    correct:'Correct selon les sources',
-    correct_incomplete:'Correct mais incomplet',
-    clarify:'À préciser',
-    unsupported:'Fond non validé',
-    contradicted:'Corrigé car contredit par une source',
-    not_externally_verifiable:'Non vérifiable extérieurement'
-  };
-  const good=new Set(['correct','correct_incomplete','contradicted']);
-  const clean=v=>String(v??'').replace(/\r/g,'').trim();
-  const oneLine=v=>clean(v).replace(/\s+/g,' ');
-  const unique=arr=>{
-    const seen=new Set(),out=[];
-    for(const value of arr){const v=clean(value);if(!v)continue;const k=v.toLocaleLowerCase('fr-CA');if(seen.has(k))continue;seen.add(k);out.push(v);}
-    return out;
-  };
-  function shortFact(v,max=240){
-    const t=oneLine(v);if(!t)return '';
-    const m=t.match(/^(.{1,240}?[.!?])(?:\s|$)/);
-    const first=m?.[1]||t.slice(0,max);
-    return first.length<t.length&&!/[.!?]$/.test(first)?first+'…':first;
+ 'use strict';
+ const $=id=>document.getElementById(id),sheet=$('cornellSheetV37');if(!sheet)return;
+ const REVIEW='second-brain-verify-v43',CORNELL='second-brain-cornell-v37',BACKUP='second-brain-cornell-before-v48';
+ const read=(k,f=null)=>{try{return JSON.parse(localStorage.getItem(k)||'null')??f;}catch{return f;}};
+ const clean=v=>typeof v==='string'?v.trim():'';
+ const arr=v=>Array.isArray(v)?v:[];
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const unique=a=>[...new Set(a.map(clean).filter(Boolean))];
+ const fields={title:'cornellTitleV37',keywords:'cornellKeywordsV37',formulas:'cornellFormulasV37',doubts:'cornellDoubtsV37',essentials:'cornellEssentialsV37',dates:'cornellDatesV37',authors:'cornellAuthorsV37',notes:'cornellNotesV37',summary:'cornellSummaryV37'};
+ const fieldLabels={keywords:'Mots-cl\u00e9s de la relecture',formulas:'Formules relev\u00e9es',doubts:'Doutes / points \u00e0 reprendre',essentials:'Notions essentielles',dates:'Dates explicitement cit\u00e9es',authors:'Auteurs explicitement cit\u00e9s',notes:'PRISE DE NOTES \u2014 corrections et limites',summary:'SYNTH\u00c8SE \u2014 extraits des corrections'};
+ const statusLabels={correct:'Confirm\u00e9 selon les sources',correct_incomplete:'Confirm\u00e9, \u00e0 compl\u00e9ter',contradicted:'Correction appuy\u00e9e par une source',unsupported:'Proposition non valid\u00e9e par des sources',clarify:'\u00c0 pr\u00e9ciser',not_externally_verifiable:'Exp\u00e9rience personnelle \u2014 non v\u00e9rifiable'};
+ const good=new Set(['correct','correct_incomplete','contradicted']);
+ const sourceList=i=>unique([...arr(i.source_urls).filter(u=>/^https:\/\//i.test(u)),...arr(i.document_support)]);
+ const extract=(s,n=420)=>{s=clean(s);if(s.length<=n)return s;const chunk=s.slice(0,n);const pos=Math.max(chunk.lastIndexOf('. '),chunk.lastIndexOf('! '),chunk.lastIndexOf('? '));return pos>60?chunk.slice(0,pos+1):chunk+'\u2026';};
+ const plain=s=>clean(s).replace(/\s+/g,' ');
+ function keywords(text,topic){
+  const stop=new Set(('alors avec avoir dans donc elle elles etre fait font leur mais meme nous pour plus sans sont sous tout tous tres vous votre comme cette cela ces des du est les une un sur par pas que qui quoi quand pourquoi comment aux ses son mon mes notre reponse reponses reference source sources carte cartes atelier interactif correction corrigee question proposition eleve selon exemple').split(' '));
+  const found=new Map();for(const w of (text+' '+topic+' '+topic).match(/[\p{L}][\p{L}-]{2,}/gu)||[]){const key=w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(stop.has(key))continue;const old=found.get(key);found.set(key,{word:old?.word||w,count:(old?.count||0)+1});}
+  return [...found.values()].sort((a,b)=>b.count-a.count).slice(0,12).map(x=>x.word).join(' \u00b7 ');
+ }
+ function makeView(data){
+  const answers=arr(data.answers),answerMap=new Map(answers.map(a=>[a.id,a]));
+  const items=arr(data.items).filter(i=>i&&answerMap.has(i.id));
+  const done=items.filter(i=>i.reviewed!==false&&clean(i.corrected_answer));
+  const supported=done.filter(i=>good.has(i.status)&&sourceList(i).length);
+  const personal=done.filter(i=>i.status==='not_externally_verifiable');
+  const pending=answers.filter(a=>!done.some(i=>i.id===a.id));
+  const unconfirmed=done.filter(i=>!supported.includes(i)&&!personal.includes(i));
+  const label=i=>i.reviewed===false?'Non trait\u00e9':good.has(i.status)&&!sourceList(i).length?statusLabels.unsupported:(statusLabels[i.status]||statusLabels.clarify);
+  const heading=i=>clean(answerMap.get(i.id)?.question)||i.id;
+  const lines=done.map(i=>heading(i)+'\n['+label(i)+']\n'+clean(i.corrected_answer)+(sourceList(i).length?'\nSources : '+sourceList(i).join(' ; '):''));
+  if(pending.length)lines.push('EN ATTENTE\n'+pending.map(a=>a.question+' \u2014 non trait\u00e9').join('\n'));
+  const text=done.map(i=>i.corrected_answer).join('\n');
+  const topics=unique(answers.map(a=>a.topic));
+  const title=topics.length===1?topics[0]:clean(data.topic)||'Fiche de relecture';
+  const summary=[];
+  if(supported.length)summary.push('Points appuy\u00e9s par des sources :\n'+unique(supported.map(i=>extract(plain(i.corrected_answer)))).slice(0,6).join('\n\n'));
+  if(unconfirmed.length)summary.push('Propositions \u00e0 v\u00e9rifier \u2014 le fond n\u2019est pas confirm\u00e9 :\n'+unique(unconfirmed.map(i=>extract(plain(i.corrected_answer)))).slice(0,6).join('\n\n'));
+  if(personal.length)summary.push('Exp\u00e9riences personnelles, sans validation ext\u00e9rieure :\n'+unique(personal.map(i=>extract(plain(i.corrected_answer)))).slice(0,3).join('\n\n'));
+  if(done.length>15)summary.push('Synth\u00e8se s\u00e9lective : les autres corrections figurent dans la prise de notes.');
+  if(pending.length)summary.push(pending.length+' \u00e9l\u00e9ment(s) non trait\u00e9(s) : synth\u00e8se partielle.');
+  const annotated=predicate=>unique(done.flatMap(i=>clean(i.corrected_answer).split(/\n|(?<=[.!?])\s+/).filter(predicate).map(t=>extract(t)+' ['+label(i)+']'))).join('\n');
+  const formulas=annotated(t=>/(?:\b\w+\s*=\s*[^=]|\d\s*[+\u00d7\u00f7*/=<>]\s*\d)/.test(t));
+  const dates=annotated(t=>/\b(?:\d{1,2}\s+(?:janvier|f\u00e9vrier|mars|avril|mai|juin|juillet|ao\u00fbt|septembre|octobre|novembre|d\u00e9cembre)|(?:19|20)\d{2})\b/i.test(t));
+  const authors=annotated(t=>/(?:auteur|[\u00e9e]crit par|r[\u00e9e]dig[\u00e9e] par|attribu[\u00e9e] [\u00e0a])/i.test(t));
+  const concerns=done.filter(i=>!supported.includes(i)||['correct_incomplete','contradicted'].includes(i.status)).map(i=>heading(i)+'\n'+label(i)+' \u2014 '+extract(clean(i.next_step)||clean(i.explanation),700));
+  concerns.push(...pending.map(a=>a.question+' \u2014 relecture encore attendue.'));
+  const warning=unique(arr(data.warnings).map(w=>({no_validated_web_sources:'Recherche web sans source exploitable.',openai_credits_exhausted:'Cr\u00e9dits API OpenAI \u00e9puis\u00e9s.',provider_quota:'Quota IA atteint.',provider_busy:'Un service IA a \u00e9t\u00e9 indisponible.'})[w.code]||''));
+  return {title,keywords:keywords(text,title)||'Aucun mot-cl\u00e9 disponible.',formulas:formulas||'Aucune formule relev\u00e9e dans les corrections.',dates:dates||'Aucune date explicitement relev\u00e9e dans les corrections.',authors:authors||'Aucun auteur explicitement identifi\u00e9 dans les corrections.',doubts:concerns.join('\n\n')||'Aucun point \u00e0 reprendre signal\u00e9 par cette relecture.',essentials:done.map(i=>'['+label(i)+'] '+extract(plain(i.corrected_answer),260)).join('\n\n')||'Aucune notion corrig\u00e9e disponible.',notes:lines.join('\n\n')||'La relecture n\u2019a encore produit aucune correction.',summary:summary.join('\n\n')||'Aucune synth\u00e8se disponible : la relecture n\u2019est pas termin\u00e9e.',count:answers.length,reviewed:done.length,supported:supported.length,unconfirmed:unconfirmed.length,pending:pending.length,warning:warning.join(' '),at:clean(data.at),done,answers};
+ }
+ function stale(data){
+  try{
+   if(data.schema_version!==45||!window.SecondBrainV45?.collect)return 'unknown';
+   const job=read('second-brain-verify-job-v45');
+   const imageSelected=arr(data.answers).some(a=>a.kind==='drawing');
+   const now=window.SecondBrainV45.collect(data.scope||'all',imageSelected).units;
+   const project=xs=>xs.map(({id,question,answer,context,topic,kind})=>({id,question,answer,context,topic,kind})).sort((a,b)=>a.id.localeCompare(b.id));
+   if(JSON.stringify(project(now))!==JSON.stringify(project(arr(data.answers))))return true;
+   if(imageSelected&&job?.at===data.at)for(const u of now.filter(u=>u.image))if(u.image!==arr(job.units).find(a=>a.id===u.id)?.image)return true;
+   return false;
+  }catch{return 'unknown';}
+ }
+ const controls=document.createElement('div');controls.id='cornellControllerV48';controls.style.cssText='padding:16px;background:#fffaf0;border-bottom:1px solid #e4c66b';
+ controls.innerHTML='<strong>V48 \u00b7 Ma fiche corrig\u00e9e</strong><p id="cornellReviewStatusV48" role="status" aria-live="polite"></p><div class="actions"><button type="button" class="btn primary" id="cornellRunV48">Corriger et remplir la fiche</button><button type="button" class="btn" id="cornellRestoreV48">Afficher les corrections enregistr\u00e9es</button><button type="button" class="btn" id="cornellWordV48">Exporter cette fiche en Word</button></div><details style="margin-top:12px"><summary>Mes r\u00e9ponses originales et annotations conserv\u00e9es</summary><pre id="cornellOriginalV48" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto"></pre></details>';
+ sheet.prepend(controls);
+ for(const id of ['cornellAiControlsV40','cornellAiCompareV42'])if($(id))$(id).style.display='none';
+ let view=null,refreshTimer=null,backupDone=!!read(BACKUP);
+ function refresh(){
+  const data=read(REVIEW),current=read(CORNELL,{});
+  const busy=!!$('verifyRunV43')?.disabled;
+  $('cornellRunV48').disabled=busy;$('cornellWordV48').disabled=busy;
+  if(!data||!arr(data.answers).length||!arr(data.items).length){
+   $('cornellReviewStatusV48').textContent=busy?'Correction en cours\u2026':'Aucune correction enregistr\u00e9e. Les textes ci-dessous sont encore ton brouillon, pas une correction IA.';
+   return false;
   }
-  function answerMap(data){return new Map((Array.isArray(data.answers)?data.answers:[]).map(a=>[a.id,a]));}
-  function sourcesFor(item){
-    const list=[...(item.source_urls||[]),...(item.document_support||[])].map(clean).filter(Boolean);
-    return unique(list);
-  }
-  function formulas(items){
-    const out=[];
-    for(const i of items){
-      const lines=clean(i.corrected_answer).split(/\n|(?<=[.!?])\s+/);
-      for(const line of lines){
-        const t=oneLine(line);
-        if(!t)continue;
-        if(/\b[A-Za-z][A-Za-z0-9_]*\s*=\s*[^=]+/.test(t) || /\d+(?:[.,]\d+)?\s*(?:[+\-×÷*/=<>]|<=|>=)\s*\d+(?:[.,]\d+)?/.test(t) || /\b\d+(?:[.,]\d+)?\s*%\b/.test(t))out.push(t);
-      }
-    }
-    return unique(out).slice(0,12).join('\n');
-  }
-  function dates(items){
-    const months='janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre';
-    const rx=new RegExp('\\b(?:\\d{1,2}\\s+(?:'+months+')(?:\\s+\\d{4})?|(?:'+months+')\\s+\\d{4}|(?:19|20)\\d{2})\\b','gi');
-    const out=[];
-    for(const i of items){for(const m of clean(i.corrected_answer).match(rx)||[])out.push(m);}
-    return unique(out).slice(0,16).join(' · ');
-  }
-  function authors(items,answers){
-    const out=[];
-    for(const i of items){
-      const q=oneLine(answers.get(i.id)?.question||'');
-      if(!/(auteur|écrit par|ecrit par|qui a écrit|qui a ecrit|rédigé par|redige par|who wrote)/i.test(q))continue;
-      const v=shortFact(i.corrected_answer,180);if(v)out.push(v);
-    }
-    return unique(out).slice(0,10).join('\n');
-  }
-  function buildVerified(data,current){
-    const answers=answerMap(data);
-    const items=(Array.isArray(data.items)?data.items:[]).filter(i=>i&&i.reviewed!==false);
-    const supported=items.filter(i=>good.has(i.status));
-    const attention=items.filter(i=>['clarify','unsupported','contradicted','correct_incomplete'].includes(i.status));
-
-    const notes=supported.map(i=>{
-      const q=clean(answers.get(i.id)?.question||i.id);
-      const src=sourcesFor(i);
-      return q+'\n→ '+clean(i.corrected_answer)+(src.length?'\nSources : '+src.join(' ; '):'');
-    }).join('\n\n');
-
-    const doubts=attention.map(i=>{
-      const q=clean(answers.get(i.id)?.question||i.id);
-      const why=shortFact(i.explanation,280);
-      return '• '+q+'\n  '+(statusName[i.status]||i.status)+(why?' — '+why:'');
-    }).join('\n\n');
-
-    const essentials=unique(supported.map(i=>shortFact(i.corrected_answer))).slice(0,8).map(v=>'• '+v).join('\n');
-    const formulaText=formulas(supported);
-    const dateText=dates(supported);
-    const authorText=authors(supported,answers);
-    const k=Array.isArray(data.cornell?.keywords)?data.cornell.keywords.map(clean).filter(Boolean):[];
-    const keywordText=unique(k.length?k:(data.answers||[]).map(a=>a.topic)).slice(0,20).join(' · ');
-    const summary=clean(data.cornell?.summary) || supported.slice(0,4).map(i=>shortFact(i.corrected_answer,320)).filter(Boolean).join('\n\n');
-
-    return {
-      ...current,
-      title:clean(data.topic)||current.title||'',
-      keywords:keywordText||current.keywords||'',
-      formulas:formulaText||current.formulas||'',
-      doubts:doubts||current.doubts||'',
-      essentials:essentials||current.essentials||'',
-      dates:dateText||current.dates||'',
-      authors:authorText||current.authors||'',
-      notes:notes||current.notes||'',
-      summary:summary||current.summary||'',
-      verifiedByV43:true,
-      verifiedByV45:true,
-      verifiedByV47:true,
-      verifiedAt:data.at||new Date().toISOString(),
-      sourceFingerprint:data.source_fingerprint||current.sourceFingerprint||'',
-      generatedFromExercises:false,
-      updatedAt:new Date().toISOString()
-    };
-  }
-  function setVerifiedLabels(on){
-    const kw=$('cornellKeywordsV37')?.previousElementSibling;
-    const notes=$('cornellNotesV37')?.previousElementSibling;
-    const summary=$('cornellSummaryV37')?.previousElementSibling;
-    if(on){
-      if(kw)kw.textContent=labels.keywords;
-      if(notes)notes.textContent=labels.notes;
-      if(summary)summary.textContent=labels.summary;
-    }else{
-      if(kw)kw.textContent='Mots-clés — automatique';
-      if(notes)notes.textContent='PRISE DE NOTES — automatique depuis les exercices';
-      if(summary)summary.textContent='SYNTHÈSE — automatique avec ton propre vocabulaire';
-    }
-  }
-  function snapshotMatches(data){
-    try{
-      if(!window.SecondBrainV45?.collect||!Array.isArray(data.answers))return true;
-      const now=window.SecondBrainV45.collect(data.scope||'all',false);
-      const map=new Map((now.units||[]).map(u=>[u.id,u]));
-      return data.answers.filter(a=>a.kind!=='drawing').every(a=>{
-        const u=map.get(a.id);
-        return !!u&&clean(u.answer)===clean(a.answer)&&clean(u.question)===clean(a.question);
-      });
-    }catch{return true;}
-  }
-  function applyVerified(){
-    const data=read(VERIFY,null),current=read(CORNELL,{});
-    if(!data||data.schema_version!==45||data.verification_complete!==true||current.verifiedByV45!==true)return false;
-    if(!snapshotMatches(data)){invalidate();return false;}
-    const patch=buildVerified(data,current);
-    if(!write(CORNELL,patch))return false;
-    Object.entries(ids).forEach(([k,id])=>{const el=$(id);if(el)el.value=patch[k]||'';});
-    setVerifiedLabels(true);
-    const st=$('cornellStatusV37');
-    if(st)st.textContent='✓ Cornell remplie avec les réponses vérifiées et corrigées · '+new Date().toLocaleTimeString('fr-CA');
-    return true;
-  }
-  function invalidate(){
-    const c=read(CORNELL,{});
-    if(c.verifiedByV45!==true&&c.verifiedByV47!==true)return;
-    write(CORNELL,{...c,verifiedByV45:false,verifiedByV47:false,verificationStaleAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-    setVerifiedLabels(false);
-    const st=$('cornellStatusV37');
-    if(st)st.textContent='Les réponses ont changé : la Cornell corrigée est devenue ancienne. Relance « Vérifier mon travail ».';
-  }
-  function isSourceInput(target){
-    if(!(target instanceof Element))return false;
-    if(target.closest('#cornellSheetV37,#learningVerifyV43,#savedSubjectsV46'))return false;
-    if(target.closest('#methodStudioV44,#methodModalV35'))return true;
-    if(!target.closest('#page-learning'))return false;
-    const id=target.id||'';
-    if(id==='learnTopic'||id.startsWith('learn')||target.matches('textarea.field,input.field,select.field'))return true;
-    return false;
-  }
-  document.addEventListener('input',e=>{if(isSourceInput(e.target))invalidate();},true);
-  document.addEventListener('change',e=>{if(isSourceInput(e.target))invalidate();},true);
-
-  const results=$('verifyResultsV43'),verifyStatus=$('verifyStatusV43');
-  const observer=new MutationObserver(()=>setTimeout(applyVerified,0));
-  if(results)observer.observe(results,{childList:true,subtree:true});
-  if(verifyStatus)observer.observe(verifyStatus,{childList:true,subtree:true,characterData:true});
-
-  // Saving/exporting may invoke the old V38 raw refresh; restore the verified sheet afterwards
-  // unless a source edit has invalidated it.
-  document.addEventListener('click',e=>{
-    if(!e.target.closest('#learningSave,#methodSaveV35,#learningExportWordV36,#methodExportWordV36,#refreshCornellV38'))return;
-    setTimeout(applyVerified,700);
-  },true);
-
-  applyVerified();
-  document.title='Second Cerveau IA — V47';
-  const pill=document.querySelector('.pill');if(pill)pill.textContent=document.title;
-  const vs=$('versionStatus');if(vs)vs.textContent='V47 · La Cornell donne priorité aux réponses vérifiées/corrigées et remplit automatiquement notes, synthèse et champs pertinents.';
-  window.SecondBrainV47={applyVerified};
+  view=makeView(data);view.stale=stale(data);
+  const age=view.stale===true?'ATTENTION : tes r\u00e9ponses ont chang\u00e9. Cette fiche conserve la derni\u00e8re relecture; relance la correction. ':view.stale==='unknown'?'Correspondance avec les r\u00e9ponses actuelles non confirm\u00e9e. ':'';
+  view.notice=age+view.reviewed+' / '+view.count+' \u00e9l\u00e9ments relus; '+view.supported+' appuy\u00e9s par des sources. '+(view.unconfirmed?'Certaines propositions restent \u00e0 v\u00e9rifier. ':'')+(view.pending?'Relecture partielle. ':'')+view.warning;
+  const lastStatus=$('verifyStatusV43')?.textContent||'';
+  if(!busy&&/indisponible|interrompu|incorrect|configuration|d\u00e9lai maximal/i.test(lastStatus))view.notice='Dernier essai : '+lastStatus+' '+view.notice;
+  $('cornellReviewStatusV48').textContent=(busy?'Correction en cours \u2014 r\u00e9sultats disponibles : ':'')+view.notice;
+  $('cornellOriginalV48').textContent=view.answers.map(a=>a.question+'\n'+a.answer).join('\n\n');
+  try{
+   if(!backupDone){localStorage.setItem(BACKUP,JSON.stringify(current));backupDone=true;}
+   const old=read(BACKUP,{});const annotations=['formulas','doubts','essentials','dates','authors'].filter(k=>clean(old[k])).map(k=>fieldLabels[k]+' : '+old[k]);
+   if(annotations.length)$('cornellOriginalV48').textContent+='\n\nANNOTATIONS ANTERIEURES (non v\u00e9rifi\u00e9es)\n'+annotations.join('\n');
+   const patch={...current};for(const k of Object.keys(fields))patch[k]=view[k];
+   patch.generatorVersion='V48';patch.generatedFromExercises=false;patch.verifiedByV45=false;patch.verifiedByV47=false;patch.reviewedByV48=true;patch.sourceReviewAt=data.at;patch.reviewStale=view.stale;
+   const serialized=JSON.stringify(patch);if(localStorage.getItem(CORNELL)!==serialized)localStorage.setItem(CORNELL,serialized);
+  }catch{$('cornellReviewStatusV48').textContent+=' Sauvegarde locale impossible : exporte la fiche sans fermer la page.';}
+  for(const [k,id]of Object.entries(fields)){const el=$(id);if(!el)continue;el.value=view[k];el.readOnly=true;if(k!=='title'&&el.previousElementSibling)el.previousElementSibling.textContent=fieldLabels[k];}
+  if($('cornellAutoPreviewV39'))$('cornellAutoPreviewV39').textContent='Affichage de la relecture du '+(view.at?new Date(view.at).toLocaleString('fr-CA'):'dernier travail')+' \u2014 r\u00e9ponses originales conserv\u00e9es.';
+  if($('cornellStatusV37'))$('cornellStatusV37').textContent=view.stale===true?'Dernier corrig\u00e9 conserv\u00e9 \u2014 mise \u00e0 jour n\u00e9cessaire.':'Fiche issue des corrections re\u00e7ues. Les limites figurent dans chaque rubrique.';
+  return true;
+ }
+ const schedule=()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,0);};
+ const observer=new MutationObserver(schedule);
+ for(const id of ['verifyResultsV43','verifyStatusV43'])if($(id))observer.observe($(id),{childList:true,subtree:true,characterData:true});
+ document.addEventListener('input',e=>{if(e.target.closest('#cornellSheetV37'))return;clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,350);});
+ document.addEventListener('change',e=>{if(!e.target.closest('#cornellSheetV37'))schedule();});
+ document.addEventListener('click',e=>{if(e.target.closest('#learningSave,#methodSaveV35,[data-action]'))schedule();});
+ window.addEventListener('storage',e=>{if([REVIEW,'second-brain-method-workspaces-v35','second-brain-learning-v33'].includes(e.key))schedule();});
+ $('cornellRestoreV48').onclick=refresh;
+ $('cornellRunV48').onclick=()=>{if(!$('verifyRunV43')?.disabled)$('verifyRunV43')?.click();};
+ const oldRun=$('verifyRunV43')?.onclick;
+ if(typeof oldRun==='function')$('verifyRunV43').onclick=async function(e){try{return await oldRun.call(this,e);}finally{refresh();}};
+ const oldResume=$('verifyResumeV45')?.onclick;
+ if(typeof oldResume==='function')$('verifyResumeV45').onclick=async function(e){try{return await oldResume.call(this,e);}finally{refresh();}};
+ const oldRefresh=$('refreshCornellV38');if(oldRefresh){oldRefresh.parentElement.style.display='none';oldRefresh.textContent='Actualiser la fiche (corrig\u00e9 prioritaire)';oldRefresh.onclick=()=>{if(!refresh())$('learningSave')?.click();};}
+ // Explicit password field replaces the inaccessible native prompt; no secret is prefilled or logged.
+ const access=$('verifyTokenV43');if(access){const dlg=document.createElement('dialog');dlg.style.cssText='max-width:460px;width:90vw;border-radius:16px;padding:24px';dlg.innerHTML='<form method="dialog"><h3>Acc\u00e8s s\u00e9curis\u00e9</h3><label for="accessCodeV48">Code d\u2019acc\u00e8s</label><input class="field" id="accessCodeV48" type="password" autocomplete="off" maxlength="1024"><p>Enregistr\u00e9 uniquement dans ce navigateur.</p><div class="actions"><button class="btn primary" id="accessSaveV48" type="button">Enregistrer le code</button><button class="btn" value="cancel">Annuler</button></div><p id="accessErrorV48" role="status"></p></form>';document.body.appendChild(dlg);access.onclick=()=>{$('accessCodeV48').value='';$('accessErrorV48').textContent='';dlg.showModal();$('accessCodeV48').focus();};$('accessSaveV48').onclick=()=>{const code=$('accessCodeV48').value.trim();if(code.length<20){$('accessErrorV48').textContent='V\u00e9rifie le code complet.';return;}try{localStorage.setItem('second-brain-verify-token-v43',code);$('accessCodeV48').value='';dlg.close();$('verifyStatusV43').textContent='Acc\u00e8s enregistr\u00e9. Tu peux lancer la v\u00e9rification.';}catch{$('accessErrorV48').textContent='Impossible de conserver ce code dans le navigateur.';}};}
+ // Minimal standards-based DOCX (ZIP STORE) avoids a CDN dependency for exports.
+ function zip(files){const enc=new TextEncoder(),parts=[],central=[];let offset=0;const put=(v,p,n,s)=>s===2?v.setUint16(p,n,true):v.setUint32(p,n,true);for(const [path,txt]of Object.entries(files)){const name=enc.encode(path),data=enc.encode(txt);let crc=0xffffffff;for(const b of data){crc^=b;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}crc=(crc^0xffffffff)>>>0;const h=new Uint8Array(30+name.length),v=new DataView(h.buffer);put(v,0,0x04034b50,4);put(v,4,20,2);put(v,6,0x800,2);put(v,12,33,2);put(v,14,crc,4);put(v,18,data.length,4);put(v,22,data.length,4);put(v,26,name.length,2);h.set(name,30);parts.push(h,data);const c=new Uint8Array(46+name.length),cv=new DataView(c.buffer);put(cv,0,0x02014b50,4);put(cv,4,20,2);put(cv,6,20,2);put(cv,8,0x800,2);put(cv,14,33,2);put(cv,16,crc,4);put(cv,20,data.length,4);put(cv,24,data.length,4);put(cv,28,name.length,2);put(cv,42,offset,4);c.set(name,46);central.push(c);offset+=h.length+data.length;}const size=central.reduce((n,c)=>n+c.length,0),end=new Uint8Array(22),ev=new DataView(end.buffer);put(ev,0,0x06054b50,4);put(ev,8,central.length,2);put(ev,10,central.length,2);put(ev,12,size,4);put(ev,16,offset,4);return new Blob([...parts,...central,end],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});}
+ function makeDocx(v,data){
+  const xml=s=>esc(String(s??'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,''));
+  const p=(s,bold=false)=>'<w:p><w:pPr><w:spacing w:after="110" w:line="280" w:lineRule="auto"/>'+(bold?'<w:keepNext/>':'')+'</w:pPr><w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="22"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t xml:space="preserve">'+xml(s)+'</w:t></w:r></w:p>';
+  const paras=s=>String(s||'').split('\n').map(t=>p(t)).join('');
+  const cell=(text,width,fill)=>'<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:shd w:fill="'+fill+'"/><w:tcMar><w:top w:w="140" w:type="dxa"/><w:left w:w="150" w:type="dxa"/><w:bottom w:w="140" w:type="dxa"/><w:right w:w="150" w:type="dxa"/></w:tcMar></w:tcPr>'+text+'</w:tc>';
+  const left=['keywords','formulas','doubts','essentials','dates','authors'].map(k=>p(fieldLabels[k],true)+paras(v[k])).join('');
+  let body=p(v.title,true)+p(v.notice)+p('Relecture : '+v.at)+p('FICHE CORNELL',true);
+  body+='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="3100"/><w:gridCol w:w="6260"/></w:tblGrid><w:tr>'+cell(left,3100,'FFF1C8')+cell(p(fieldLabels.notes,true)+paras(v.notes),6260,'FFFFFF')+'</w:tr></w:tbl>';
+  body+=p(fieldLabels.summary,true)+paras(v.summary)+p('DETAIL DES REPONSES ET DE LA RELECTURE',true);
+  const map=new Map(arr(data.items).map(i=>[i.id,i]));for(const a of arr(data.answers)){const i=map.get(a.id)||{};body+=p(a.question,true)+p('R\u00e9ponse originale',true)+paras(a.answer)+p('Proposition re\u00e7ue',true)+paras(i.corrected_answer||'Non trait\u00e9')+paras(i.explanation||'')+paras(sourceList(i).join('\n'));}
+  return zip({'[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>', '_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>','word/document.xml':'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1440" w:bottom="1080" w:left="1440"/></w:sectPr></w:body></w:document>'});
+ }
+ function exportWord(){if($('verifyRunV43')?.disabled)return;if(!refresh()||!view){$('cornellReviewStatusV48').textContent='Lance d\u2019abord une correction pour exporter une fiche corrig\u00e9e.';return;}if((view.stale!==false||view.pending)&&!confirm('Cette fiche est ancienne ou partielle. Les avertissements seront inclus dans le Word. Exporter ?'))return;const blob=makeDocx(view,read(REVIEW)),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Cornell-corrigee-'+new Date().toISOString().slice(0,10)+'.docx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+ $('cornellWordV48').onclick=exportWord;
+ window.addEventListener('click',e=>{if(!e.target.closest('#verifyExportWordV43,#learningExportWordV36,#methodExportWordV36'))return;if(!arr(read(REVIEW)?.items).length)return;e.preventDefault();e.stopImmediatePropagation();exportWord();},true);
+ window.SecondBrainCornellV48={refresh,makeView,makeDocx};
+ refresh();document.title='Second Cerveau IA \u2014 V48';const pill=document.querySelector('.pill');if(pill)pill.textContent=document.title;if($('versionStatus'))$('versionStatus').textContent='V48 : corrections visibles dans Cornell, limites explicites et Word coh\u00e9rent.';
 })();

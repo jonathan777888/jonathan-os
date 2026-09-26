@@ -1,4 +1,3 @@
-
 // V39 — correction du remplissage Cornell : suppression de la boucle V38
 (()=>{
   const LEARN_KEY='second-brain-learning-v33';
@@ -197,6 +196,8 @@
   }
 
   function generateCornellV39(){
+    // V48: the saved review is authoritative; do not overwrite it with raw answers.
+    if(window.SecondBrainCornellV48?.refresh())return;
     const source=buildSource();
     const notes=source.sections.join('\n\n');
     const keywords=extractKeywords(source.allAnswers.join(' '),source.topic);
@@ -271,3 +272,4 @@
 
   generateCornellV39();
 })();
+
