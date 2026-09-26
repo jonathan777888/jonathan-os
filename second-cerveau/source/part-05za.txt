@@ -1,0 +1,227 @@
+
+// V40 — correction rédactionnelle Cornell par IA locale
+(()=>{
+  const CORNELL_KEY='second-brain-cornell-v37';
+  const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
+
+  try{
+    document.title='Second Cerveau IA — V40';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V40';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V40 · cette version hérite directement de V39 et ajoute une correction rédactionnelle par IA locale pour la synthèse Cornell.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v40){
+      versions.dataset.v40='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V40 · actuelle</strong><small>La synthèse Cornell peut maintenant être corrigée par une IA locale : orthographe, grammaire, accords, ponctuation et fluidité, sans modifier les réponses originales.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V39 · actuelle'));if(old)old.textContent='V39';
+    }
+  }catch(e){}
+
+  const sheet=document.getElementById('cornellSheetV37');
+  const summaryEl=document.getElementById('cornellSummaryV37');
+  if(!sheet||!summaryEl)return;
+
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch(e){return fallback}};
+
+  let controls=document.getElementById('cornellAiControlsV40');
+  if(!controls){
+    controls=document.createElement('div');
+    controls.id='cornellAiControlsV40';
+    controls.className='actions';
+    controls.style.padding='10px 14px';
+    controls.innerHTML=`
+      <button class="btn primary" id="cornellAiCorrectV40" type="button">✦ Corriger la synthèse avec l’IA</button>
+      <button class="btn" id="cornellAiRestoreV40" type="button">Revenir à la synthèse automatique</button>
+      <span class="muted" id="cornellAiStatusV40">L’IA corrige la rédaction sans modifier tes réponses originales.</span>
+    `;
+    const existing=sheet.querySelector('.actions');
+    if(existing)existing.insertAdjacentElement('afterend',controls);else sheet.prepend(controls);
+  }
+
+  const correctBtn=document.getElementById('cornellAiCorrectV40');
+  const restoreBtn=document.getElementById('cornellAiRestoreV40');
+  const statusEl=document.getElementById('cornellAiStatusV40');
+
+  let worker=null;
+  let originalAutoSummary='';
+  let timeoutId=null;
+
+  const workerCode=String.raw`
+    import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1";
+    env.allowLocalModels=false;
+    let generator=null;
+    const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
+    const modelId=mobile?"onnx-community/SmolLM2-135M-Instruct-ONNX":"onnx-community/Qwen3-0.6B-ONNX";
+
+    async function load(){
+      if(generator)return generator;
+      const options=mobile?{dtype:"q4"}:(navigator.gpu?{device:"webgpu",dtype:"q4f16"}:{dtype:"q4"});
+      options.progress_callback=p=>self.postMessage({type:"progress",progress:p});
+      self.postMessage({type:"loading"});
+      generator=await pipeline("text-generation",modelId,options);
+      self.postMessage({type:"ready"});
+      return generator;
+    }
+
+    self.onmessage=async e=>{
+      if(e.data?.type!=="correct")return;
+      try{
+        const pipe=await load();
+        const text=String(e.data.text||"").trim();
+        const topic=String(e.data.topic||"").trim();
+
+        const messages=[
+          {role:"system",content:
+            "Tu es un correcteur rédactionnel francophone. Corrige uniquement la rédaction du texte fourni : orthographe, grammaire, accords, conjugaison, ponctuation et fluidité. Garde exactement les idées et le sens de l'utilisateur. N'ajoute aucun fait, aucune information nouvelle, aucune citation, aucun verset et aucune interprétation. Ne transforme pas une opinion ou une expérience personnelle en fait. Si une phrase est ambiguë, reformule-la le moins possible. Réponds uniquement avec la synthèse corrigée, sans commentaire, sans titre supplémentaire et sans liste de corrections."
+          },
+          {role:"user",content:
+            "SUJET : "+topic+"\n\nTEXTE À CORRIGER :\n"+text
+          }
+        ];
+
+        self.postMessage({type:"generating"});
+        const out=await pipe(messages,{
+          max_new_tokens:mobile?180:320,
+          do_sample:false,
+          repetition_penalty:1.12,
+          no_repeat_ngram_size:3
+        });
+
+        let generated=out?.[0]?.generated_text;
+        let answer=Array.isArray(generated)?generated.at(-1)?.content||"":String(generated||"");
+        answer=answer.replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/^assistant\s*/i,"").trim();
+        self.postMessage({type:"answer",answer});
+      }catch(err){
+        self.postMessage({type:"error",message:err?.message||"Erreur du modèle local."});
+      }
+    };
+  `;
+
+  function validCorrection(text){
+    const t=String(text||'').trim();
+    if(t.length<20)return false;
+    if(/je ne peux pas|i cannot|unable to/i.test(t))return false;
+    return true;
+  }
+
+  function saveAiSummary(text){
+    summaryEl.value=text;
+    try{
+      const c=readJson(CORNELL_KEY,{})||{};
+      c.summary=text;
+      c.aiCorrected=true;
+      c.aiCorrectedAt=new Date().toISOString();
+      c.aiCorrectionVersion='V40';
+      localStorage.setItem(CORNELL_KEY,JSON.stringify(c));
+    }catch(e){}
+    const st=document.getElementById('cornellStatusV37');
+    if(st)st.textContent='Synthèse corrigée par l’IA locale · '+new Date().toLocaleTimeString('fr-CA');
+  }
+
+  function getWorker(){
+    if(worker)return worker;
+    const url=URL.createObjectURL(new Blob([workerCode],{type:'text/javascript'}));
+    worker=new Worker(url,{type:'module'});
+    URL.revokeObjectURL(url);
+
+    worker.onmessage=e=>{
+      const d=e.data||{};
+      if(d.type==='loading'){
+        statusEl.textContent=mobile?'Chargement du petit modèle IA local…':'Chargement du modèle IA local…';
+      }else if(d.type==='progress'){
+        const p=d.progress||{};
+        const pct=Number.isFinite(p.progress)?' '+Math.round(p.progress)+' %':'';
+        statusEl.textContent='Téléchargement du modèle'+pct+' — première utilisation seulement.';
+      }else if(d.type==='ready'){
+        statusEl.textContent='Modèle chargé. Préparation de la correction…';
+      }else if(d.type==='generating'){
+        statusEl.textContent='L’IA corrige la rédaction de ta synthèse…';
+      }else if(d.type==='answer'){
+        clearTimeout(timeoutId);
+        correctBtn.disabled=false;
+        if(validCorrection(d.answer)){
+          saveAiSummary(d.answer);
+          statusEl.textContent='Correction terminée. Vérifie la synthèse avant de la valider.';
+        }else{
+          statusEl.textContent='La correction reçue n’était pas assez fiable. Ta synthèse précédente est conservée.';
+        }
+      }else if(d.type==='error'){
+        clearTimeout(timeoutId);
+        correctBtn.disabled=false;
+        statusEl.textContent='Le modèle local n’a pas pu corriger la synthèse. Essaie Chrome ou Edge sur ordinateur.';
+        worker?.terminate();worker=null;
+      }
+    };
+
+    worker.onerror=()=>{
+      clearTimeout(timeoutId);
+      correctBtn.disabled=false;
+      statusEl.textContent='Le navigateur a arrêté le modèle IA local. Essaie Chrome ou Edge sur ordinateur.';
+      worker?.terminate();worker=null;
+    };
+    return worker;
+  }
+
+  correctBtn.onclick=()=>{
+    // V39 remplit d'abord la synthèse automatique à partir des exercices.
+    document.getElementById('refreshCornellV38')?.click();
+
+    const text=String(summaryEl.value||'').trim();
+    const topic=String(document.getElementById('cornellTitleV37')?.value||'').trim();
+    if(!text){
+      statusEl.textContent='Réponds d’abord aux exercices pour créer une synthèse.';
+      return;
+    }
+
+    originalAutoSummary=text;
+    correctBtn.disabled=true;
+    statusEl.textContent='Démarrage de l’IA locale…';
+
+    clearTimeout(timeoutId);
+    timeoutId=setTimeout(()=>{
+      worker?.terminate();worker=null;
+      correctBtn.disabled=false;
+      statusEl.textContent='La correction a pris trop de temps. Ta synthèse originale a été conservée.';
+    },mobile?90000:210000);
+
+    try{
+      getWorker().postMessage({type:'correct',text,topic});
+    }catch(e){
+      clearTimeout(timeoutId);
+      correctBtn.disabled=false;
+      statusEl.textContent='Impossible de démarrer l’IA locale dans ce navigateur.';
+    }
+  };
+
+  restoreBtn.onclick=()=>{
+    document.getElementById('refreshCornellV38')?.click();
+    const fresh=String(summaryEl.value||'').trim();
+    originalAutoSummary=fresh||originalAutoSummary;
+    try{
+      const c=readJson(CORNELL_KEY,{})||{};
+      c.aiCorrected=false;
+      c.aiRestoredAt=new Date().toISOString();
+      localStorage.setItem(CORNELL_KEY,JSON.stringify(c));
+    }catch(e){}
+    statusEl.textContent='Synthèse automatique restaurée.';
+  };
+
+  // La synthèse IA reste modifiable manuellement après correction.
+  summaryEl.readOnly=false;
+  summaryEl.title='Synthèse générée automatiquement puis corrigeable par l’IA locale ou manuellement.';
+
+  const label=summaryEl.previousElementSibling;
+  if(label)label.textContent='SYNTHÈSE — automatique puis corrigeable par IA';
+
+  // Avant export Word, conserver la version visible (IA ou manuelle).
+  ['learningExportWordV36','methodExportWordV36'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('click',()=>{
+      try{
+        const c=readJson(CORNELL_KEY,{})||{};
+        c.summary=summaryEl.value||'';
+        c.updatedAt=new Date().toISOString();
+        localStorage.setItem(CORNELL_KEY,JSON.stringify(c));
+      }catch(e){}
+    },true);
+  });
+})();
