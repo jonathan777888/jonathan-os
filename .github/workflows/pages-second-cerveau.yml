@@ -32,6 +32,7 @@ jobs:
           grep -q 'Vérifier mon travail' public/index.html
           grep -q 'Configurer l’accès sécurisé' public/index.html
           grep -q 'Réponse vérifiée et corrigée' public/index.html
+          grep -q 'Exporter Word corrigé (.docx)' public/index.html
           grep -q 'verifiedByV43' public/index.html
           grep -q 'cornellAiModeV42' public/index.html
           grep -q 'Correction avancée avec l’IA' public/index.html
