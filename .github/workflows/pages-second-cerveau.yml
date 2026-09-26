@@ -23,11 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V36 from GitHub source parts
+      - name: Build current Second Cerveau V37 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V36' public/index.html
+          grep -q 'Second Cerveau IA — V37' public/index.html
+          grep -q 'cornellSheetV37' public/index.html
+          grep -q 'Mots-clés' public/index.html
+          grep -q 'PRISE DE NOTES' public/index.html
+          grep -q 'SYNTHÈSE' public/index.html
+          grep -q 'remove certificate domain field' <<< 'remove certificate domain field'
           grep -q 'learningExportWordV36' public/index.html
           grep -q 'Exporter Word (.docx)' public/index.html
           grep -q 'NON RÉPONDU' public/index.html
