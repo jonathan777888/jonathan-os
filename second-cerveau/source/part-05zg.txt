@@ -1,0 +1,103 @@
+
+// V46: persistent subject history across the learning page and workshops.
+(() => {
+  'use strict';
+  const HISTORY='second-brain-subject-history-v46';
+  const WORK='second-brain-method-workspaces-v35';
+  const LEARN='second-brain-learning-v33';
+  const MAX=80;
+  const names=['Feynman','Rappel actif','Répétition espacée','Exercices pratiques','Pourquoi / Comment','Carte mentale / conceptuelle','Double codage','Exemples concrets','Comparaison','Apprentissage par projet','Entrelacement','Auto-évaluation','Cornell','SQ3R','Enseigner à quelqu’un','Méthode des erreurs','Analogies','Chunking','Pré-test','Révision cumulative'];
+  const read=(k,f={})=>{try{return JSON.parse(localStorage.getItem(k)||'null')??f;}catch{return f;}};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function normalize(t){return String(t||'').replace(/\s+/g,' ').trim().slice(0,300);}
+  function key(t){return normalize(t).toLocaleLowerCase('fr-CA');}
+  function load(){const h=read(HISTORY,{items:[]});return {items:Array.isArray(h.items)?h.items:[]};}
+  function saveHistory(h){try{localStorage.setItem(HISTORY,JSON.stringify({items:h.items.slice(0,MAX),updatedAt:new Date().toISOString()}));return true;}catch{return false;}}
+  function remember(topic,source='principal',methodIndex=null){
+    topic=normalize(topic); if(!topic)return;
+    const h=load(),k=key(topic),now=new Date().toISOString();
+    let item=h.items.find(x=>key(x.topic)===k);
+    if(!item){item={id:crypto.randomUUID?.()||Date.now().toString(36),topic,createdAt:now,lastUsedAt:now,sources:[]};h.items.unshift(item);}
+    item.topic=topic; item.lastUsedAt=now;
+    const sourceLabel=methodIndex==null?source:(names[methodIndex]||source);
+    item.sources=[...new Set([...(item.sources||[]),sourceLabel])].slice(0,20);
+    h.items.sort((a,b)=>String(b.lastUsedAt).localeCompare(String(a.lastUsedAt)));
+    saveHistory(h); renderSuggestions(); renderPanel();
+  }
+  function seed(){
+    const learn=read(LEARN,{}); if(learn.topic)remember(learn.topic,'Cycle principal');
+    const all=read(WORK,{});
+    Object.entries(all).forEach(([i,w])=>{if(w?.topic)remember(w.topic,'atelier',Number(i));});
+  }
+  function ensureDatalist(){
+    let dl=document.getElementById('subjectSuggestionsV46');
+    if(!dl){dl=document.createElement('datalist');dl.id='subjectSuggestionsV46';document.body.appendChild(dl);}
+    return dl;
+  }
+  function renderSuggestions(){
+    const dl=ensureDatalist(),h=load();
+    dl.innerHTML=h.items.slice(0,40).map(x=>'<option value="'+esc(x.topic)+'"></option>').join('');
+    const main=document.getElementById('learnTopic'); if(main)main.setAttribute('list',dl.id);
+    const workshop=document.getElementById('a44topic'); if(workshop)workshop.setAttribute('list',dl.id);
+  }
+  function methodIndexFromDialog(){
+    const title=document.getElementById('a44title')?.textContent?.trim()||'';
+    return names.indexOf(title);
+  }
+  function panelHost(){
+    return document.getElementById('reviewScopeV45') || document.getElementById('atelierV44') || document.getElementById('page-learning');
+  }
+  function ensurePanel(){
+    let p=document.getElementById('savedSubjectsV46');
+    if(p)return p;
+    const host=panelHost(); if(!host)return null;
+    p=document.createElement('section');p.id='savedSubjectsV46';p.style.cssText='margin:14px 0;padding:14px;border:1px solid #cad8cd;border-radius:12px;background:#fbfdf9';
+    p.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong>Mes sujets sauvegardés</strong><div class="muted" style="margin-top:4px">Les sujets restent sur cet appareil et peuvent être repris sans les retaper.</div></div><button class="btn" id="clearEmptySubjectsV46" type="button">Actualiser</button></div><div id="savedSubjectsListV46" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>';
+    host.insertAdjacentElement('afterend',p);
+    p.querySelector('#clearEmptySubjectsV46').onclick=()=>{seed();renderPanel();};
+    p.addEventListener('click',e=>{
+      const b=e.target.closest('[data-subject-v46]');if(!b)return;
+      const topic=b.dataset.subjectV46||'';
+      const dialog=document.getElementById('methodStudioV44');
+      const input=dialog?.open?document.getElementById('a44topic'):document.getElementById('learnTopic');
+      if(input){input.value=topic;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.focus();}
+      remember(topic,dialog?.open?'atelier':'Cycle principal',dialog?.open?methodIndexFromDialog():null);
+    });
+    return p;
+  }
+  function renderPanel(){
+    const p=ensurePanel();if(!p)return;
+    const list=p.querySelector('#savedSubjectsListV46'),h=load();
+    if(!h.items.length){list.innerHTML='<span class="muted">Aucun sujet sauvegardé pour le moment.</span>';return;}
+    list.innerHTML=h.items.slice(0,24).map(x=>'<button class="btn" type="button" data-subject-v46="'+esc(x.topic)+'" title="'+esc((x.sources||[]).join(' · '))+'">'+esc(x.topic)+'</button>').join('');
+  }
+  let timer=null;
+  document.addEventListener('input',e=>{
+    const t=e.target;
+    if(t?.id!=='learnTopic'&&t?.id!=='a44topic')return;
+    clearTimeout(timer);
+    timer=setTimeout(()=>remember(t.value,t.id==='learnTopic'?'Cycle principal':'atelier',t.id==='a44topic'?methodIndexFromDialog():null),900);
+  },true);
+  document.addEventListener('change',e=>{
+    const t=e.target;
+    if(t?.id==='learnTopic')remember(t.value,'Cycle principal');
+    if(t?.id==='a44topic')remember(t.value,'atelier',methodIndexFromDialog());
+  },true);
+  document.addEventListener('click',e=>{
+    const a=e.target.closest('[data-action],#learningSave,#verifyRunV43');
+    if(!a)return;
+    const w=document.getElementById('a44topic'),m=document.getElementById('learnTopic');
+    if(w?.value)remember(w.value,'atelier',methodIndexFromDialog());
+    if(m?.value)remember(m.value,'Cycle principal');
+  },true);
+  window.addEventListener('beforeunload',()=>{
+    const w=document.getElementById('a44topic'),m=document.getElementById('learnTopic');
+    if(w?.value)remember(w.value,'atelier',methodIndexFromDialog());
+    if(m?.value)remember(m.value,'Cycle principal');
+  });
+  const mo=new MutationObserver(()=>{renderSuggestions();});
+  mo.observe(document.body,{childList:true,subtree:true});
+  seed();renderSuggestions();renderPanel();
+  const vs=document.getElementById('versionStatus');if(vs)vs.textContent='V46 · Les sujets sont sauvegardés automatiquement et restent réutilisables dans les ateliers.';
+  document.title='Second Cerveau IA — V46';const pill=document.querySelector('.pill');if(pill)pill.textContent=document.title;
+})();
