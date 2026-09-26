@@ -1,0 +1,116 @@
+
+// V41 — préserver la synthèse IA dans le Word complet
+(()=>{
+  const CORNELL_KEY='second-brain-cornell-v37';
+
+  try{
+    document.title='Second Cerveau IA — V41';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V41';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V41 · le Word complet conserve désormais la synthèse Cornell corrigée par IA.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v41){
+      versions.dataset.v41='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V41 · actuelle</strong><small>Correction de l’export : le rapport Word complet conserve la synthèse corrigée par IA au lieu de la remplacer par la synthèse automatique.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V40 · actuelle'));if(old)old.textContent='V40';
+    }
+  }catch(e){}
+
+  const page=document.getElementById('page-learning');
+  const summaryEl=document.getElementById('cornellSummaryV37');
+  if(!page||!summaryEl)return;
+
+  const read=()=>{try{return JSON.parse(localStorage.getItem(CORNELL_KEY)||'{}')}catch(e){return{}}};
+  const write=o=>{try{localStorage.setItem(CORNELL_KEY,JSON.stringify(o))}catch(e){}};
+  const clean=v=>String(v??'').trim();
+
+  function saveCurrentAiSummary(){
+    const d=read();
+    if(d.aiCorrected===true){
+      const text=clean(summaryEl.value);
+      if(text)write({...d,summary:text,aiCorrectedSummary:text,updatedAt:new Date().toISOString()});
+    }
+  }
+
+  // Dès que V40 annonce une correction terminée, mémoriser explicitement la version IA.
+  const aiStatus=document.getElementById('cornellAiStatusV40');
+  if(aiStatus){
+    const obs=new MutationObserver(()=>{
+      if(/Correction terminée|Synthèse corrigée/i.test(aiStatus.textContent||''))saveCurrentAiSummary();
+    });
+    obs.observe(aiStatus,{childList:true,subtree:true,characterData:true});
+  }
+
+  // Si l'utilisateur change les réponses sources après une correction IA,
+  // la correction précédente n'est plus considérée à jour.
+  function invalidateAiCorrection(){
+    const d=read();
+    if(d.aiCorrected===true){
+      write({...d,aiCorrected:false,aiCorrectedSummary:'',aiInvalidatedAt:new Date().toISOString()});
+      const s=document.getElementById('cornellAiStatusV40');
+      if(s)s.textContent='Les réponses ont changé. Relance la correction IA pour mettre la synthèse à jour.';
+    }
+  }
+  page.addEventListener('input',e=>{
+    if(e.target.closest('#cornellSheetV37'))return;
+    invalidateAiCorrection();
+  });
+  document.getElementById('methodModalV35')?.addEventListener('input',invalidateAiCorrection);
+
+  function prepareFullExport(oldButton){
+    if(!oldButton||oldButton.dataset.v41Safe)return;
+    const originalExport=oldButton.onclick;
+    if(typeof originalExport!=='function')return;
+
+    const clone=oldButton.cloneNode(true);
+    clone.dataset.v41Safe='1';
+    oldButton.replaceWith(clone);
+
+    clone.onclick=async function(event){
+      const before=read();
+      const preserveAi=before.aiCorrected===true;
+      const aiText=preserveAi ? clean(before.aiCorrectedSummary)||clean(summaryEl.value)||clean(before.summary) : '';
+
+      // Sauvegarder d'abord les réponses visibles.
+      const learningSave=document.getElementById('learningSave');
+      const methodSave=document.getElementById('methodSaveV35');
+      const modal=document.getElementById('methodModalV35');
+
+      try{learningSave?.click()}catch(e){}
+      try{if(modal?.classList.contains('open'))methodSave?.click()}catch(e){}
+
+      // Les sauvegardes précédentes peuvent régénérer Cornell : restaurer ensuite la version IA.
+      if(preserveAi&&aiText){
+        summaryEl.value=aiText;
+        const now=read();
+        write({...now,summary:aiText,aiCorrected:true,aiCorrectedSummary:aiText,updatedAt:new Date().toISOString()});
+      }
+
+      // exportDocxV37 relance les boutons Enregistrer dans syncAll().
+      // Les neutraliser uniquement pendant l'export pour empêcher V39 de réécrire la synthèse.
+      const oldLearningOnclick=learningSave?.onclick||null;
+      const oldMethodOnclick=methodSave?.onclick||null;
+      if(learningSave)learningSave.onclick=()=>{};
+      if(methodSave)methodSave.onclick=()=>{};
+
+      try{
+        await originalExport.call(clone,event);
+      }finally{
+        if(learningSave)learningSave.onclick=oldLearningOnclick;
+        if(methodSave)methodSave.onclick=oldMethodOnclick;
+        if(preserveAi&&aiText){
+          summaryEl.value=aiText;
+          const after=read();
+          write({...after,summary:aiText,aiCorrected:true,aiCorrectedSummary:aiText,updatedAt:new Date().toISOString()});
+        }
+      }
+    };
+  }
+
+  prepareFullExport(document.getElementById('learningExportWordV36'));
+  prepareFullExport(document.getElementById('methodExportWordV36'));
+
+  const d=read();
+  if(d.aiCorrected===true&&!d.aiCorrectedSummary&&clean(d.summary)){
+    write({...d,aiCorrectedSummary:clean(d.summary),updatedAt:new Date().toISOString()});
+  }
+})();
