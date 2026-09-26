@@ -23,11 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V38 from GitHub source parts
+      - name: Build current Second Cerveau V39 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V38' public/index.html
+          grep -q 'Second Cerveau IA — V39' public/index.html
+          grep -q 'cornellAutoPreviewV39' public/index.html
+          grep -q 'generatorVersion' public/index.html
+          grep -q 'Rempli automatiquement depuis tes exercices' public/index.html
+          grep -q 'Actualiser maintenant depuis mes réponses' public/index.html
           grep -q 'refreshCornellV38' public/index.html
           grep -q 'Cornell actualisée automatiquement' public/index.html
           grep -q 'generatedFromExercises' public/index.html
