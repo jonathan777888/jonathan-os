@@ -305,3 +305,191 @@
   const aiStatus=document.getElementById('cornellAiStatusV40');
   if(aiStatus) aiStatus.textContent='La correction locale a été remplacée par la vérification V43 avec documents et sources web.';
 })();
+
+
+// V43 — export Word de la version vérifiée et corrigée
+(()=>{
+  const VERIFY_KEY='second-brain-verify-v43';
+  const box=document.getElementById('learningVerifyV43');
+  const statusEl=document.getElementById('verifyStatusV43');
+  if(!box)return;
+
+  const read=()=>{try{return JSON.parse(localStorage.getItem(VERIFY_KEY)||'null')}catch(e){return null}};
+  const clean=v=>String(v??'').trim();
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const statusLabels={
+    correct:'Correct',
+    correct_incomplete:'Correct mais incomplet',
+    clarify:'À préciser',
+    unsupported:'Non soutenu par les sources',
+    contradicted:'Contradictoire avec la source',
+    not_externally_verifiable:'Non vérifiable extérieurement'
+  };
+
+  function getVerifiedReport(){
+    const data=read();
+    if(!data?.items?.length||!data?.answers?.length)return null;
+    const answers=new Map(data.answers.map(a=>[a.id,a]));
+    const sourceTitle=new Map((data.sources||[]).map(s=>[s.url,s.title||s.url]));
+    return{
+      at:data.at||new Date().toISOString(),
+      topic:clean(data.topic)||'Apprentissage',
+      provider:clean(data.provider)||'IA',
+      researchProvider:clean(data.research_provider)||'',
+      items:data.items.map((item,i)=>{
+        const original=answers.get(item.id)||{};
+        return{
+          number:i+1,
+          question:clean(original.question),
+          original:clean(original.answer),
+          status:statusLabels[item.status]||clean(item.status)||'À vérifier',
+          corrected:clean(item.corrected_answer)||clean(original.answer),
+          explanation:clean(item.explanation),
+          documents:Array.isArray(item.document_support)?item.document_support.map(clean).filter(Boolean):[],
+          sources:Array.isArray(item.source_urls)?item.source_urls.map(u=>({
+            url:clean(u),title:clean(sourceTitle.get(u)||u)
+          })).filter(s=>s.url):[]
+        };
+      }),
+      cornell:data.cornell||{keywords:[],notes:'',summary:''}
+    };
+  }
+
+  function addButton(){
+    if(document.getElementById('verifyExportWordV43'))return;
+    const run=document.getElementById('verifyRunV43');
+    const actions=run?.parentElement;
+    if(!actions)return;
+    const btn=document.createElement('button');
+    btn.className='btn';
+    btn.id='verifyExportWordV43';
+    btn.type='button';
+    btn.textContent='Exporter la version corrigée en Word (.docx)';
+    btn.title='Exporte les réponses vérifiées/corrigées V43, les explications, les sources et la Cornell vérifiée.';
+    btn.onclick=exportVerifiedDocx;
+    actions.appendChild(btn);
+  }
+
+  async function exportVerifiedDocx(){
+    const report=getVerifiedReport();
+    if(!report){
+      if(statusEl)statusEl.textContent='Lance d’abord ✓ Vérifier mon travail, puis exporte la version corrigée.';
+      return;
+    }
+    if(statusEl)statusEl.textContent='Préparation du Word de la version corrigée…';
+
+    try{
+      const docx=await import('https://cdn.jsdelivr.net/npm/docx@9.7.2/+esm');
+      const {Document,Packer,Paragraph,TextRun,HeadingLevel}=docx;
+      const children=[];
+
+      children.push(new Paragraph({text:'Second Cerveau — Version vérifiée et corrigée',heading:HeadingLevel.TITLE}));
+      children.push(new Paragraph({children:[
+        new TextRun({text:'Sujet : ',bold:true}),
+        new TextRun(report.topic)
+      ]}));
+      children.push(new Paragraph({children:[
+        new TextRun({text:'Date de vérification : ',bold:true}),
+        new TextRun(new Date(report.at).toLocaleString('fr-CA'))
+      ]}));
+      children.push(new Paragraph({children:[
+        new TextRun({text:'Vérification : ',bold:true}),
+        new TextRun(report.provider+(report.researchProvider?' · recherche '+report.researchProvider:''))
+      ]}));
+
+      children.push(new Paragraph({text:'Réponses vérifiées et corrigées',heading:HeadingLevel.HEADING_1}));
+
+      report.items.forEach(item=>{
+        children.push(new Paragraph({text:item.number+'. '+(item.question||'Question'),heading:HeadingLevel.HEADING_2}));
+        children.push(new Paragraph({children:[
+          new TextRun({text:'Statut : ',bold:true}),
+          new TextRun(item.status)
+        ]}));
+
+        if(item.original){
+          children.push(new Paragraph({children:[new TextRun({text:'Réponse originale',bold:true})]}));
+          children.push(new Paragraph({text:item.original}));
+        }
+
+        children.push(new Paragraph({children:[new TextRun({text:'Réponse vérifiée et corrigée',bold:true})]}));
+        children.push(new Paragraph({text:item.corrected||'—'}));
+
+        if(item.explanation){
+          children.push(new Paragraph({children:[new TextRun({text:'Pourquoi',bold:true})]}));
+          children.push(new Paragraph({text:item.explanation}));
+        }
+
+        if(item.documents.length){
+          children.push(new Paragraph({children:[new TextRun({text:'Documents utilisés : ',bold:true}),new TextRun(item.documents.join(' · '))]}));
+        }
+
+        if(item.sources.length){
+          children.push(new Paragraph({children:[new TextRun({text:'Sources web',bold:true})]}));
+          item.sources.forEach(src=>{
+            children.push(new Paragraph({text:(src.title||'Source')+' — '+src.url,bullet:{level:0}}));
+          });
+        }
+      });
+
+      children.push(new Paragraph({text:'Fiche Cornell vérifiée',heading:HeadingLevel.HEADING_1}));
+      const keywords=Array.isArray(report.cornell?.keywords)?report.cornell.keywords.join(' · '):clean(report.cornell?.keywords);
+      children.push(new Paragraph({children:[new TextRun({text:'Mots-clés : ',bold:true}),new TextRun(keywords||'—')]}));
+      children.push(new Paragraph({children:[new TextRun({text:'Prise de notes',bold:true})]}));
+      children.push(new Paragraph({text:clean(report.cornell?.notes)||'—'}));
+      children.push(new Paragraph({children:[new TextRun({text:'Synthèse',bold:true})]}));
+      children.push(new Paragraph({text:clean(report.cornell?.summary)||'—'}));
+
+      const doc=new Document({sections:[{properties:{page:{size:{width:12240,height:15840}}},children}]});
+      const blob=await Packer.toBlob(doc);
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const safe=report.topic.replace(/[^a-zA-Z0-9À-ÿ_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'apprentissage';
+      a.href=url;
+      a.download='Second-Cerveau-corrige-'+safe+'-'+new Date().toISOString().slice(0,10)+'.docx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+      if(statusEl)statusEl.textContent='Version vérifiée et corrigée exportée en Word.';
+    }catch(err){
+      console.error('V43 corrected DOCX export failed',err);
+      exportFallback(report);
+      if(statusEl)statusEl.textContent='Version corrigée exportée en format Word compatible (.doc).';
+    }
+  }
+
+  function exportFallback(report){
+    let html='<!doctype html><html><head><meta charset="utf-8"><title>Version corrigée</title><style>body{font-family:Arial,sans-serif;line-height:1.45}h1,h2,h3{margin-top:24px}.label{font-weight:bold;margin-top:10px}.answer{white-space:pre-wrap;margin:4px 0 12px}.source{margin:4px 0}</style></head><body>';
+    html+='<h1>Second Cerveau — Version vérifiée et corrigée</h1>';
+    html+='<p><b>Sujet :</b> '+esc(report.topic)+'</p>';
+    report.items.forEach(item=>{
+      html+='<h2>'+item.number+'. '+esc(item.question||'Question')+'</h2>';
+      html+='<p><b>Statut :</b> '+esc(item.status)+'</p>';
+      if(item.original)html+='<div class="label">Réponse originale</div><div class="answer">'+esc(item.original)+'</div>';
+      html+='<div class="label">Réponse vérifiée et corrigée</div><div class="answer">'+esc(item.corrected||'—')+'</div>';
+      if(item.explanation)html+='<div class="label">Pourquoi</div><div class="answer">'+esc(item.explanation)+'</div>';
+      if(item.documents.length)html+='<p><b>Documents utilisés :</b> '+esc(item.documents.join(' · '))+'</p>';
+      if(item.sources.length){
+        html+='<div class="label">Sources web</div>';
+        item.sources.forEach(src=>{html+='<div class="source">'+esc(src.title||'Source')+' — '+esc(src.url)+'</div>'});
+      }
+    });
+    const keywords=Array.isArray(report.cornell?.keywords)?report.cornell.keywords.join(' · '):clean(report.cornell?.keywords);
+    html+='<h1>Fiche Cornell vérifiée</h1><p><b>Mots-clés :</b> '+esc(keywords||'—')+'</p>';
+    html+='<h2>Prise de notes</h2><div class="answer">'+esc(clean(report.cornell?.notes)||'—')+'</div>';
+    html+='<h2>Synthèse</h2><div class="answer">'+esc(clean(report.cornell?.summary)||'—')+'</div>';
+    html+='</body></html>';
+
+    const blob=new Blob([html],{type:'application/msword;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='Second-Cerveau-corrige-'+new Date().toISOString().slice(0,10)+'.doc';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+
+  addButton();
+})();
