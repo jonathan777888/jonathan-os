@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V43 from GitHub source parts
+      - name: Build Second Cerveau V48 and check compatibility
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
@@ -47,16 +47,18 @@ jobs:
           grep -q 'Rempli automatiquement depuis tes exercices' public/index.html
           grep -q 'Actualiser maintenant depuis mes réponses' public/index.html
           grep -q 'refreshCornellV38' public/index.html
-          grep -q 'Cornell actualisée automatiquement' public/index.html
+          # V38 raw-review labels were retired, not the underlying features.
+          grep -q 'cornellControllerV48' public/index.html
           grep -q 'generatedFromExercises' public/index.html
-          grep -q 'PRISE DE NOTES — automatique depuis les exercices' public/index.html
-          grep -q 'Mots-clés — automatique' public/index.html
-          grep -q 'SYNTHÈSE — automatique avec ton propre vocabulaire' public/index.html
+          grep -q 'cornellReviewStatusV48' public/index.html
+          grep -q 'cornellRestoreV48' public/index.html
+          grep -q 'cornellWordV48' public/index.html
+          grep -Fq 'if(window.SecondBrainCornellV48?.refresh())return;' public/index.html
           grep -q 'cornellSheetV37' public/index.html
           grep -q 'Mots-clés' public/index.html
           grep -q 'PRISE DE NOTES' public/index.html
           grep -q 'SYNTHÈSE' public/index.html
-          grep -q 'remove certificate domain field' <<< 'remove certificate domain field'
+          grep -q 'accessCodeV48' public/index.html
           grep -q 'learningExportWordV36' public/index.html
           grep -q 'Exporter Word (.docx)' public/index.html
           grep -q 'NON RÉPONDU' public/index.html
@@ -91,6 +93,33 @@ jobs:
           grep -q 'sbZoomIn' public/index.html
           grep -q 'Revenir à 100 %' public/index.html
           if grep -q 'atob(' public/index.html; then exit 1; fi
+
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.active=False; self.blocks=[]; self.buffer=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if tag=='script':
+                      self.active=not a.get('src') and a.get('type','') in ('','module','text/javascript')
+                      self.buffer=[]
+              def handle_data(self, data):
+                  if self.active: self.buffer.append(data)
+              def handle_endtag(self, tag):
+                  if tag=='script' and self.active:
+                      self.blocks.append(''.join(self.buffer)); self.active=False
+          parser=Scripts(); parser.feed(Path('public/index.html').read_text())
+          assert parser.blocks, 'No inline JavaScript found'
+          for i, code in enumerate(parser.blocks):
+              path=Path('/tmp')/f'second-cerveau-{i}.mjs'; path.write_text(code)
+              subprocess.run(['node','--check',str(path)],check=True)
+          print(f'Checked {len(parser.blocks)} inline scripts')
+          PY
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
