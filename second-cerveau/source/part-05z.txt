@@ -1,0 +1,273 @@
+
+// V39 — correction du remplissage Cornell : suppression de la boucle V38
+(()=>{
+  const LEARN_KEY='second-brain-learning-v33';
+  const WORK_KEY='second-brain-method-workspaces-v35';
+  const CORNELL_KEY='second-brain-cornell-v37';
+
+  try{
+    document.title='Second Cerveau IA — V39';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V39';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V39 · correction du remplissage automatique Cornell : suppression de la boucle de sauvegarde V38 et génération directe depuis les réponses visibles.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v39){
+      versions.dataset.v39='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V39 · actuelle</strong><small>Correction du remplissage Cornell : les réponses visibles alimentent directement le titre, les mots-clés, la prise de notes et la synthèse sans boucle de sauvegarde.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V38 · actuelle'));if(old)old.textContent='V38';
+    }
+  }catch(e){}
+
+  const page=document.getElementById('page-learning');
+  const sheet=document.getElementById('cornellSheetV37');
+  if(!page||!sheet)return;
+
+  const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch(e){return fallback}};
+  const clean=v=>String(v??'').trim();
+
+  const coreMap={
+    topic:'learnTopic',what:'learnWhat',who:'learnWho',where:'learnWhere',when:'learnWhen',
+    why:'learnWhy',how:'learnHow',whatif:'learnWhatIf',feynman:'learnFeynman',
+    example:'learnExample',analogy:'learnAnalogy',practice:'learnPractice',
+    errors:'learnErrors',miniTest:'learnMiniTest'
+  };
+
+  function saveCoreDirect(){
+    const prior=readJson(LEARN_KEY,{})||{};
+    const next={...prior};
+    Object.entries(coreMap).forEach(([key,id])=>{
+      const el=document.getElementById(id);
+      if(el)next[key]=el.value||'';
+    });
+    const checks={reviewJ1:'learnJ1',reviewJ3:'learnJ3',reviewJ7:'learnJ7',reviewJ14:'learnJ14',reviewJ30:'learnJ30'};
+    Object.entries(checks).forEach(([key,id])=>{
+      const el=document.getElementById(id);
+      if(el)next[key]=!!el.checked;
+    });
+    next.updatedAt=new Date().toISOString();
+    try{localStorage.setItem(LEARN_KEY,JSON.stringify(next))}catch(e){}
+  }
+
+  function activeMethodIndex(){
+    const title=document.getElementById('methodTitleV35')?.textContent||'';
+    const m=title.match(/^\s*(\d+)\./);
+    return m?Math.max(0,Number(m[1])-1):null;
+  }
+
+  function saveOpenMethodDirect(){
+    const modal=document.getElementById('methodModalV35');
+    if(!modal||!modal.classList.contains('open'))return;
+    const index=activeMethodIndex();
+    if(index===null)return;
+    const all=readJson(WORK_KEY,{})||{};
+    const prior=all[String(index)]||{};
+    all[String(index)]={
+      ...prior,
+      topic:document.getElementById('methodTopicV35')?.value||'',
+      answers:[...document.querySelectorAll('#methodFieldsV35 textarea')].map(x=>x.value||''),
+      updatedAt:new Date().toISOString()
+    };
+    try{localStorage.setItem(WORK_KEY,JSON.stringify(all))}catch(e){}
+  }
+
+  // Remplace les boutons auxquels V38 avait attaché une boucle.
+  const oldLearningSave=document.getElementById('learningSave');
+  if(oldLearningSave&&!oldLearningSave.dataset.v39Safe){
+    const safe=oldLearningSave.cloneNode(true);
+    safe.dataset.v39Safe='1';
+    safe.onclick=()=>{
+      saveCoreDirect();
+      generateCornellV39();
+      const st=document.getElementById('learningStatus');if(st)st.textContent='Apprentissage enregistré.';
+    };
+    oldLearningSave.replaceWith(safe);
+  }
+
+  const oldMethodSave=document.getElementById('methodSaveV35');
+  if(oldMethodSave&&!oldMethodSave.dataset.v39Safe){
+    const safe=oldMethodSave.cloneNode(true);
+    safe.dataset.v39Safe='1';
+    safe.onclick=()=>{
+      saveOpenMethodDirect();
+      generateCornellV39();
+      const st=document.getElementById('methodStatusV35');if(st)st.textContent='Méthode enregistrée.';
+    };
+    oldMethodSave.replaceWith(safe);
+  }
+
+  const STOP=new Set(('le la les un une des du de et ou mais donc car que qui quoi quand comment pourquoi ou au aux en dans sur sous avec sans pour par ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs je tu il elle nous vous ils elles se ne pas plus moins tres trop aussi encore deja puis alors comme est sont suis es etre avoir fait faire cela ceci celle celui ceux the and for with from this that these those').split(/\s+/));
+
+  function tokenize(text){
+    return clean(text)
+      .toLocaleLowerCase('fr')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9+#.-]+/g,' ')
+      .split(/\s+/)
+      .filter(w=>w.length>=3&&!STOP.has(w)&&!/^\d+$/.test(w));
+  }
+
+  function extractKeywords(text,topic){
+    const counts=new Map();
+    const add=(w,n=1)=>counts.set(w,(counts.get(w)||0)+n);
+    tokenize(text).forEach(w=>add(w,1));
+    tokenize(topic).forEach(w=>add(w,5));
+    return [...counts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,15).map(([w])=>w).join(' · ');
+  }
+
+  function currentCore(){
+    const stored=readJson(LEARN_KEY,{})||{};
+    const out={...stored};
+    Object.entries(coreMap).forEach(([key,id])=>{
+      const el=document.getElementById(id);
+      if(el)out[key]=el.value||'';
+    });
+    return out;
+  }
+
+  function currentWork(){
+    const all={...(readJson(WORK_KEY,{})||{})};
+    const modal=document.getElementById('methodModalV35');
+    const index=activeMethodIndex();
+    if(modal?.classList.contains('open')&&index!==null){
+      all[String(index)]={
+        ...(all[String(index)]||{}),
+        topic:document.getElementById('methodTopicV35')?.value||'',
+        answers:[...document.querySelectorAll('#methodFieldsV35 textarea')].map(x=>x.value||'')
+      };
+    }
+    return all;
+  }
+
+  const coreLabels=[
+    ['what','What? — C’est quoi ?'],['who','Who? — Qui est concerné ?'],['where','Where? — Où ?'],
+    ['when','When? — Quand ?'],['why','Why? — Pourquoi ?'],['how','How? — Comment ?'],
+    ['whatif','What if?'],['feynman','Feynman'],['example','Exemple concret'],['analogy','Analogie'],
+    ['practice','Exercices pratiques / rappel actif'],['errors','Méthode des erreurs'],['miniTest','Mini-examen']
+  ];
+
+  const methodNames=[
+    'Méthode Feynman','Rappel actif','Répétition espacée','Exercices pratiques','Pourquoi / Comment',
+    'Carte mentale / conceptuelle','Double codage','Exemples concrets','Comparaison','Apprentissage par projet',
+    'Entrelacement','Auto-évaluation','Méthode Cornell','SQ3R','Enseigner à quelqu’un','Méthode des erreurs',
+    'Analogies','Chunking','Pré-test','Révision cumulative'
+  ];
+
+  function buildSource(){
+    const core=currentCore();
+    const work=currentWork();
+    const sections=[];
+    const allAnswers=[];
+
+    const coreLines=[];
+    coreLabels.forEach(([key,label])=>{
+      const v=clean(core[key]);
+      if(!v)return;
+      coreLines.push(label+'\n→ '+v);
+      allAnswers.push(v);
+    });
+    if(coreLines.length)sections.push('CYCLE PRINCIPAL\n'+coreLines.join('\n'));
+
+    methodNames.forEach((name,index)=>{
+      const saved=work[String(index)]||{};
+      const answers=Array.isArray(saved.answers)?saved.answers:[];
+      const vals=answers.map(clean).filter(Boolean);
+      if(!vals.length)return;
+      vals.forEach(v=>allAnswers.push(v));
+      const topic=clean(saved.topic);
+      sections.push(name+(topic?' — '+topic:'')+'\n'+vals.map((v,i)=>(i+1)+'. '+v).join('\n'));
+    });
+
+    return{core,topic:clean(core.topic),sections,allAnswers};
+  }
+
+  function buildSummary(source){
+    const candidates=[];
+    const seen=new Set();
+    const add=v=>{
+      const t=clean(v).replace(/\s+/g,' ');
+      if(!t)return;
+      const k=t.toLocaleLowerCase('fr');
+      if(seen.has(k))return;
+      seen.add(k);candidates.push(t);
+    };
+    ['feynman','what','why','how','example','whatif'].forEach(k=>add(source.core[k]));
+    source.allAnswers.forEach(v=>{if(candidates.length<6)add(v)});
+    if(!candidates.length)return '';
+    const body=candidates.slice(0,6).map(v=>/[.!?]$/.test(v)?v:v+'.').join(' ');
+    return (source.topic?'Sujet : '+source.topic+'.\n\n':'')+'Je retiens : '+body;
+  }
+
+  function generateCornellV39(){
+    const source=buildSource();
+    const notes=source.sections.join('\n\n');
+    const keywords=extractKeywords(source.allAnswers.join(' '),source.topic);
+    const summary=buildSummary(source);
+
+    const titleEl=document.getElementById('cornellTitleV37');
+    const keyEl=document.getElementById('cornellKeywordsV37');
+    const notesEl=document.getElementById('cornellNotesV37');
+    const sumEl=document.getElementById('cornellSummaryV37');
+
+    if(titleEl)titleEl.value=source.topic;
+    if(keyEl)keyEl.value=keywords;
+    if(notesEl)notesEl.value=notes;
+    if(sumEl)sumEl.value=summary;
+
+    const prior=readJson(CORNELL_KEY,{})||{};
+    const merged={
+      ...prior,
+      title:source.topic,
+      keywords,
+      notes,
+      summary,
+      generatedFromExercises:true,
+      generatorVersion:'V39',
+      updatedAt:new Date().toISOString()
+    };
+    try{
+      localStorage.setItem(CORNELL_KEY,JSON.stringify(merged));
+      const st=document.getElementById('cornellStatusV37');
+      if(st)st.textContent='Rempli automatiquement depuis tes exercices · '+new Date().toLocaleTimeString('fr-CA');
+    }catch(e){
+      const st=document.getElementById('cornellStatusV37');
+      if(st)st.textContent='Erreur : stockage du navigateur plein.';
+    }
+
+    const preview=document.getElementById('cornellAutoPreviewV39');
+    if(preview)preview.textContent=source.allAnswers.length
+      ? source.allAnswers.length+' réponse(s) utilisées pour remplir Cornell.'
+      : 'Aucune réponse trouvée dans les exercices pour le moment.';
+  }
+
+  let badge=document.getElementById('cornellAutoPreviewV39');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='cornellAutoPreviewV39';
+    badge.className='status';
+    badge.style.margin='8px 14px';
+    sheet.insertBefore(badge,sheet.children[1]||null);
+  }
+
+  const refresh=document.getElementById('refreshCornellV38');
+  if(refresh){
+    refresh.textContent='Actualiser maintenant depuis mes réponses';
+    refresh.onclick=()=>{saveCoreDirect();saveOpenMethodDirect();generateCornellV39()};
+  }
+
+  let timer=null;
+  function schedule(){
+    clearTimeout(timer);
+    timer=setTimeout(generateCornellV39,300);
+  }
+  page.addEventListener('input',e=>{if(!e.target.closest('#cornellSheetV37'))schedule()});
+  page.addEventListener('change',e=>{if(!e.target.closest('#cornellSheetV37'))schedule()});
+  document.getElementById('methodModalV35')?.addEventListener('input',schedule);
+  document.getElementById('methodModalV35')?.addEventListener('change',schedule);
+
+  // Actualiser avant tout export Word.
+  ['learningExportWordV36','methodExportWordV36'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn)btn.addEventListener('click',()=>{saveCoreDirect();saveOpenMethodDirect();generateCornellV39()},true);
+  });
+
+  generateCornellV39();
+})();
