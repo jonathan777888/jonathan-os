@@ -1,0 +1,183 @@
+
+// V47: make verified/corrected material the source of truth for the Cornell sheet.
+(() => {
+  'use strict';
+  const VERIFY='second-brain-verify-v43';
+  const CORNELL='second-brain-cornell-v37';
+  const $=id=>document.getElementById(id);
+  const read=(k,f={})=>{try{return JSON.parse(localStorage.getItem(k)||'null')??f;}catch{return f;}};
+  const write=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true;}catch{return false;}};
+  const ids={
+    title:'cornellTitleV37',keywords:'cornellKeywordsV37',formulas:'cornellFormulasV37',
+    doubts:'cornellDoubtsV37',essentials:'cornellEssentialsV37',dates:'cornellDatesV37',
+    authors:'cornellAuthorsV37',notes:'cornellNotesV37',summary:'cornellSummaryV37'
+  };
+  const labels={
+    keywords:'Mots-clés — vérifiés',
+    notes:'PRISE DE NOTES — réponses vérifiées et corrigées',
+    summary:'SYNTHÈSE — à partir des réponses vérifiées'
+  };
+  const statusName={
+    correct:'Correct selon les sources',
+    correct_incomplete:'Correct mais incomplet',
+    clarify:'À préciser',
+    unsupported:'Fond non validé',
+    contradicted:'Corrigé car contredit par une source',
+    not_externally_verifiable:'Non vérifiable extérieurement'
+  };
+  const good=new Set(['correct','correct_incomplete','contradicted']);
+  const clean=v=>String(v??'').replace(/\r/g,'').trim();
+  const oneLine=v=>clean(v).replace(/\s+/g,' ');
+  const unique=arr=>{
+    const seen=new Set(),out=[];
+    for(const value of arr){const v=clean(value);if(!v)continue;const k=v.toLocaleLowerCase('fr-CA');if(seen.has(k))continue;seen.add(k);out.push(v);}
+    return out;
+  };
+  function shortFact(v,max=240){
+    const t=oneLine(v);if(!t)return '';
+    const m=t.match(/^(.{1,240}?[.!?])(?:\s|$)/);
+    const first=m?.[1]||t.slice(0,max);
+    return first.length<t.length&&!/[.!?]$/.test(first)?first+'…':first;
+  }
+  function answerMap(data){return new Map((Array.isArray(data.answers)?data.answers:[]).map(a=>[a.id,a]));}
+  function sourcesFor(item){
+    const list=[...(item.source_urls||[]),...(item.document_support||[])].map(clean).filter(Boolean);
+    return unique(list);
+  }
+  function formulas(items){
+    const out=[];
+    for(const i of items){
+      const lines=clean(i.corrected_answer).split(/\n|(?<=[.!?])\s+/);
+      for(const line of lines){
+        const t=oneLine(line);
+        if(!t)continue;
+        if(/\b[A-Za-z][A-Za-z0-9_]*\s*=\s*[^=]+/.test(t) || /\d+(?:[.,]\d+)?\s*(?:[+\-×÷*/=<>]|<=|>=)\s*\d+(?:[.,]\d+)?/.test(t) || /\b\d+(?:[.,]\d+)?\s*%\b/.test(t))out.push(t);
+      }
+    }
+    return unique(out).slice(0,12).join('\n');
+  }
+  function dates(items){
+    const months='janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre';
+    const rx=new RegExp('\\b(?:\\d{1,2}\\s+(?:'+months+')(?:\\s+\\d{4})?|(?:'+months+')\\s+\\d{4}|(?:19|20)\\d{2})\\b','gi');
+    const out=[];
+    for(const i of items){for(const m of clean(i.corrected_answer).match(rx)||[])out.push(m);}
+    return unique(out).slice(0,16).join(' · ');
+  }
+  function authors(items,answers){
+    const out=[];
+    for(const i of items){
+      const q=oneLine(answers.get(i.id)?.question||'');
+      if(!/(auteur|écrit par|ecrit par|qui a écrit|qui a ecrit|rédigé par|redige par|who wrote)/i.test(q))continue;
+      const v=shortFact(i.corrected_answer,180);if(v)out.push(v);
+    }
+    return unique(out).slice(0,10).join('\n');
+  }
+  function buildVerified(data,current){
+    const answers=answerMap(data);
+    const items=(Array.isArray(data.items)?data.items:[]).filter(i=>i&&i.reviewed!==false);
+    const supported=items.filter(i=>good.has(i.status));
+    const attention=items.filter(i=>['clarify','unsupported','contradicted','correct_incomplete'].includes(i.status));
+
+    const notes=supported.map(i=>{
+      const q=clean(answers.get(i.id)?.question||i.id);
+      const src=sourcesFor(i);
+      return q+'\n→ '+clean(i.corrected_answer)+(src.length?'\nSources : '+src.join(' ; '):'');
+    }).join('\n\n');
+
+    const doubts=attention.map(i=>{
+      const q=clean(answers.get(i.id)?.question||i.id);
+      const why=shortFact(i.explanation,280);
+      return '• '+q+'\n  '+(statusName[i.status]||i.status)+(why?' — '+why:'');
+    }).join('\n\n');
+
+    const essentials=unique(supported.map(i=>shortFact(i.corrected_answer))).slice(0,8).map(v=>'• '+v).join('\n');
+    const formulaText=formulas(supported);
+    const dateText=dates(supported);
+    const authorText=authors(supported,answers);
+    const k=Array.isArray(data.cornell?.keywords)?data.cornell.keywords.map(clean).filter(Boolean):[];
+    const keywordText=unique(k.length?k:(data.answers||[]).map(a=>a.topic)).slice(0,20).join(' · ');
+    const summary=clean(data.cornell?.summary) || supported.slice(0,4).map(i=>shortFact(i.corrected_answer,320)).filter(Boolean).join('\n\n');
+
+    return {
+      ...current,
+      title:clean(data.topic)||current.title||'',
+      keywords:keywordText||current.keywords||'',
+      formulas:formulaText||current.formulas||'',
+      doubts:doubts||current.doubts||'',
+      essentials:essentials||current.essentials||'',
+      dates:dateText||current.dates||'',
+      authors:authorText||current.authors||'',
+      notes:notes||current.notes||'',
+      summary:summary||current.summary||'',
+      verifiedByV43:true,
+      verifiedByV45:true,
+      verifiedByV47:true,
+      verifiedAt:data.at||new Date().toISOString(),
+      sourceFingerprint:data.source_fingerprint||current.sourceFingerprint||'',
+      generatedFromExercises:false,
+      updatedAt:new Date().toISOString()
+    };
+  }
+  function setVerifiedLabels(on){
+    const kw=$('cornellKeywordsV37')?.previousElementSibling;
+    const notes=$('cornellNotesV37')?.previousElementSibling;
+    const summary=$('cornellSummaryV37')?.previousElementSibling;
+    if(on){
+      if(kw)kw.textContent=labels.keywords;
+      if(notes)notes.textContent=labels.notes;
+      if(summary)summary.textContent=labels.summary;
+    }else{
+      if(kw)kw.textContent='Mots-clés — automatique';
+      if(notes)notes.textContent='PRISE DE NOTES — automatique depuis les exercices';
+      if(summary)summary.textContent='SYNTHÈSE — automatique avec ton propre vocabulaire';
+    }
+  }
+  function applyVerified(){
+    const data=read(VERIFY,null),current=read(CORNELL,{});
+    if(!data||data.schema_version!==45||data.verification_complete!==true||current.verifiedByV45!==true)return false;
+    const patch=buildVerified(data,current);
+    if(!write(CORNELL,patch))return false;
+    Object.entries(ids).forEach(([k,id])=>{const el=$(id);if(el)el.value=patch[k]||'';});
+    setVerifiedLabels(true);
+    const st=$('cornellStatusV37');
+    if(st)st.textContent='✓ Cornell remplie avec les réponses vérifiées et corrigées · '+new Date().toLocaleTimeString('fr-CA');
+    return true;
+  }
+  function invalidate(){
+    const c=read(CORNELL,{});
+    if(c.verifiedByV45!==true&&c.verifiedByV47!==true)return;
+    write(CORNELL,{...c,verifiedByV45:false,verifiedByV47:false,verificationStaleAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+    setVerifiedLabels(false);
+    const st=$('cornellStatusV37');
+    if(st)st.textContent='Les réponses ont changé : la Cornell corrigée est devenue ancienne. Relance « Vérifier mon travail ».';
+  }
+  function isSourceInput(target){
+    if(!(target instanceof Element))return false;
+    if(target.closest('#cornellSheetV37,#learningVerifyV43,#savedSubjectsV46'))return false;
+    if(target.closest('#methodStudioV44,#methodModalV35'))return true;
+    if(!target.closest('#page-learning'))return false;
+    const id=target.id||'';
+    if(id==='learnTopic'||id.startsWith('learn')||target.matches('textarea.field,input.field,select.field'))return true;
+    return false;
+  }
+  document.addEventListener('input',e=>{if(isSourceInput(e.target))invalidate();},true);
+  document.addEventListener('change',e=>{if(isSourceInput(e.target))invalidate();},true);
+
+  const results=$('verifyResultsV43'),verifyStatus=$('verifyStatusV43');
+  const observer=new MutationObserver(()=>setTimeout(applyVerified,0));
+  if(results)observer.observe(results,{childList:true,subtree:true});
+  if(verifyStatus)observer.observe(verifyStatus,{childList:true,subtree:true,characterData:true});
+
+  // Saving/exporting may invoke the old V38 raw refresh; restore the verified sheet afterwards
+  // unless a source edit has invalidated it.
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#learningSave,#methodSaveV35,#learningExportWordV36,#methodExportWordV36,#refreshCornellV38'))return;
+    setTimeout(applyVerified,700);
+  },true);
+
+  applyVerified();
+  document.title='Second Cerveau IA — V47';
+  const pill=document.querySelector('.pill');if(pill)pill.textContent=document.title;
+  const vs=$('versionStatus');if(vs)vs.textContent='V47 · La Cornell donne priorité aux réponses vérifiées/corrigées et remplit automatiquement notes, synthèse et champs pertinents.';
+  window.SecondBrainV47={applyVerified};
+})();
