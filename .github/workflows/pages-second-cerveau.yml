@@ -23,11 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V35 from GitHub source parts
+      - name: Build current Second Cerveau V36 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V35' public/index.html
+          grep -q 'Second Cerveau IA — V36' public/index.html
+          grep -q 'learningExportWordV36' public/index.html
+          grep -q 'Exporter Word (.docx)' public/index.html
+          grep -q 'NON RÉPONDU' public/index.html
+          grep -q 'Second Cerveau — Rapport d’apprentissage' public/index.html
           grep -q 'second-brain-method-workspaces-v35' public/index.html
           grep -q 'Utiliser cette méthode' public/index.html
           grep -q 'methodModalV35' public/index.html
