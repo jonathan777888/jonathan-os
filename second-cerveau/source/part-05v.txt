@@ -1,0 +1,184 @@
+
+// V35 — fenêtres interactives pour utiliser réellement les 20 méthodes
+(()=>{
+  const WORK_KEY='second-brain-method-workspaces-v35';
+  const METHODS=[{"title":"Méthode Feynman","fields":["Explique la notion comme à un débutant","Quels mots ou passages sont encore difficiles ?","Réexplique encore plus simplement","Quelle question poserais-tu pour vérifier que l’autre personne a compris ?"]},{"title":"Rappel actif","fields":["Écris les questions auxquelles tu veux répondre sans regarder le cours","Réponds de mémoire","Vérifie ensuite : qu’est-ce qui était correct ?","Qu’est-ce que tu dois corriger ou revoir ?"]},{"title":"Répétition espacée","fields":["Qu’est-ce que tu arrives encore à rappeler sans aide ?","Qu’as-tu oublié depuis la dernière révision ?","Réponse corrigée / notion à renforcer","Quand feras-tu la prochaine révision ?"]},{"title":"Exercices pratiques","fields":["Quel exercice ou petit programme dois-tu réaliser ?","Écris ton raisonnement ou ton code","Quel résultat as-tu obtenu ?","Que vas-tu modifier pour le prochain essai ?"]},{"title":"Pourquoi / Comment","fields":["Quelle ligne, commande ou notion veux-tu comprendre ?","Pourquoi existe-t-elle ?","Comment l’ordinateur l’exécute-t-il ?","Que se passe-t-il si tu la retires ou la modifies ?"]},{"title":"Carte mentale / conceptuelle","fields":["Quel est le concept central ?","Quels sont les composants principaux ?","Comment ces composants sont-ils reliés ?","Résume le flux complet avec des flèches ou des relations"]},{"title":"Double codage","fields":["Explique la notion avec des mots","Dessine-la avec du texte, des flèches ou un mini-schéma","Quel élément visuel correspond à quelle partie du code ?","Que comprends-tu mieux grâce au schéma ?"]},{"title":"Exemples concrets","fields":["Quelle notion abstraite veux-tu comprendre ?","Donne un exemple dans une situation réelle","Transforme cet exemple en petit exemple de code","Pourquoi cet exemple représente-t-il bien la notion ?"]},{"title":"Comparaison","fields":["Concept / technologie A","Concept / technologie B","Ressemblances et différences","Quand utiliser A ? Quand utiliser B ?"]},{"title":"Apprentissage par projet","fields":["Quel produit ou mini-projet veux-tu construire ?","Quelles fonctionnalités faut-il créer ?","Quelles compétences de tes certificats sont nécessaires ?","Quelle est la prochaine petite étape de code ?"]},{"title":"Entrelacement","fields":["Quels sujets vas-tu mélanger aujourd’hui ?","Exercice 1 et ta réponse","Exercice 2 et ta réponse","Exercice 3 : quelle méthode ou technologie fallait-il reconnaître ?"]},{"title":"Auto-évaluation","fields":["Écris tes questions de test","Réponds sans regarder les notes","Résultat : maîtrisé / hésitation / erreur","Quelles notions dois-tu retravailler ?"]},{"title":"Méthode Cornell","fields":["Notes principales : explications et code","Colonne questions / mots-clés","Résumé du sujet en quelques phrases","Réponds maintenant aux questions sans regarder tes notes"]},{"title":"SQ3R","fields":["Survey : quels titres et sections vois-tu ?","Question : transforme les titres en questions","Read + Recite : réponds avec tes propres mots","Review : quels points dois-tu revoir ?"]},{"title":"Enseigner à quelqu’un","fields":["Prépare ta mini-leçon","Donne un exemple concret ou un morceau de code","Quelle erreur fréquente veux-tu expliquer ?","Pose une question finale à ton élève et donne la réponse"]},{"title":"Méthode des erreurs","fields":["Erreur / bug / mauvaise réponse","Quelle était la cause réelle ?","Quelle correction as-tu faite ?","Règle à retenir + nouvel exercice similaire"]},{"title":"Analogies","fields":["Quelle nouvelle notion veux-tu comprendre ?","À quoi de connu peux-tu la comparer ?","Quelles parties correspondent entre les deux ?","Où l’analogie devient-elle incorrecte ou limitée ?"]},{"title":"Chunking","fields":["Quel gros sujet veux-tu découper ?","Bloc 1 et son rôle","Blocs suivants et leurs rôles","Comment tous les blocs fonctionnent-ils ensemble ?"]},{"title":"Pré-test","fields":["Écris 5 questions avant d’étudier","Tes réponses initiales, même incertaines","Après le cours : quelles réponses changent ?","Qu’as-tu appris que tu ne savais pas au départ ?"]},{"title":"Révision cumulative","fields":["Quelle nouvelle notion étudies-tu aujourd’hui ?","Quelles anciennes notions vas-tu revoir ?","Réponds à quelques questions mélangées","Quelles anciennes notions commencent à s’affaiblir ?"]}];
+
+  try{
+    document.title='Second Cerveau IA — V35';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V35';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V35 · cette version hérite directement de V34 et transforme les 20 méthodes en fenêtres de travail interactives avec autosauvegarde.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v35){
+      versions.dataset.v35='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V35 · actuelle</strong><small>Les 20 méthodes peuvent maintenant être utilisées dans des fenêtres interactives : choix du certificat IBM, sujet, exercices adaptés, réponses et autosauvegarde.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V34 · actuelle'));if(old)old.textContent='V34';
+    }
+  }catch(e){}
+
+  const guide=document.getElementById('methodsGuideV34');
+  if(!guide)return;
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .use-method-v35{margin-top:3px}
+    .method-modal-v35{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(25,32,28,.58);backdrop-filter:blur(5px)}
+    .method-modal-v35.open{display:flex}
+    .method-window-v35{width:min(900px,96vw);max-height:92vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 24px 70px rgba(20,30,25,.3);padding:18px}
+    .method-window-head-v35{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+    .method-window-head-v35 h2{margin:0;font-size:22px}
+    .method-window-head-v35 p{margin:5px 0 0;color:var(--muted);font-size:12px}
+    .method-close-v35{width:40px;height:40px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-size:22px;font-weight:900}
+    .method-meta-v35{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+    .method-fields-v35{display:grid;gap:10px}
+    .method-field-v35{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--soft)}
+    .method-field-v35 label{display:block;margin-bottom:6px;font-size:12px;font-weight:900}
+    .method-field-v35 textarea{min-height:120px}
+    .method-status-v35{min-height:20px;margin-top:8px;color:var(--muted);font-size:12px}
+    @media(max-width:700px){.method-meta-v35{grid-template-columns:1fr}.method-window-v35{padding:13px}}
+  `;
+  document.head.appendChild(style);
+
+  const modal=document.createElement('div');
+  modal.className='method-modal-v35';
+  modal.id='methodModalV35';
+  modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  modal.innerHTML=`
+    <div class="method-window-v35">
+      <div class="method-window-head-v35">
+        <div><h2 id="methodTitleV35">Méthode</h2><p id="methodSubtitleV35">Fenêtre de travail</p></div>
+        <button class="method-close-v35" id="methodCloseV35" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div class="method-meta-v35">
+        <div class="fieldgrp" style="margin:0">
+          <label class="label">Certificat / domaine</label>
+          <select class="field" id="methodCertV35">
+            <option>IBM Full Stack Software Developer</option>
+            <option>IBM DevOps & Software Engineering</option>
+            <option>IBM AI Developer</option>
+            <option>Plusieurs certificats</option>
+          </select>
+        </div>
+        <div class="fieldgrp" style="margin:0">
+          <label class="label">Sujet à travailler</label>
+          <input class="field" id="methodTopicV35" placeholder="Ex. Python — fonctions, Docker, REST API...">
+        </div>
+      </div>
+      <div class="method-fields-v35" id="methodFieldsV35"></div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" id="methodSaveV35" type="button">Enregistrer</button>
+        <button class="btn" id="methodClearV35" type="button">Effacer cette méthode</button>
+        <button class="btn" id="methodCloseBottomV35" type="button">Fermer</button>
+      </div>
+      <div class="method-status-v35" id="methodStatusV35">Les réponses sont autosauvegardées sur cet appareil.</div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  let activeIndex=0;
+  let saveTimer=null;
+
+  function readAll(){
+    try{
+      const v=JSON.parse(localStorage.getItem(WORK_KEY)||'{}');
+      return v&&typeof v==='object'?v:{};
+    }catch(e){return{}}
+  }
+
+  function writeAll(all,message='Autosauvegardé.'){
+    try{
+      localStorage.setItem(WORK_KEY,JSON.stringify(all));
+      document.getElementById('methodStatusV35').textContent=message;
+      return true;
+    }catch(e){
+      document.getElementById('methodStatusV35').textContent='Impossible de sauvegarder : le stockage du navigateur est plein.';
+      return false;
+    }
+  }
+
+  function collect(){
+    return{
+      certificate:document.getElementById('methodCertV35').value,
+      topic:document.getElementById('methodTopicV35').value,
+      answers:[...document.querySelectorAll('#methodFieldsV35 textarea')].map(x=>x.value),
+      updatedAt:new Date().toISOString()
+    };
+  }
+
+  function saveCurrent(message='Autosauvegardé.'){
+    const all=readAll();
+    all[String(activeIndex)]=collect();
+    writeAll(all,message);
+  }
+
+  function queueSave(){
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>saveCurrent(),250);
+  }
+
+  function openMethod(index){
+    activeIndex=index;
+    const method=METHODS[index];
+    const all=readAll();
+    const saved=all[String(index)]||{};
+    const globalTopic=document.getElementById('learnTopic')?.value||'';
+
+    document.getElementById('methodTitleV35').textContent=(index+1)+'. '+method.title;
+    document.getElementById('methodSubtitleV35').textContent='Utilise cette méthode directement pour travailler une notion de tes certificats IBM.';
+    document.getElementById('methodCertV35').value=saved.certificate||'IBM Full Stack Software Developer';
+    document.getElementById('methodTopicV35').value=saved.topic||globalTopic;
+
+    const fields=document.getElementById('methodFieldsV35');
+    fields.innerHTML=method.fields.map((label,i)=>`
+      <div class="method-field-v35">
+        <label>${label}</label>
+        <textarea class="field" data-method-answer="${i}" placeholder="Écris ta réponse ici..."></textarea>
+      </div>
+    `).join('');
+
+    [...fields.querySelectorAll('textarea')].forEach((el,i)=>{
+      el.value=Array.isArray(saved.answers)?(saved.answers[i]||''):'';
+      el.addEventListener('input',queueSave);
+    });
+    document.getElementById('methodCertV35').onchange=queueSave;
+    document.getElementById('methodTopicV35').oninput=queueSave;
+
+    const status=document.getElementById('methodStatusV35');
+    status.textContent=saved.updatedAt?'Dernière sauvegarde : '+new Date(saved.updatedAt).toLocaleString('fr-CA'):'Les réponses sont autosauvegardées sur cet appareil.';
+    modal.classList.add('open');
+    setTimeout(()=>document.getElementById('methodTopicV35').focus(),40);
+  }
+
+  function closeMethod(){
+    clearTimeout(saveTimer);
+    if(modal.classList.contains('open'))saveCurrent('Sauvegardé.');
+    modal.classList.remove('open');
+  }
+
+  const details=[...guide.querySelectorAll('.method-v34')];
+  details.forEach((detail,index)=>{
+    const body=detail.querySelector('.method-v34-body');
+    if(!body||body.querySelector('.use-method-v35'))return;
+    const row=document.createElement('div');
+    row.className='actions use-method-v35';
+    row.innerHTML='<button class="btn primary" type="button">Utiliser cette méthode</button>';
+    row.querySelector('button').onclick=()=>openMethod(index);
+    body.appendChild(row);
+  });
+
+  document.getElementById('methodSaveV35').onclick=()=>saveCurrent('Méthode enregistrée.');
+  document.getElementById('methodClearV35').onclick=()=>{
+    if(!confirm('Effacer les réponses enregistrées pour cette méthode ?'))return;
+    const all=readAll();
+    delete all[String(activeIndex)];
+    if(writeAll(all,'Réponses effacées.')){
+      document.getElementById('methodTopicV35').value=document.getElementById('learnTopic')?.value||'';
+      document.querySelectorAll('#methodFieldsV35 textarea').forEach(x=>x.value='');
+    }
+  };
+  document.getElementById('methodCloseV35').onclick=closeMethod;
+  document.getElementById('methodCloseBottomV35').onclick=closeMethod;
+  modal.addEventListener('click',e=>{if(e.target===modal)closeMethod()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeMethod()});
+})();
