@@ -1,0 +1,278 @@
+
+// V42 — correction IA avancée : modèle renforcé + double relecture + garde-fous
+(()=>{
+  const KEY='second-brain-cornell-v37';
+  const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
+  const canUseLarge=!mobile && !!navigator.gpu && (!navigator.deviceMemory || navigator.deviceMemory>=8);
+
+  try{
+    document.title='Second Cerveau IA — V42';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V42';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V42 · correction IA avancée avec double relecture, modèle renforcé sur ordinateur et garde-fous contre les changements de sens.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v42){
+      versions.dataset.v42='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V42 · actuelle</strong><small>Correction IA avancée : première correction, seconde relecture, contrôle de fidélité au texte original et modèle renforcé sur ordinateur compatible.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V41 · actuelle'));if(old)old.textContent='V41';
+    }
+  }catch(e){}
+
+  const sheet=document.getElementById('cornellSheetV37');
+  const summary=document.getElementById('cornellSummaryV37');
+  const button=document.getElementById('cornellAiCorrectV40');
+  const restore=document.getElementById('cornellAiRestoreV40');
+  const status=document.getElementById('cornellAiStatusV40');
+  if(!sheet||!summary||!button||!status)return;
+
+  button.textContent='✦ Correction avancée avec l’IA';
+  button.title='Deux passes de correction et contrôle du respect de ton texte';
+  if(restore)restore.textContent='Revenir à la synthèse automatique';
+
+  let badge=document.getElementById('cornellAiModeV42');
+  if(!badge){
+    badge=document.createElement('span');
+    badge.id='cornellAiModeV42';
+    badge.className='muted';
+    badge.style.marginLeft='6px';
+    button.insertAdjacentElement('afterend',badge);
+  }
+  badge.textContent=canUseLarge?'Qualité maximale · modèle local renforcé':'Mode compatible · modèle local léger';
+
+  let compare=document.getElementById('cornellAiCompareV42');
+  if(!compare){
+    compare=document.createElement('details');
+    compare.id='cornellAiCompareV42';
+    compare.style.margin='8px 14px';
+    compare.innerHTML='<summary style="cursor:pointer;font-weight:800">Comparer avant / après</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px"><div><strong>Texte original</strong><div id="cornellAiBeforeV42" style="white-space:pre-wrap;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fafbf8"></div></div><div><strong>Texte corrigé</strong><div id="cornellAiAfterV42" style="white-space:pre-wrap;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fafbf8"></div></div></div>';
+    document.getElementById('cornellAiControlsV40')?.insertAdjacentElement('afterend',compare);
+  }
+
+  const beforeEl=document.getElementById('cornellAiBeforeV42');
+  const afterEl=document.getElementById('cornellAiAfterV42');
+
+  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return{}}};
+  const write=o=>{try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}};
+  const clean=s=>String(s??'').trim();
+
+  let worker=null;
+  let timer=null;
+  let original='';
+
+  const workerCode=String.raw`
+    import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1";
+    env.allowLocalModels=false;
+    let pipe=null;
+    let loadedModel="";
+
+    async function getPipe(modelId,device,dtype){
+      if(pipe&&loadedModel===modelId)return pipe;
+      pipe=null;
+      loadedModel=modelId;
+      const opts={dtype};
+      if(device)opts.device=device;
+      opts.progress_callback=p=>self.postMessage({type:"progress",progress:p,modelId});
+      self.postMessage({type:"loading",modelId});
+      pipe=await pipeline("text-generation",modelId,opts);
+      self.postMessage({type:"ready",modelId});
+      return pipe;
+    }
+
+    function outputText(out){
+      let g=out?.[0]?.generated_text;
+      let a=Array.isArray(g)?g.at(-1)?.content||"":String(g||"");
+      return a.replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/^assistant\s*/i,"").trim();
+    }
+
+    async function generate(p,messages,max){
+      const out=await p(messages,{
+        max_new_tokens:max,
+        do_sample:false,
+        repetition_penalty:1.10,
+        no_repeat_ngram_size:4
+      });
+      return outputText(out);
+    }
+
+    self.onmessage=async e=>{
+      if(e.data?.type!=="correct")return;
+      const {text,topic,large}=e.data;
+      const strongModel="onnx-community/Qwen3-1.7B-ONNX";
+      const lightModel="onnx-community/Qwen3-0.6B-ONNX";
+      const modelId=large?strongModel:lightModel;
+      const device=large?"webgpu":null;
+      const dtype=large?"q4f16":"q4";
+
+      try{
+        const p=await getPipe(modelId,device,dtype);
+
+        self.postMessage({type:"pass",pass:1});
+        const first=await generate(p,[
+          {role:"system",content:
+            "Tu es un correcteur professionnel de français. Ta tâche est uniquement rédactionnelle. Corrige toutes les fautes d’orthographe, de grammaire, de conjugaison, d’accord, de syntaxe et de ponctuation. Améliore la fluidité et transforme les fragments en phrases naturelles quand c’est possible, MAIS conserve strictement chaque idée, chaque affirmation, chaque négation, chaque nombre, chaque nom propre et chaque degré de certitude. N’ajoute aucun fait, aucune citation, aucun exemple, aucun argument et aucune interprétation. N’enlève aucune idée. Si le texte est maladroit ou ambigu, choisis la reformulation minimale. Retourne seulement le texte corrigé."},
+          {role:"user",content:"SUJET : "+topic+"\n\nTEXTE ORIGINAL :\n"+text}
+        ],large?420:300);
+
+        self.postMessage({type:"pass",pass:2});
+        const second=await generate(p,[
+          {role:"system",content:
+            "Tu es le relecteur final d’un texte français. Compare le TEXTE ORIGINAL et la PREMIÈRE CORRECTION. Produis une version finale irréprochable sur la forme : orthographe, accents, accords, conjugaison, syntaxe, ponctuation, majuscules et fluidité. Tu dois garder exactement le sens du texte original. Ne corrige PAS les faits, la théologie, les opinions ou le fond. N’ajoute et ne supprime aucune affirmation, aucun nombre, aucun nom propre, aucune référence et aucune nuance. Si la première correction a changé le sens, rétablis le sens original. Retourne uniquement la version finale, sans explication."},
+          {role:"user",content:"TEXTE ORIGINAL :\n"+text+"\n\nPREMIÈRE CORRECTION :\n"+first}
+        ],large?420:300);
+
+        self.postMessage({type:"answer",first,answer:second,modelId});
+      }catch(err){
+        self.postMessage({type:"error",message:err?.message||"Erreur du modèle local."});
+      }
+    };
+  `;
+
+  function normalizedWords(s){
+    return clean(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').split(/\s+/).filter(x=>x.length>2);
+  }
+
+  function numbers(s){
+    return clean(s).match(/\d+(?:[.,:]\d+)*/g)||[];
+  }
+
+  function fidelity(originalText,correctedText){
+    const o=clean(originalText),c=clean(correctedText);
+    if(!o||!c||c.length<15)return{ok:false,reason:'texte trop court'};
+    const ratio=c.length/Math.max(1,o.length);
+    if(ratio<0.55||ratio>1.75)return{ok:false,reason:'longueur trop différente'};
+
+    const on=numbers(o).sort().join('|');
+    const cn=numbers(c).sort().join('|');
+    if(on!==cn)return{ok:false,reason:'les nombres ou références ont changé'};
+
+    const ow=new Set(normalizedWords(o));
+    const cw=new Set(normalizedWords(c));
+    let same=0;
+    ow.forEach(w=>{if(cw.has(w))same++});
+    const overlap=ow.size?same/ow.size:1;
+    if(overlap<0.32)return{ok:false,reason:'la reformulation s’éloigne trop du texte original'};
+
+    if(/je ne peux pas|i cannot|unable to|as an ai/i.test(c))return{ok:false,reason:'réponse de modèle invalide'};
+    return{ok:true,reason:''};
+  }
+
+  function save(text,modelId){
+    const d=read();
+    write({
+      ...d,
+      summary:text,
+      aiCorrected:true,
+      aiCorrectedSummary:text,
+      aiCorrectedAt:new Date().toISOString(),
+      aiCorrectionVersion:'V42',
+      aiCorrectionModel:modelId,
+      aiCorrectionMode:canUseLarge?'quality-max':'compatible',
+      updatedAt:new Date().toISOString()
+    });
+  }
+
+  function getWorker(){
+    if(worker)return worker;
+    const url=URL.createObjectURL(new Blob([workerCode],{type:'text/javascript'}));
+    worker=new Worker(url,{type:'module'});
+    URL.revokeObjectURL(url);
+
+    worker.onmessage=e=>{
+      const d=e.data||{};
+      if(d.type==='loading'){
+        status.textContent=canUseLarge?'Chargement du modèle renforcé… le premier téléchargement peut être long.':'Chargement du modèle local…';
+      }else if(d.type==='progress'){
+        const p=d.progress||{};
+        const pct=Number.isFinite(p.progress)?' '+Math.round(p.progress)+' %':'';
+        status.textContent='Téléchargement du modèle'+pct+' — garde cette page ouverte.';
+      }else if(d.type==='ready'){
+        status.textContent='Modèle prêt. Début de la correction…';
+      }else if(d.type==='pass'&&d.pass===1){
+        status.textContent='Passe 1/2 · correction complète du français…';
+      }else if(d.type==='pass'&&d.pass===2){
+        status.textContent='Passe 2/2 · relecture finale et contrôle du sens…';
+      }else if(d.type==='answer'){
+        clearTimeout(timer);
+        button.disabled=false;
+        const check=fidelity(original,d.answer);
+        const firstCheck=fidelity(original,d.first);
+
+        let finalText='';
+        if(check.ok)finalText=clean(d.answer);
+        else if(firstCheck.ok)finalText=clean(d.first);
+
+        if(!finalText){
+          status.textContent='La correction a été rejetée par le contrôle de fidélité : '+check.reason+'. Ton texte original est conservé.';
+          return;
+        }
+
+        summary.value=finalText;
+        beforeEl.textContent=original;
+        afterEl.textContent=finalText;
+        save(finalText,d.modelId);
+        status.textContent=check.ok
+          ?'Correction avancée terminée · double relecture effectuée. Relis une dernière fois avant validation.'
+          :'La seconde passe a été rejetée ; la première correction fiable a été conservée.';
+      }else if(d.type==='error'){
+        clearTimeout(timer);
+        button.disabled=false;
+        status.textContent='La correction avancée n’a pas pu terminer. Ton texte original est conservé.';
+        worker?.terminate();worker=null;
+      }
+    };
+
+    worker.onerror=()=>{
+      clearTimeout(timer);
+      button.disabled=false;
+      status.textContent='Le navigateur a arrêté le modèle local. Ton texte original est conservé.';
+      worker?.terminate();worker=null;
+    };
+    return worker;
+  }
+
+  button.onclick=()=>{
+    // Régénérer la synthèse à partir des réponses uniquement si aucune correction IA active n'existe.
+    const d=read();
+    if(d.aiCorrected!==true)document.getElementById('refreshCornellV38')?.click();
+
+    original=clean(summary.value);
+    const topic=clean(document.getElementById('cornellTitleV37')?.value);
+    if(!original){
+      status.textContent='La synthèse est vide. Réponds d’abord aux exercices.';
+      return;
+    }
+
+    beforeEl.textContent=original;
+    afterEl.textContent='Correction en cours…';
+    button.disabled=true;
+    status.textContent='Préparation de la correction avancée…';
+
+    clearTimeout(timer);
+    timer=setTimeout(()=>{
+      worker?.terminate();worker=null;
+      button.disabled=false;
+      afterEl.textContent='';
+      status.textContent='La correction a dépassé le temps maximal. Ton texte original est conservé.';
+    },canUseLarge?420000:240000);
+
+    try{
+      getWorker().postMessage({type:'correct',text:original,topic,large:canUseLarge});
+    }catch(e){
+      clearTimeout(timer);
+      button.disabled=false;
+      status.textContent='Impossible de démarrer la correction avancée dans ce navigateur.';
+    }
+  };
+
+  // La restauration annule aussi le statut V42.
+  if(restore){
+    const oldRestore=restore.onclick;
+    restore.onclick=()=>{
+      if(typeof oldRestore==='function')oldRestore();
+      const d=read();
+      write({...d,aiCorrected:false,aiCorrectedSummary:'',aiCorrectionVersion:'',updatedAt:new Date().toISOString()});
+      beforeEl.textContent='';
+      afterEl.textContent='';
+      status.textContent='Synthèse automatique restaurée.';
+    };
+  }
+})();
