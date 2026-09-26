@@ -361,10 +361,10 @@
     const actions=run?.parentElement;
     if(!actions)return;
     const btn=document.createElement('button');
-    btn.className='btn';
+    btn.className='btn primary';
     btn.id='verifyExportWordV43';
     btn.type='button';
-    btn.textContent='Exporter la version corrigée en Word (.docx)';
+    btn.textContent='📄 Exporter Word corrigé (.docx)';
     btn.title='Exporte les réponses vérifiées/corrigées V43, les explications, les sources et la Cornell vérifiée.';
     btn.onclick=exportVerifiedDocx;
     actions.appendChild(btn);
@@ -492,4 +492,36 @@
   }
 
   addButton();
+
+  // Rendre aussi l'export principal sensible à la dernière vérification V43.
+  const mainExport=document.getElementById('learningExportWordV36');
+  if(mainExport&&!mainExport.dataset.v43CorrectedExport){
+    mainExport.dataset.v43CorrectedExport='1';
+    const legacyExport=mainExport.onclick;
+    mainExport.addEventListener('click',e=>{
+      const report=getVerifiedReport();
+      if(!report)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      exportVerifiedDocx();
+    },true);
+    if(getVerifiedReport()){
+      mainExport.textContent='📄 Exporter Word corrigé (.docx)';
+      mainExport.title='Une vérification V43 est disponible : ce bouton exportera la version vérifiée et corrigée.';
+    }else{
+      mainExport.title='Après ✓ Vérifier mon travail, ce bouton exportera automatiquement la version corrigée.';
+    }
+    // Conserver l'ancien gestionnaire uniquement tant qu'aucune vérification V43 n'existe.
+    mainExport.dataset.legacyExportAvailable=typeof legacyExport==='function'?'1':'0';
+  }
+
+  const verified=read();
+  if(verified?.items?.length){
+    const note=document.createElement('div');
+    note.className='status';
+    note.id='verifyWordReadyV43';
+    note.style.marginTop='8px';
+    note.textContent='📄 Version corrigée prête pour l’export Word.';
+    document.getElementById('verifyExportWordV43')?.parentElement?.insertAdjacentElement('afterend',note);
+  }
 })();
