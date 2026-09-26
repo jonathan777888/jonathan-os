@@ -23,11 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V40 from GitHub source parts
+      - name: Build current Second Cerveau V41 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V40' public/index.html
+          grep -q 'Second Cerveau IA — V41' public/index.html
+          grep -q 'aiCorrectedSummary' public/index.html
+          grep -q 'le Word complet conserve' public/index.html
           grep -q 'cornellAiCorrectV40' public/index.html
           grep -q 'Corriger la synthèse avec l’IA' public/index.html
           grep -q 'cornellAutoPreviewV39' public/index.html
