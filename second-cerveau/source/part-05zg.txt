@@ -95,8 +95,10 @@
     if(w?.value)remember(w.value,'atelier',methodIndexFromDialog());
     if(m?.value)remember(m.value,'Cycle principal');
   });
-  const mo=new MutationObserver(()=>{renderSuggestions();});
-  mo.observe(document.body,{childList:true,subtree:true});
+  // Keep suggestions in sync when a workshop opens, without observing our own DOM writes.
+  document.addEventListener('click',e=>{
+    if(e.target.closest('[data-open],.use-method-v35 button')) setTimeout(renderSuggestions,0);
+  },true);
   seed();renderSuggestions();renderPanel();
   const vs=document.getElementById('versionStatus');if(vs)vs.textContent='V46 · Les sujets sont sauvegardés automatiquement et restent réutilisables dans les ateliers.';
   document.title='Second Cerveau IA — V46';const pill=document.querySelector('.pill');if(pill)pill.textContent=document.title;
