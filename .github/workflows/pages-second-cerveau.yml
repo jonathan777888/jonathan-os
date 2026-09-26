@@ -23,11 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build current Second Cerveau V32 from GitHub source parts
+      - name: Build current Second Cerveau V33 from GitHub source parts
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
-          grep -q 'Second Cerveau IA — V32' public/index.html
+          grep -q 'Second Cerveau IA — V33' public/index.html
+          grep -q 'second-brain-learning-v33' public/index.html
+          grep -q 'Apprentissage actif' public/index.html
+          grep -q 'What if?' public/index.html
+          grep -q 'Méthode Feynman' public/index.html
+          grep -q 'J+30' public/index.html
           grep -q 'repairOverlapsV32' public/index.html
           grep -q 'findFreeNodePosition' public/index.html
           grep -q 'Séparer branches superposées' public/index.html
