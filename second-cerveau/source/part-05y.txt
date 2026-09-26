@@ -186,6 +186,17 @@
     const source=collectSource();
     const current=readJson(CORNELL_KEY,{})||{};
 
+    // V47: once a complete V45/V47 verification has populated Cornell,
+    // do not replace the corrected material with the older raw exercise digest.
+    const verified=readJson('second-brain-verify-v43',null);
+    if(current.verifiedByV45===true && verified?.schema_version===45 && verified?.verification_complete===true){
+      const ids={title:'cornellTitleV37',keywords:'cornellKeywordsV37',formulas:'cornellFormulasV37',doubts:'cornellDoubtsV37',essentials:'cornellEssentialsV37',dates:'cornellDatesV37',authors:'cornellAuthorsV37',notes:'cornellNotesV37',summary:'cornellSummaryV37'};
+      Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el&&current[k]!==undefined)el.value=current[k]||'';});
+      const st=document.getElementById('cornellStatusV37');
+      if(st)st.textContent='Cornell conservée depuis la dernière correction vérifiée. Modifie une réponse pour revenir au mode exercices.';
+      return;
+    }
+
     const generated={
       title:source.topic||'',
       keywords:extractKeywords(source.rawAnswers.join(' '),source.topic),
