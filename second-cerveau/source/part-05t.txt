@@ -1,0 +1,220 @@
+
+// V33 — onglet Apprentissage : 5W1H + Feynman + pratique + révision espacée
+(()=>{
+  const STORAGE_KEY='second-brain-learning-v33';
+  const DEFAULTS={
+    topic:'',
+    what:'',who:'',where:'',when:'',why:'',how:'',whatif:'',
+    feynman:'',example:'',analogy:'',
+    practice:'',errors:'',miniTest:'',
+    reviewJ1:false,reviewJ3:false,reviewJ7:false,reviewJ14:false,reviewJ30:false,
+    updatedAt:''
+  };
+
+  try{
+    document.title='Second Cerveau IA — V33';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V33';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V33 · cette version hérite directement de V32 et ajoute un onglet Apprentissage basé sur 5W1H, Feynman, rappel actif, exercices et répétition espacée.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v33){
+      versions.dataset.v33='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V33 · actuelle</strong><small>Ajout de l’onglet Apprentissage : 5W1H + What if?, Feynman, exemple, analogie, exercices, analyse des erreurs, mini-test et suivi de révision J1/J3/J7/J14/J30.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V32 · actuelle'));if(old)old.textContent='V32';
+    }
+  }catch(e){}
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .learning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+    .learning-card{padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--soft)}
+    .learning-card h3{margin:0 0 8px;font-size:16px}
+    .learning-card p{margin:0 0 10px;color:var(--muted);font-size:12px;line-height:1.45}
+    .learning-card textarea{min-height:110px}
+    .learning-wide{grid-column:1/-1}
+    .learning-questions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .learning-step{padding:10px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .learning-step strong{display:block;margin-bottom:5px;font-size:13px}
+    .learning-review{display:flex;gap:8px;flex-wrap:wrap}
+    .learning-check{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:12px;font-weight:800}
+    .learning-flow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .learning-flow span{padding:6px 8px;border-radius:999px;background:#eef4ec;border:1px solid var(--line);font-size:11px;font-weight:800}
+    @media(max-width:800px){.learning-grid,.learning-questions{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  const nav=document.querySelector('.tabs');
+  if(!nav)return;
+  let tab=document.querySelector('.tab[data-page="learning"]');
+  if(!tab){
+    tab=document.createElement('button');
+    tab.className='tab';
+    tab.dataset.page='learning';
+    tab.textContent='Apprentissage';
+    const backupTab=nav.querySelector('[data-page="backup"]');
+    if(backupTab)nav.insertBefore(tab,backupTab);else nav.appendChild(tab);
+  }
+
+  let page=document.getElementById('page-learning');
+  if(!page){
+    page=document.createElement('section');
+    page.className='page';
+    page.id='page-learning';
+    page.innerHTML=`
+      <div class="card section-card">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <h2>Apprentissage actif</h2>
+            <p>Comprendre → expliquer → pratiquer → se tester → corriger → réviser.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="learningSave">Enregistrer</button>
+            <button class="btn" id="learningNew">Nouveau sujet</button>
+          </div>
+        </div>
+
+        <div class="learning-flow" aria-label="Cycle d'apprentissage">
+          <span>WHAT</span><span>WHO</span><span>WHERE</span><span>WHEN</span><span>WHY</span><span>HOW</span><span>WHAT IF</span><span>EXPLAIN</span><span>PRACTICE</span><span>TEST</span><span>CORRECT</span><span>REVIEW</span>
+        </div>
+
+        <div class="fieldgrp" style="margin-top:14px">
+          <label class="label">Sujet / notion à apprendre</label>
+          <input class="field" id="learnTopic" placeholder="Ex. La pectine, le pH, la photosynthèse...">
+        </div>
+
+        <div class="learning-grid">
+          <div class="learning-card learning-wide">
+            <h3>1. Comprendre avec 5W1H + What if?</h3>
+            <p>Réponds avec tes propres mots. Le but est de reconstruire toute la logique de la notion.</p>
+            <div class="learning-questions">
+              <div class="learning-step"><strong>What? — C’est quoi ?</strong><textarea class="field" id="learnWhat"></textarea></div>
+              <div class="learning-step"><strong>Who? — Qui est concerné ?</strong><textarea class="field" id="learnWho"></textarea></div>
+              <div class="learning-step"><strong>Where? — Où cela se produit / s’applique ?</strong><textarea class="field" id="learnWhere"></textarea></div>
+              <div class="learning-step"><strong>When? — Quand cela intervient ?</strong><textarea class="field" id="learnWhen"></textarea></div>
+              <div class="learning-step"><strong>Why? — Pourquoi ?</strong><textarea class="field" id="learnWhy"></textarea></div>
+              <div class="learning-step"><strong>How? — Comment ça fonctionne ?</strong><textarea class="field" id="learnHow"></textarea></div>
+              <div class="learning-step" style="grid-column:1/-1"><strong>What if? — Que se passe-t-il si… ?</strong><textarea class="field" id="learnWhatIf"></textarea></div>
+            </div>
+          </div>
+
+          <div class="learning-card">
+            <h3>2. Méthode Feynman</h3>
+            <p>Explique la notion avec des mots très simples, comme si tu l’enseignais à quelqu’un qui débute.</p>
+            <textarea class="field" id="learnFeynman" placeholder="J’expliquerais cela comme ceci..."></textarea>
+          </div>
+
+          <div class="learning-card">
+            <h3>3. Exemple concret</h3>
+            <p>Transforme l’idée abstraite en situation réelle.</p>
+            <textarea class="field" id="learnExample" placeholder="Exemple réel..."></textarea>
+          </div>
+
+          <div class="learning-card">
+            <h3>4. Analogie</h3>
+            <p>Relie la notion à quelque chose que tu connais déjà.</p>
+            <textarea class="field" id="learnAnalogy" placeholder="C’est un peu comme..."></textarea>
+          </div>
+
+          <div class="learning-card">
+            <h3>5. Exercices pratiques / rappel actif</h3>
+            <p>Ferme le cours. Écris des questions, exercices, problèmes ou simulations à résoudre sans regarder.</p>
+            <textarea class="field" id="learnPractice" placeholder="Questions ou exercices..."></textarea>
+          </div>
+
+          <div class="learning-card">
+            <h3>6. Méthode des erreurs</h3>
+            <p>Pour chaque erreur : qu’est-ce qui était faux ? pourquoi ? quelle est la bonne logique ?</p>
+            <textarea class="field" id="learnErrors" placeholder="Erreur → cause → correction..."></textarea>
+          </div>
+
+          <div class="learning-card">
+            <h3>7. Mini-examen</h3>
+            <p>QCM, vrai/faux, question ouverte ou problème nouveau.</p>
+            <textarea class="field" id="learnMiniTest" placeholder="Mini-test ou résultat..."></textarea>
+          </div>
+
+          <div class="learning-card learning-wide">
+            <h3>8. Répétition espacée</h3>
+            <p>Coche chaque révision seulement après t’être testé sans regarder le cours.</p>
+            <div class="learning-review">
+              <label class="learning-check"><input type="checkbox" id="learnJ1"> J+1</label>
+              <label class="learning-check"><input type="checkbox" id="learnJ3"> J+3</label>
+              <label class="learning-check"><input type="checkbox" id="learnJ7"> J+7</label>
+              <label class="learning-check"><input type="checkbox" id="learnJ14"> J+14</label>
+              <label class="learning-check"><input type="checkbox" id="learnJ30"> J+30</label>
+            </div>
+            <div class="status" id="learningStatus">Les réponses sont autosauvegardées sur cet appareil.</div>
+          </div>
+
+          <div class="learning-card learning-wide">
+            <h3>20 méthodes à utiliser selon le besoin</h3>
+            <p>Feynman · Rappel actif · Répétition espacée · Exercices pratiques · Pourquoi/Comment · Cartes mentales · Double codage · Exemples concrets · Comparaison · Apprentissage par projet · Entrelacement · Auto-évaluation · Cornell · SQ3R · Enseigner à quelqu’un · Méthode des erreurs · Analogies · Chunking · Pré-test · Révision cumulative.</p>
+            <p><strong>Principe :</strong> Lire = reconnaître · Se tester = mémoriser · Expliquer = comprendre · Faire = appliquer · Créer/résoudre du nouveau = maîtriser.</p>
+          </div>
+        </div>
+      </div>
+    `;
+    const backupPage=document.getElementById('page-backup');
+    if(backupPage)backupPage.parentElement.insertBefore(page,backupPage);else document.querySelector('.app').appendChild(page);
+  }
+
+  const ids={
+    topic:'learnTopic',what:'learnWhat',who:'learnWho',where:'learnWhere',when:'learnWhen',why:'learnWhy',how:'learnHow',whatif:'learnWhatIf',
+    feynman:'learnFeynman',example:'learnExample',analogy:'learnAnalogy',practice:'learnPractice',errors:'learnErrors',miniTest:'learnMiniTest'
+  };
+  const checks={reviewJ1:'learnJ1',reviewJ3:'learnJ3',reviewJ7:'learnJ7',reviewJ14:'learnJ14',reviewJ30:'learnJ30'};
+
+  function read(){
+    try{return Object.assign({},DEFAULTS,JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||{})}
+    catch(e){return Object.assign({},DEFAULTS)}
+  }
+  function collect(){
+    const s={};
+    Object.entries(ids).forEach(([k,id])=>s[k]=document.getElementById(id)?.value||'');
+    Object.entries(checks).forEach(([k,id])=>s[k]=!!document.getElementById(id)?.checked);
+    s.updatedAt=new Date().toISOString();
+    return s;
+  }
+  function saveLearning(message='Autosauvegardé.'){
+    try{
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(collect()));
+      const st=document.getElementById('learningStatus');if(st)st.textContent=message;
+    }catch(e){
+      const st=document.getElementById('learningStatus');if(st)st.textContent='Impossible de sauvegarder : stockage du navigateur plein. Exporte une sauvegarde du Second Cerveau.';
+    }
+  }
+  function load(){
+    const s=read();
+    Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.value=s[k]||''});
+    Object.entries(checks).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.checked=!!s[k]});
+    const st=document.getElementById('learningStatus');
+    if(st&&s.updatedAt)st.textContent='Dernière sauvegarde : '+new Date(s.updatedAt).toLocaleString('fr-CA');
+  }
+
+  let timer=null;
+  [...Object.values(ids),...Object.values(checks)].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const event=el.type==='checkbox'?'change':'input';
+    el.addEventListener(event,()=>{
+      clearTimeout(timer);
+      timer=setTimeout(()=>saveLearning(),220);
+    });
+  });
+
+  document.getElementById('learningSave').onclick=()=>saveLearning('Apprentissage enregistré.');
+  document.getElementById('learningNew').onclick=()=>{
+    if(!confirm('Commencer un nouveau sujet ? Le sujet actuel sera effacé de cet onglet.'))return;
+    try{localStorage.removeItem(STORAGE_KEY)}catch(e){}
+    Object.values(ids).forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+    Object.values(checks).forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false});
+    const st=document.getElementById('learningStatus');if(st)st.textContent='Nouveau sujet prêt.';
+  };
+
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===tab));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    page.classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  load();
+})();
