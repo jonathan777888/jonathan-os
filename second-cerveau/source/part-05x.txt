@@ -1,0 +1,272 @@
+
+// V37 — fiche Cornell finale + suppression du champ certificat/domaine
+(()=>{
+  const CORNELL_KEY='second-brain-cornell-v37';
+  const LEARN_KEY='second-brain-learning-v33';
+  const WORK_KEY='second-brain-method-workspaces-v35';
+  const METHOD_DEFS=[["Méthode Feynman",["Explique la notion comme à un débutant","Quels mots ou passages sont encore difficiles ?","Réexplique encore plus simplement","Quelle question poserais-tu pour vérifier que l’autre personne a compris ?"]],["Rappel actif",["Écris les questions auxquelles tu veux répondre sans regarder le cours","Réponds de mémoire","Vérifie ensuite : qu’est-ce qui était correct ?","Qu’est-ce que tu dois corriger ou revoir ?"]],["Répétition espacée",["Qu’est-ce que tu arrives encore à rappeler sans aide ?","Qu’as-tu oublié depuis la dernière révision ?","Réponse corrigée / notion à renforcer","Quand feras-tu la prochaine révision ?"]],["Exercices pratiques",["Quel exercice ou petit programme dois-tu réaliser ?","Écris ton raisonnement ou ton code","Quel résultat as-tu obtenu ?","Que vas-tu modifier pour le prochain essai ?"]],["Pourquoi / Comment",["Quelle ligne, commande ou notion veux-tu comprendre ?","Pourquoi existe-t-elle ?","Comment l’ordinateur l’exécute-t-il ?","Que se passe-t-il si tu la retires ou la modifies ?"]],["Carte mentale / conceptuelle",["Quel est le concept central ?","Quels sont les composants principaux ?","Comment ces composants sont-ils reliés ?","Résume le flux complet avec des flèches ou des relations"]],["Double codage",["Explique la notion avec des mots","Dessine-la avec du texte, des flèches ou un mini-schéma","Quel élément visuel correspond à quelle partie du code ?","Que comprends-tu mieux grâce au schéma ?"]],["Exemples concrets",["Quelle notion abstraite veux-tu comprendre ?","Donne un exemple dans une situation réelle","Transforme cet exemple en petit exemple de code","Pourquoi cet exemple représente-t-il bien la notion ?"]],["Comparaison",["Concept / technologie A","Concept / technologie B","Ressemblances et différences","Quand utiliser A ? Quand utiliser B ?"]],["Apprentissage par projet",["Quel produit ou mini-projet veux-tu construire ?","Quelles fonctionnalités faut-il créer ?","Quelles compétences de tes certificats sont nécessaires ?","Quelle est la prochaine petite étape de code ?"]],["Entrelacement",["Quels sujets vas-tu mélanger aujourd’hui ?","Exercice 1 et ta réponse","Exercice 2 et ta réponse","Exercice 3 : quelle méthode ou technologie fallait-il reconnaître ?"]],["Auto-évaluation",["Écris tes questions de test","Réponds sans regarder les notes","Résultat : maîtrisé / hésitation / erreur","Quelles notions dois-tu retravailler ?"]],["Méthode Cornell",["Notes principales : explications et code","Colonne questions / mots-clés","Résumé du sujet en quelques phrases","Réponds maintenant aux questions sans regarder tes notes"]],["SQ3R",["Survey : quels titres et sections vois-tu ?","Question : transforme les titres en questions","Read + Recite : réponds avec tes propres mots","Review : quels points dois-tu revoir ?"]],["Enseigner à quelqu’un",["Prépare ta mini-leçon","Donne un exemple concret ou un morceau de code","Quelle erreur fréquente veux-tu expliquer ?","Pose une question finale à ton élève et donne la réponse"]],["Méthode des erreurs",["Erreur / bug / mauvaise réponse","Quelle était la cause réelle ?","Quelle correction as-tu faite ?","Règle à retenir + nouvel exercice similaire"]],["Analogies",["Quelle nouvelle notion veux-tu comprendre ?","À quoi de connu peux-tu la comparer ?","Quelles parties correspondent entre les deux ?","Où l’analogie devient-elle incorrecte ou limitée ?"]],["Chunking",["Quel gros sujet veux-tu découper ?","Bloc 1 et son rôle","Blocs suivants et leurs rôles","Comment tous les blocs fonctionnent-ils ensemble ?"]],["Pré-test",["Écris 5 questions avant d’étudier","Tes réponses initiales, même incertaines","Après le cours : quelles réponses changent ?","Qu’as-tu appris que tu ne savais pas au départ ?"]],["Révision cumulative",["Quelle nouvelle notion étudies-tu aujourd’hui ?","Quelles anciennes notions vas-tu revoir ?","Réponds à quelques questions mélangées","Quelles anciennes notions commencent à s’affaiblir ?"]]];
+
+  try{
+    document.title='Second Cerveau IA — V37';
+    const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V37';
+    const vs=document.getElementById('versionStatus');if(vs)vs.textContent='Version actuelle V37 · cette version hérite directement de V36, ajoute une fiche Cornell finale et retire le champ certificat/domaine des méthodes et du Word.';
+    const versions=document.getElementById('versionList');
+    if(versions&&!versions.dataset.v37){
+      versions.dataset.v37='1';
+      versions.insertAdjacentHTML('afterbegin','<div class="item"><strong>V37 · actuelle</strong><small>Ajout d’une fiche Cornell finale et suppression du champ certificat/domaine dans les fenêtres d’apprentissage et dans l’export Word.</small></div>');
+      const old=[...versions.querySelectorAll('strong')].find(x=>x.textContent.includes('V36 · actuelle'));if(old)old.textContent='V36';
+    }
+  }catch(e){}
+
+  const page=document.getElementById('page-learning');
+  if(!page)return;
+
+  // Garder le select V35 dans le DOM pour compatibilité, mais ne plus l'afficher.
+  const certSelect=document.getElementById('methodCertV35');
+  const certGroup=certSelect?.closest('.fieldgrp');
+  if(certGroup)certGroup.style.display='none';
+  const meta=document.querySelector('#methodModalV35 .method-meta-v35');
+  if(meta)meta.style.gridTemplateColumns='1fr';
+
+  const style=document.createElement('style');
+  style.textContent=`
+    .cornell-v37{margin-top:22px;border:2px solid #222;border-radius:4px;overflow:hidden;background:#fff}
+    .cornell-v37-title{background:#f5c653;padding:14px}
+    .cornell-v37-title input{width:100%;border:0;outline:0;background:transparent;text-align:center;font-size:22px;font-weight:900}
+    .cornell-v37-main{display:grid;grid-template-columns:minmax(240px,34%) 1fr;min-height:560px}
+    .cornell-v37-left{background:#fff1c8;border-right:2px solid #222;padding:14px;display:grid;gap:12px;align-content:start}
+    .cornell-v37-right{padding:14px;display:flex;flex-direction:column}
+    .cornell-v37 label{display:block;font-weight:900;font-size:13px;margin-bottom:5px}
+    .cornell-v37-left textarea{min-height:72px}
+    .cornell-v37-right textarea{flex:1;min-height:500px}
+    .cornell-v37-summary{background:#f5c653;border-top:2px solid #222;padding:14px}
+    .cornell-v37-summary textarea{min-height:150px;background:#fff8dc}
+    .cornell-v37-status{font-size:12px;color:var(--muted);margin-top:8px}
+    @media(max-width:760px){.cornell-v37-main{grid-template-columns:1fr}.cornell-v37-left{border-right:0;border-bottom:2px solid #222}.cornell-v37-right textarea{min-height:320px}}
+  `;
+  document.head.appendChild(style);
+
+  let cornell=document.getElementById('cornellSheetV37');
+  if(!cornell){
+    cornell=document.createElement('div');
+    cornell.id='cornellSheetV37';
+    cornell.className='cornell-v37';
+    cornell.innerHTML=`
+      <div class="cornell-v37-title"><input id="cornellTitleV37" placeholder="TITRE"></div>
+      <div class="cornell-v37-main">
+        <div class="cornell-v37-left">
+          <div><label>Mots-clés</label><textarea class="field" id="cornellKeywordsV37"></textarea></div>
+          <div><label>Formules</label><textarea class="field" id="cornellFormulasV37"></textarea></div>
+          <div><label>Doutes</label><textarea class="field" id="cornellDoubtsV37"></textarea></div>
+          <div><label>Notions essentielles</label><textarea class="field" id="cornellEssentialsV37"></textarea></div>
+          <div><label>Dates</label><textarea class="field" id="cornellDatesV37"></textarea></div>
+          <div><label>Auteurs</label><textarea class="field" id="cornellAuthorsV37"></textarea></div>
+        </div>
+        <div class="cornell-v37-right">
+          <label>PRISE DE NOTES — avec une structure par thèmes</label>
+          <textarea class="field" id="cornellNotesV37"></textarea>
+        </div>
+      </div>
+      <div class="cornell-v37-summary">
+        <label>SYNTHÈSE — résumé du cours avec ton propre vocabulaire</label>
+        <textarea class="field" id="cornellSummaryV37"></textarea>
+      </div>
+      <div class="cornell-v37-status" id="cornellStatusV37">Fiche Cornell autosauvegardée sur cet appareil.</div>
+    `;
+    page.querySelector('.section-card')?.appendChild(cornell);
+  }
+
+  const cornellIds={
+    title:'cornellTitleV37',keywords:'cornellKeywordsV37',formulas:'cornellFormulasV37',
+    doubts:'cornellDoubtsV37',essentials:'cornellEssentialsV37',dates:'cornellDatesV37',
+    authors:'cornellAuthorsV37',notes:'cornellNotesV37',summary:'cornellSummaryV37'
+  };
+  const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch(e){return fallback}};
+  const clean=v=>String(v??'').trim();
+  const answer=v=>clean(v)||'NON RÉPONDU';
+
+  function collectCornell(){
+    const out={};
+    Object.entries(cornellIds).forEach(([k,id])=>out[k]=document.getElementById(id)?.value||'');
+    out.updatedAt=new Date().toISOString();
+    return out;
+  }
+  function saveCornell(message='Fiche Cornell autosauvegardée.'){
+    try{
+      localStorage.setItem(CORNELL_KEY,JSON.stringify(collectCornell()));
+      const st=document.getElementById('cornellStatusV37');if(st)st.textContent=message;
+    }catch(e){
+      const st=document.getElementById('cornellStatusV37');if(st)st.textContent='Impossible de sauvegarder la fiche Cornell : stockage du navigateur plein.';
+    }
+  }
+  const savedCornell=readJson(CORNELL_KEY,{})||{};
+  Object.entries(cornellIds).forEach(([k,id])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.value=savedCornell[k]||'';
+    el.addEventListener('input',()=>{
+      clearTimeout(window.__cornellV37Timer);
+      window.__cornellV37Timer=setTimeout(()=>saveCornell(),220);
+    });
+  });
+  if(savedCornell.updatedAt){
+    const st=document.getElementById('cornellStatusV37');
+    if(st)st.textContent='Dernière sauvegarde Cornell : '+new Date(savedCornell.updatedAt).toLocaleString('fr-CA');
+  }
+
+  const coreQuestions=[
+    ['What? — C’est quoi ?','what'],['Who? — Qui est concerné ?','who'],['Where? — Où cela se produit / s’applique ?','where'],
+    ['When? — Quand cela intervient ?','when'],['Why? — Pourquoi ?','why'],['How? — Comment ça fonctionne ?','how'],
+    ['What if? — Que se passe-t-il si… ?','whatif'],['Méthode Feynman — Explique avec tes propres mots','feynman'],
+    ['Exemple concret','example'],['Analogie','analogy'],['Exercices pratiques / rappel actif','practice'],
+    ['Méthode des erreurs','errors'],['Mini-examen','miniTest']
+  ];
+
+  function syncAll(){
+    const modal=document.getElementById('methodModalV35');
+    if(modal&&modal.classList.contains('open'))document.getElementById('methodSaveV35')?.click();
+    document.getElementById('learningSave')?.click();
+    saveCornell('Fiche Cornell enregistrée.');
+  }
+
+  function collectReport(){
+    syncAll();
+    const learn=readJson(LEARN_KEY,{})||{};
+    const work=readJson(WORK_KEY,{})||{};
+    const c=readJson(CORNELL_KEY,{})||{};
+    let answered=0,total=0;
+
+    const core=coreQuestions.map(([label,key])=>{
+      total++;const value=clean(learn[key]);if(value)answered++;
+      return{label,value:answer(value)};
+    });
+
+    const methods=METHOD_DEFS.map(([title,fields],index)=>{
+      const saved=work[String(index)]||{};
+      const answers=Array.isArray(saved.answers)?saved.answers:[];
+      const items=fields.map((label,i)=>{
+        total++;const value=clean(answers[i]);if(value)answered++;
+        return{label,value:answer(value)};
+      });
+      return{title,topic:answer(saved.topic),items};
+    });
+
+    const cornellItems=[
+      ['Titre','title'],['Mots-clés','keywords'],['Formules','formulas'],['Doutes','doubts'],
+      ['Notions essentielles','essentials'],['Dates','dates'],['Auteurs','authors'],['Prise de notes','notes'],['Synthèse','summary']
+    ].map(([label,key])=>{
+      total++;const value=clean(c[key]);if(value)answered++;
+      return{label,key,value:answer(value)};
+    });
+
+    return{
+      generatedAt:new Date().toISOString(),
+      topic:answer(learn.topic),
+      core,
+      review:[['J+1',!!learn.reviewJ1],['J+3',!!learn.reviewJ3],['J+7',!!learn.reviewJ7],['J+14',!!learn.reviewJ14],['J+30',!!learn.reviewJ30]],
+      methods,cornell:cornellItems,answered,total,missing:total-answered
+    };
+  }
+
+  function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  async function exportDocxV37(){
+    const status=document.getElementById('learningExportStatusV36');
+    if(status)status.textContent='Préparation du Word avec la fiche Cornell…';
+    const report=collectReport();
+
+    try{
+      const docx=await import('https://cdn.jsdelivr.net/npm/docx@9.7.2/+esm');
+      const {Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,ShadingType,AlignmentType}=docx;
+      const children=[];
+      children.push(new Paragraph({text:'Second Cerveau — Rapport d’apprentissage',heading:HeadingLevel.TITLE}));
+      children.push(new Paragraph({children:[new TextRun({text:'Sujet principal : ',bold:true}),new TextRun(report.topic)]}));
+      children.push(new Paragraph({children:[new TextRun({text:'Date d’export : ',bold:true}),new TextRun(new Date(report.generatedAt).toLocaleString('fr-CA'))]}));
+      children.push(new Paragraph({children:[new TextRun({text:'Progression : ',bold:true}),new TextRun(report.answered+' réponses sur '+report.total+' éléments · '+report.missing+' non répondus')]}));
+
+      children.push(new Paragraph({text:'Partie 1 — Cycle principal d’apprentissage',heading:HeadingLevel.HEADING_1}));
+      report.core.forEach((q,i)=>{
+        children.push(new Paragraph({children:[new TextRun({text:(i+1)+'. '+q.label,bold:true})]}));
+        children.push(new Paragraph({text:q.value}));
+      });
+      children.push(new Paragraph({text:'Répétition espacée',heading:HeadingLevel.HEADING_2}));
+      report.review.forEach(([label,done])=>children.push(new Paragraph({text:label+' : '+(done?'FAIT':'NON FAIT')})));
+
+      children.push(new Paragraph({text:'Partie 2 — Les 20 méthodes interactives',heading:HeadingLevel.HEADING_1}));
+      report.methods.forEach((m,mi)=>{
+        children.push(new Paragraph({text:(mi+1)+'. '+m.title,heading:HeadingLevel.HEADING_2}));
+        children.push(new Paragraph({children:[new TextRun({text:'Sujet : ',bold:true}),new TextRun(m.topic)]}));
+        m.items.forEach((q,qi)=>{
+          children.push(new Paragraph({children:[new TextRun({text:(qi+1)+'. '+q.label,bold:true})]}));
+          children.push(new Paragraph({text:q.value}));
+        });
+      });
+
+      children.push(new Paragraph({text:'Partie 3 — Fiche Cornell finale',heading:HeadingLevel.HEADING_1}));
+      const c=Object.fromEntries(report.cornell.map(x=>[x.key,x.value]));
+      const left=[];
+      [['Mots-clés','keywords'],['Formules','formulas'],['Doutes','doubts'],['Notions essentielles','essentials'],['Dates','dates'],['Auteurs','authors']].forEach(([label,key])=>{
+        left.push(new Paragraph({children:[new TextRun({text:label,bold:true})]}));
+        left.push(new Paragraph({text:c[key]}));
+      });
+      children.push(new Table({
+        width:{size:100,type:WidthType.PERCENTAGE},
+        rows:[
+          new TableRow({children:[
+            new TableCell({columnSpan:2,shading:{type:ShadingType.CLEAR,fill:'F5C653'},children:[
+              new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:c.title,bold:true,size:30})]})
+            ]})
+          ]}),
+          new TableRow({children:[
+            new TableCell({width:{size:34,type:WidthType.PERCENTAGE},shading:{type:ShadingType.CLEAR,fill:'FFF1C8'},children:left}),
+            new TableCell({width:{size:66,type:WidthType.PERCENTAGE},children:[
+              new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'PRISE DE NOTES',bold:true})]}),
+              new Paragraph({alignment:AlignmentType.CENTER,text:'Avec une structure par thèmes'}),
+              new Paragraph({text:c.notes})
+            ]})
+          ]}),
+          new TableRow({children:[
+            new TableCell({columnSpan:2,shading:{type:ShadingType.CLEAR,fill:'F5C653'},children:[
+              new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'SYNTHÈSE',bold:true})]}),
+              new Paragraph({alignment:AlignmentType.CENTER,text:'Résumé du cours avec ton propre vocabulaire'}),
+              new Paragraph({text:c.summary})
+            ]})
+          ]})
+        ]
+      }));
+
+      children.push(new Paragraph({text:'Résumé des éléments manquants',heading:HeadingLevel.HEADING_1}));
+      children.push(new Paragraph({text:report.missing===0?'Toutes les questions et zones Cornell ont une réponse.':report.missing+' élément(s) sont encore marqués NON RÉPONDU.'}));
+
+      const doc=new Document({sections:[{properties:{page:{size:{width:12240,height:15840}}},children}]});
+      const blob=await Packer.toBlob(doc);
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const safeTopic=clean(report.topic).replace(/[^a-zA-Z0-9À-ÿ_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'apprentissage';
+      a.href=url;
+      a.download='Second-Cerveau-'+safeTopic+'-'+new Date().toISOString().slice(0,10)+'.docx';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+      if(status)status.textContent='Word exporté avec fiche Cornell : '+report.answered+'/'+report.total+' éléments complétés.';
+    }catch(err){
+      console.error('V37 DOCX export failed',err);
+      let html='<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif}table{width:100%;border-collapse:collapse}td{border:1px solid #222;padding:10px;vertical-align:top}.gold{background:#f5c653}.cream{background:#fff1c8}.q{font-weight:bold;margin-top:12px}.a{white-space:pre-wrap;margin-bottom:10px}</style></head><body>';
+      html+='<h1>Second Cerveau — Rapport d’apprentissage</h1><p><b>Sujet :</b> '+esc(report.topic)+'</p>';
+      html+='<h2>Cycle principal</h2>';
+      report.core.forEach((q,i)=>{html+='<div class="q">'+(i+1)+'. '+esc(q.label)+'</div><div class="a">'+esc(q.value)+'</div>'});
+      html+='<h2>Les 20 méthodes</h2>';
+      report.methods.forEach((m,mi)=>{html+='<h3>'+(mi+1)+'. '+esc(m.title)+'</h3><p><b>Sujet :</b> '+esc(m.topic)+'</p>';m.items.forEach((q,qi)=>{html+='<div class="q">'+(qi+1)+'. '+esc(q.label)+'</div><div class="a">'+esc(q.value)+'</div>'})});
+      const c=Object.fromEntries(report.cornell.map(x=>[x.key,x.value]));
+      html+='<h2>Fiche Cornell finale</h2><table><tr><td class="gold" colspan="2" style="text-align:center"><b>'+esc(c.title)+'</b></td></tr><tr><td class="cream" style="width:34%"><b>Mots-clés</b><br>'+esc(c.keywords)+'<br><br><b>Formules</b><br>'+esc(c.formulas)+'<br><br><b>Doutes</b><br>'+esc(c.doubts)+'<br><br><b>Notions essentielles</b><br>'+esc(c.essentials)+'<br><br><b>Dates</b><br>'+esc(c.dates)+'<br><br><b>Auteurs</b><br>'+esc(c.authors)+'</td><td><b>PRISE DE NOTES</b><br>'+esc(c.notes)+'</td></tr><tr><td class="gold" colspan="2"><b>SYNTHÈSE</b><br>'+esc(c.summary)+'</td></tr></table></body></html>';
+      const blob=new Blob([html],{type:'application/msword;charset=utf-8'});
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');
+      a.href=url;a.download='Second-Cerveau-apprentissage-'+new Date().toISOString().slice(0,10)+'.doc';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+      if(status)status.textContent='Version Word compatible exportée avec fiche Cornell.';
+    }
+  }
+
+  const exportBtn=document.getElementById('learningExportWordV36');
+  if(exportBtn){exportBtn.textContent='Exporter Word (.docx)';exportBtn.onclick=exportDocxV37}
+  const modalExport=document.getElementById('methodExportWordV36');
+  if(modalExport){modalExport.textContent='Exporter tout en Word';modalExport.onclick=exportDocxV37}
+})();
