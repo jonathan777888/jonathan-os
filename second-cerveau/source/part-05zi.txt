@@ -1,0 +1,296 @@
+
+// V49 — Pomodoro intégré à Apprentissage.
+(() => {
+  'use strict';
+  const STORAGE = 'second-brain-pomodoro-v49';
+  const $ = id => document.getElementById(id);
+  const todayKey = () => new Date().toISOString().slice(0,10);
+  const clamp = (n,a,b) => Math.max(a, Math.min(b, Number(n)||a));
+  const defaults = () => ({
+    version:49,
+    mode:'focus',
+    durations:{focus:25,short:5,long:15},
+    remaining:25*60,
+    running:false,
+    endAt:0,
+    focusInSet:0,
+    autoStartNext:false,
+    sound:true,
+    day:todayKey(),
+    todaySessions:0,
+    todayMinutes:0,
+    lastSubject:'',
+    history:[]
+  });
+  const read = () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE)||'null') || {};
+      const d = defaults();
+      const s = {...d,...raw,durations:{...d.durations,...(raw.durations||{})}};
+      if(s.day !== todayKey()){
+        s.day=todayKey(); s.todaySessions=0; s.todayMinutes=0;
+      }
+      return s;
+    } catch { return defaults(); }
+  };
+  let state = read();
+  let tickTimer = null;
+  let audioCtx = null;
+  const save = () => { try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch {} };
+  const label = m => m==='focus'?'Concentration':m==='short'?'Pause courte':'Pause longue';
+  const secondsFor = m => Math.max(60, Math.round((state.durations[m]||1)*60));
+  const currentSubject = () => {
+    const studio = $('methodStudioV44');
+    const atelier = $('a44topic');
+    if(studio?.open && atelier?.value?.trim()) return atelier.value.trim();
+    const main = $('learnTopic');
+    return main?.value?.trim() || state.lastSubject || 'Session d’étude';
+  };
+  const fmt = s => {
+    s=Math.max(0,Math.floor(s));
+    return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  };
+  const nextBreak = () => state.focusInSet >= 3 ? 'long' : 'short';
+
+  function beep(){
+    if(!state.sound) return;
+    try {
+      audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.frequency.value=880; g.gain.value=0.04; o.start();
+      setTimeout(()=>{o.frequency.value=660;},180);
+      setTimeout(()=>{o.stop();},420);
+    } catch {}
+  }
+  function notify(message){
+    if('Notification' in window && Notification.permission==='granted'){
+      try { new Notification('Second Cerveau · Pomodoro',{body:message,tag:'second-brain-pomodoro'}); } catch {}
+    }
+  }
+  function setMode(mode, keepRunning=false){
+    state.mode=mode;
+    state.remaining=secondsFor(mode);
+    state.endAt=keepRunning ? Date.now()+state.remaining*1000 : 0;
+    state.running=!!keepRunning;
+    save(); render();
+  }
+  function completeSession(){
+    const finishedMode=state.mode;
+    const subject=state.lastSubject||currentSubject();
+    if(finishedMode==='focus'){
+      state.todaySessions += 1;
+      state.todayMinutes += state.durations.focus;
+      state.focusInSet = (state.focusInSet + 1) % 4;
+      state.history = [{at:new Date().toISOString(),subject,minutes:state.durations.focus},...(state.history||[])].slice(0,20);
+    }
+    state.running=false; state.endAt=0;
+    beep();
+    if(finishedMode==='focus'){
+      const next = state.focusInSet===0 ? 'long' : 'short';
+      notify(next==='long'?'Bravo. Pause longue maintenant.':'Session terminée. Prends une courte pause.');
+      state.mode=next;
+    }else{
+      notify('Pause terminée. Tu peux reprendre ta concentration.');
+      state.mode='focus';
+    }
+    state.remaining=secondsFor(state.mode);
+    save();
+    if(state.autoStartNext) start();
+    else render();
+  }
+  function sync(){
+    if(state.running && state.endAt){
+      const r=Math.ceil((state.endAt-Date.now())/1000);
+      if(r<=0){ state.remaining=0; completeSession(); return; }
+      state.remaining=r;
+    }
+    render();
+  }
+  function start(){
+    if(state.running) return;
+    state.lastSubject=currentSubject();
+    if(state.remaining<=0 || state.remaining>secondsFor(state.mode)) state.remaining=secondsFor(state.mode);
+    state.running=true;
+    state.endAt=Date.now()+state.remaining*1000;
+    save(); sync();
+    clearInterval(tickTimer); tickTimer=setInterval(sync,1000);
+  }
+  function pause(){
+    sync();
+    state.running=false; state.endAt=0;
+    save(); render();
+  }
+  function reset(){
+    state.running=false; state.endAt=0; state.remaining=secondsFor(state.mode);
+    save(); render();
+  }
+  function skip(){
+    state.running=false; state.endAt=0;
+    state.mode = state.mode==='focus' ? nextBreak() : 'focus';
+    state.remaining=secondsFor(state.mode);
+    save(); render();
+  }
+  function applyDurations(){
+    const f=clamp($('pomoFocusV49')?.value,1,180);
+    const s=clamp($('pomoShortV49')?.value,1,60);
+    const l=clamp($('pomoLongV49')?.value,1,120);
+    state.durations={focus:f,short:s,long:l};
+    state.running=false; state.endAt=0; state.remaining=secondsFor(state.mode);
+    save(); render();
+  }
+  function usePreset(f,s,l){
+    state.durations={focus:f,short:s,long:l};
+    state.running=false; state.endAt=0; state.remaining=secondsFor(state.mode);
+    save(); render();
+  }
+  function resetToday(){
+    state.todaySessions=0; state.todayMinutes=0; state.focusInSet=0; state.history=[];
+    save(); render();
+  }
+
+  const style=document.createElement('style');
+  style.textContent=`
+    #pomodoroV49{margin:18px 0;padding:18px;border:1px solid rgba(112,81,0,.22);border-radius:18px;background:linear-gradient(135deg,#fffdf6,#fff7d7);box-shadow:0 10px 28px rgba(57,45,8,.08)}
+    #pomodoroV49 *{box-sizing:border-box}
+    #pomodoroV49 .pomo-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
+    #pomodoroV49 .pomo-title{font-size:1.25rem;font-weight:800;margin:0}
+    #pomodoroV49 .pomo-sub{margin:4px 0 0;color:#6f6651}
+    #pomodoroV49 .pomo-grid{display:grid;grid-template-columns:minmax(250px,1.05fr) minmax(260px,.95fr);gap:18px;margin-top:16px}
+    #pomodoroV49 .pomo-main,#pomodoroV49 .pomo-settings{background:rgba(255,255,255,.78);border:1px solid rgba(100,80,20,.14);border-radius:16px;padding:16px}
+    #pomodoroV49 .pomo-modes{display:flex;gap:8px;flex-wrap:wrap}
+    #pomodoroV49 .pomo-mode{border:1px solid #d8c98d;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;font:inherit}
+    #pomodoroV49 .pomo-mode[aria-pressed="true"]{background:#7a5b00;color:#fff;border-color:#7a5b00}
+    #pomodoroV49 .pomo-clock{font-size:clamp(3rem,8vw,5.6rem);line-height:1;font-weight:900;letter-spacing:-.06em;text-align:center;margin:22px 0 10px;font-variant-numeric:tabular-nums}
+    #pomodoroV49 .pomo-progress{height:10px;border-radius:999px;background:#eadfbd;overflow:hidden}
+    #pomodoroV49 .pomo-progress>span{display:block;height:100%;width:0;background:#7a5b00;transition:width .25s linear}
+    #pomodoroV49 .pomo-subject{text-align:center;margin:12px 0;color:#5b513d}
+    #pomodoroV49 .pomo-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:14px}
+    #pomodoroV49 .pomo-primary{background:#7a5b00!important;color:white!important;border-color:#7a5b00!important}
+    #pomodoroV49 .pomo-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+    #pomodoroV49 .pomo-stat{padding:10px;border-radius:12px;background:#fff7d7;text-align:center}
+    #pomodoroV49 .pomo-stat strong{display:block;font-size:1.15rem}
+    #pomodoroV49 .pomo-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+    #pomodoroV49 label{font-weight:700;font-size:.9rem}
+    #pomodoroV49 input[type="number"]{width:100%;margin-top:5px;padding:9px;border:1px solid #cfc6a7;border-radius:10px;background:#fff}
+    #pomodoroV49 .pomo-check{display:flex;align-items:center;gap:8px;margin:12px 0;font-weight:600}
+    #pomodoroV49 .pomo-presets{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    #pomodoroV49 .pomo-history{margin-top:12px;max-height:145px;overflow:auto;font-size:.92rem}
+    #pomodoroV49 .pomo-history div{padding:6px 0;border-bottom:1px solid rgba(0,0,0,.07)}
+    #pomoMiniV49{position:fixed;right:18px;bottom:18px;z-index:9998;border:0;border-radius:999px;padding:10px 14px;background:#7a5b00;color:white;box-shadow:0 8px 28px rgba(0,0,0,.2);font-weight:800;cursor:pointer}
+    @media(max-width:760px){#pomodoroV49 .pomo-grid{grid-template-columns:1fr}#pomodoroV49 .pomo-row{grid-template-columns:1fr 1fr 1fr}#pomoMiniV49{right:10px;bottom:10px}}
+  `;
+  document.head.appendChild(style);
+
+  const card=document.createElement('section');
+  card.id='pomodoroV49';
+  card.setAttribute('aria-label','Minuteur Pomodoro');
+  card.innerHTML=`
+    <div class="pomo-head">
+      <div><h3 class="pomo-title">🍅 Pomodoro</h3><p class="pomo-sub">Travaille avec concentration, puis prends une vraie pause.</p></div>
+      <button class="btn" type="button" id="pomoNotifyV49">Activer les notifications</button>
+    </div>
+    <div class="pomo-grid">
+      <div class="pomo-main">
+        <div class="pomo-modes" role="group" aria-label="Mode Pomodoro">
+          <button class="pomo-mode" type="button" data-pomo-mode="focus">Concentration</button>
+          <button class="pomo-mode" type="button" data-pomo-mode="short">Pause courte</button>
+          <button class="pomo-mode" type="button" data-pomo-mode="long">Pause longue</button>
+        </div>
+        <div class="pomo-clock" id="pomoClockV49">25:00</div>
+        <div class="pomo-progress" aria-hidden="true"><span id="pomoProgressV49"></span></div>
+        <div class="pomo-subject" id="pomoSubjectV49">Sujet : Session d’étude</div>
+        <div class="pomo-actions">
+          <button class="btn pomo-primary" type="button" id="pomoStartV49">Démarrer</button>
+          <button class="btn" type="button" id="pomoResetV49">Recommencer</button>
+          <button class="btn" type="button" id="pomoSkipV49">Passer</button>
+        </div>
+        <div class="pomo-stats">
+          <div class="pomo-stat"><strong id="pomoCycleV49">0/4</strong><span>cycle</span></div>
+          <div class="pomo-stat"><strong id="pomoTodayV49">0</strong><span>sessions aujourd’hui</span></div>
+          <div class="pomo-stat"><strong id="pomoMinutesV49">0</strong><span>minutes</span></div>
+        </div>
+      </div>
+      <div class="pomo-settings">
+        <strong>Réglages</strong>
+        <div class="pomo-presets">
+          <button class="btn" type="button" data-pomo-preset="25,5,15">25 / 5</button>
+          <button class="btn" type="button" data-pomo-preset="50,10,20">50 / 10</button>
+          <button class="btn" type="button" data-pomo-preset="40,10,20">40 / 10</button>
+        </div>
+        <div class="pomo-row">
+          <label>Focus<input id="pomoFocusV49" type="number" min="1" max="180" value="25"></label>
+          <label>Pause<input id="pomoShortV49" type="number" min="1" max="60" value="5"></label>
+          <label>Longue<input id="pomoLongV49" type="number" min="1" max="120" value="15"></label>
+        </div>
+        <div class="pomo-actions" style="justify-content:flex-start"><button class="btn" type="button" id="pomoApplyV49">Appliquer</button></div>
+        <label class="pomo-check"><input id="pomoAutoV49" type="checkbox"> Démarrer automatiquement la session suivante</label>
+        <label class="pomo-check"><input id="pomoSoundV49" type="checkbox" checked> Son à la fin</label>
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:14px"><strong>Dernières sessions</strong><button class="btn" type="button" id="pomoClearV49">Effacer</button></div>
+        <div class="pomo-history" id="pomoHistoryV49"></div>
+      </div>
+    </div>
+  `;
+  const host=$('page-learning') || document.querySelector('[data-page="learning"]') || document.querySelector('main') || document.body;
+  const firstMeaningful=host.querySelector?.('h1,h2,.card');
+  if(firstMeaningful) firstMeaningful.insertAdjacentElement('afterend',card); else host.prepend(card);
+
+  const mini=document.createElement('button');
+  mini.id='pomoMiniV49'; mini.type='button'; mini.title='Aller au Pomodoro';
+  mini.addEventListener('click',()=>card.scrollIntoView({behavior:'smooth',block:'center'}));
+  document.body.appendChild(mini);
+
+  card.addEventListener('click',e=>{
+    const mode=e.target.closest('[data-pomo-mode]')?.dataset.pomoMode;
+    if(mode){ state.running=false; state.endAt=0; setMode(mode); return; }
+    const preset=e.target.closest('[data-pomo-preset]')?.dataset.pomoPreset;
+    if(preset){ const [f,s,l]=preset.split(',').map(Number); usePreset(f,s,l); }
+  });
+  $('pomoStartV49').onclick=()=>state.running?pause():start();
+  $('pomoResetV49').onclick=reset;
+  $('pomoSkipV49').onclick=skip;
+  $('pomoApplyV49').onclick=applyDurations;
+  $('pomoAutoV49').onchange=e=>{state.autoStartNext=!!e.target.checked;save();};
+  $('pomoSoundV49').onchange=e=>{state.sound=!!e.target.checked;save();};
+  $('pomoClearV49').onclick=resetToday;
+  $('pomoNotifyV49').onclick=async()=>{
+    if(!('Notification' in window)){ $('pomoNotifyV49').textContent='Notifications non disponibles'; return; }
+    try{
+      const p=await Notification.requestPermission();
+      $('pomoNotifyV49').textContent=p==='granted'?'Notifications activées':'Notifications désactivées';
+    }catch{}
+  };
+
+  function render(){
+    if(state.day!==todayKey()){state.day=todayKey();state.todaySessions=0;state.todayMinutes=0;save();}
+    const total=secondsFor(state.mode), elapsed=Math.max(0,total-state.remaining);
+    $('pomoClockV49').textContent=fmt(state.remaining);
+    $('pomoProgressV49').style.width=Math.min(100,(elapsed/total)*100)+'%';
+    $('pomoSubjectV49').textContent='Sujet : '+(state.running?state.lastSubject:currentSubject());
+    $('pomoStartV49').textContent=state.running?'Pause':'Démarrer';
+    $('pomoCycleV49').textContent=state.focusInSet+'/4';
+    $('pomoTodayV49').textContent=state.todaySessions;
+    $('pomoMinutesV49').textContent=state.todayMinutes;
+    $('pomoFocusV49').value=state.durations.focus;
+    $('pomoShortV49').value=state.durations.short;
+    $('pomoLongV49').value=state.durations.long;
+    $('pomoAutoV49').checked=!!state.autoStartNext;
+    $('pomoSoundV49').checked=state.sound!==false;
+    card.querySelectorAll('[data-pomo-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pomoMode===state.mode)));
+    const hist=state.history||[];
+    $('pomoHistoryV49').innerHTML=hist.length?hist.slice(0,8).map(h=>'<div><strong>'+String(h.subject||'Session').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</strong><br><span>'+h.minutes+' min · '+new Date(h.at).toLocaleString('fr-CA')+'</span></div>').join(''):'<span class="muted">Aucune session terminée aujourd’hui.</span>';
+    mini.textContent=(state.running?'⏱ ':'🍅 ')+fmt(state.remaining);
+    document.title=state.running?fmt(state.remaining)+' · '+label(state.mode)+' · Second Cerveau':'Second Cerveau IA — V49';
+  }
+
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
+  window.addEventListener('focus',sync);
+  window.addEventListener('beforeunload',sync);
+  if(state.running && state.endAt) sync(); else render();
+  clearInterval(tickTimer); tickTimer=setInterval(sync,1000);
+
+  const vs=$('versionStatus');
+  if(vs)vs.textContent='V49 · Pomodoro intégré : minuteur, pauses, cycles, sujet actuel et statistiques sauvegardées.';
+  const pill=document.querySelector('.pill');
+  if(pill&&!state.running)pill.textContent='Second Cerveau IA — V49';
+})();
