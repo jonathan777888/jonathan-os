@@ -3,7 +3,6 @@
 #combatDaysCard{margin-top:16px;overflow:hidden}
 #combatDaysCard .combat-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
 #combatDaysCard .combat-title{display:flex;gap:10px;align-items:center}
-#combatDaysCard .combat-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--green2);font-size:22px}
 #combatDaysCard .combat-total{font-size:30px;font-weight:900;letter-spacing:-.04em;line-height:1}
 #combatDaysCard .combat-total small{display:block;margin-top:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 #combatDaysCard .combat-today{display:flex;align-items:center;gap:10px;margin-top:14px;padding:13px 14px;border:1px solid var(--line);border-radius:16px;background:var(--soft);cursor:pointer}
@@ -43,7 +42,6 @@
     card.innerHTML=`
       <div class="combat-head">
         <div class="combat-title">
-          <div class="combat-icon">✝️</div>
           <div>
             <h2 style="margin:0">Jours de combat</h2>
             <p style="margin:5px 0 0;color:var(--muted);font-size:13px">Chaque case représente un jour où tu choisis de t’accrocher à Jésus.</p>
