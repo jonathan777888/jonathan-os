@@ -1,3 +1,118 @@
 </script>
-</body></html>
+<style>
+#combatDaysCard{margin-top:16px;overflow:hidden}
+#combatDaysCard .combat-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
+#combatDaysCard .combat-title{display:flex;gap:10px;align-items:center}
+#combatDaysCard .combat-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--green2);font-size:22px}
+#combatDaysCard .combat-total{font-size:30px;font-weight:900;letter-spacing:-.04em;line-height:1}
+#combatDaysCard .combat-total small{display:block;margin-top:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#combatDaysCard .combat-today{display:flex;align-items:center;gap:10px;margin-top:14px;padding:13px 14px;border:1px solid var(--line);border-radius:16px;background:var(--soft);cursor:pointer}
+#combatDaysCard .combat-today input{width:22px;height:22px;accent-color:var(--green)}
+#combatDaysCard .combat-today strong{display:block;font-size:14px}
+#combatDaysCard .combat-today span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
+#combatDaysCard .combat-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;margin-top:14px}
+#combatDaysCard .combat-day{min-height:54px;border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;cursor:pointer}
+#combatDaysCard .combat-day input{width:16px;height:16px;accent-color:var(--green);pointer-events:none}
+#combatDaysCard .combat-day.checked{background:var(--green2);border-color:rgba(92,137,84,.45);font-weight:900;color:var(--green)}
+#combatDaysCard .combat-day.future{opacity:.35;cursor:not-allowed}
+#combatDaysCard .combat-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:14px;text-align:center;font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase}
+#combatDaysCard .combat-month{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}
+#combatDaysCard .combat-month strong{font-size:14px}
+#combatDaysCard .combat-note{margin-top:12px;padding:11px 12px;border-left:4px solid var(--green);border-radius:10px;background:#f7f9f5;color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:600px){#combatDaysCard .combat-grid{gap:5px}#combatDaysCard .combat-day{min-height:48px;font-size:11px}}
+</style>
+<script>
+(()=>{
+  const KEY='second-brain-combat-days-v1';
+  const pad=n=>String(n).padStart(2,'0');
+  const localDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const today=()=>localDate(new Date());
+  const read=()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'{}');return v&&typeof v==='object'?v:{}}catch(e){return{}}};
+  const save=v=>{try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}};
+  const labelDate=iso=>{const [y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})};
 
+  function install(){
+    if(document.getElementById('combatDaysCard')) return;
+    const mapPage=document.getElementById('page-map');
+    const grid=mapPage?.querySelector('.grid');
+    if(!mapPage||!grid) return;
+
+    const card=document.createElement('div');
+    card.id='combatDaysCard';
+    card.className='card section-card';
+    card.innerHTML=`
+      <div class="combat-head">
+        <div class="combat-title">
+          <div class="combat-icon">✝️</div>
+          <div>
+            <h2 style="margin:0">Jours de combat</h2>
+            <p style="margin:5px 0 0;color:var(--muted);font-size:13px">Chaque case représente un jour où tu choisis de t’accrocher à Jésus.</p>
+          </div>
+        </div>
+        <div class="combat-total"><span id="combatTotal">0</span><small>jours de combat</small></div>
+      </div>
+      <label class="combat-today">
+        <input id="combatTodayCheck" type="checkbox">
+        <div><strong id="combatTodayTitle">Aujourd’hui</strong><span>Je choisis aujourd’hui de rester attaché à Jésus-Christ.</span></div>
+      </label>
+      <div class="combat-month">
+        <button class="btn" id="combatPrevMonth" type="button">←</button>
+        <strong id="combatMonthLabel"></strong>
+        <button class="btn" id="combatNextMonth" type="button">→</button>
+      </div>
+      <div class="combat-weekdays"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
+      <div class="combat-grid" id="combatGrid"></div>
+      <div class="combat-note">Un jour difficile n’efface pas les jours précédents. Le but n’est pas une série parfaite : c’est de continuer à revenir vers Jésus.</div>
+    `;
+    grid.insertAdjacentElement('afterend',card);
+
+    const state=read();
+    let shown=new Date();
+    shown.setDate(1);
+
+    function setDay(iso,value){
+      if(iso>today()) return;
+      if(value) state[iso]=true; else delete state[iso];
+      save(state);
+      render();
+    }
+    function render(){
+      const now=today();
+      const checked=Object.keys(state).filter(k=>state[k]&&k<=now);
+      document.getElementById('combatTotal').textContent=checked.length;
+      const tc=document.getElementById('combatTodayCheck');
+      tc.checked=!!state[now];
+      document.getElementById('combatTodayTitle').textContent='Aujourd’hui — '+labelDate(now);
+
+      const monthLabel=shown.toLocaleDateString('fr-CA',{month:'long',year:'numeric'});
+      document.getElementById('combatMonthLabel').textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
+      const g=document.getElementById('combatGrid');
+      g.innerHTML='';
+      const y=shown.getFullYear(), m=shown.getMonth();
+      const first=new Date(y,m,1);
+      const start=(first.getDay()+6)%7;
+      const days=new Date(y,m+1,0).getDate();
+      for(let i=0;i<start;i++){const blank=document.createElement('div');g.appendChild(blank)}
+      for(let d=1;d<=days;d++){
+        const iso=y+'-'+pad(m+1)+'-'+pad(d);
+        const future=iso>now;
+        const box=document.createElement('button');
+        box.type='button';
+        box.className='combat-day'+(state[iso]?' checked':'')+(future?' future':'');
+        box.disabled=future;
+        box.setAttribute('aria-label',(state[iso]?'Jour coché, ':'')+labelDate(iso));
+        box.innerHTML='<input type="checkbox" tabindex="-1" '+(state[iso]?'checked':'')+'><span>'+d+'</span>';
+        if(!future) box.addEventListener('click',()=>setDay(iso,!state[iso]));
+        g.appendChild(box);
+      }
+    }
+    document.getElementById('combatTodayCheck').addEventListener('change',e=>setDay(today(),e.target.checked));
+    document.getElementById('combatPrevMonth').addEventListener('click',()=>{shown.setMonth(shown.getMonth()-1);render()});
+    document.getElementById('combatNextMonth').addEventListener('click',()=>{shown.setMonth(shown.getMonth()+1);render()});
+    render();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install);
+  else install();
+})();
+</script>
+</body></html>
