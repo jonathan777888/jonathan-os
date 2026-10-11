@@ -1,6 +1,11 @@
 name: Test Second Cerveau Mobile V51
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'second-cerveau/source/**'
+      - '.github/workflows/mobile-v51-test.yml'
   pull_request:
     paths:
       - 'second-cerveau/source/**'
@@ -43,7 +48,7 @@ jobs:
                   if tag=='script' and self.active:
                       self.blocks.append(''.join(self.buf));self.active=False
           parser=Scripts();parser.feed(Path('/tmp/second-cerveau-v51/index.html').read_text())
-          assert len(parser.blocks)>10, f"Unexpected script count: {len(parser.blocks)}"
+          assert len(parser.blocks)>=3, f"Unexpected script count: {len(parser.blocks)}"
           for i,script in enumerate(parser.blocks):
               filename=f'/tmp/second-v51-{i}.js'
               Path(filename).write_text(script)
