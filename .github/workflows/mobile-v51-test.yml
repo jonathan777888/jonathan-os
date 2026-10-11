@@ -1,0 +1,119 @@
+name: Test Second Cerveau Mobile V51
+
+on:
+  pull_request:
+    paths:
+      - 'second-cerveau/source/**'
+      - '.github/workflows/mobile-v51-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct production HTML and validate scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/second-cerveau-v51
+          cat second-cerveau/source/part-*.txt > /tmp/second-cerveau-v51/index.html
+          grep -q 'mobileResponsiveV51' /tmp/second-cerveau-v51/index.html
+          grep -q 'mobileNavigationV51' /tmp/second-cerveau-v51/index.html
+          grep -q 'second-brain-current' /tmp/second-cerveau-v51/index.html
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.active=False;self.blocks=[];self.buf=[]
+              def handle_starttag(self,tag,attrs):
+                  d=dict(attrs)
+                  if tag=='script':
+                      self.active=not d.get('src') and d.get('type','') in ('','module','text/javascript')
+                      self.buf=[]
+              def handle_data(self,data):
+                  if self.active:self.buf.append(data)
+              def handle_endtag(self,tag):
+                  if tag=='script' and self.active:
+                      self.blocks.append(''.join(self.buf));self.active=False
+          parser=Scripts();parser.feed(Path('/tmp/second-cerveau-v51/index.html').read_text())
+          assert len(parser.blocks)>10, f"Unexpected script count: {len(parser.blocks)}"
+          for i,script in enumerate(parser.blocks):
+              filename=f'/tmp/second-v51-{i}.js'
+              Path(filename).write_text(script)
+              subprocess.run(['node','--check',filename],check=True)
+          print(f'All {len(parser.blocks)} embedded scripts valid')
+          PY
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test responsive views and interactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --directory /tmp/second-cerveau-v51 > /tmp/v51-http.log 2>&1 &
+          sleep 2
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              for(const width of [360,390,430,760,768,1280]){
+                const mobile=width<=760;
+                const page=await browser.newPage({viewport:{width,height:844},deviceScaleFactor:1,isMobile:mobile,hasTouch:mobile});
+                const errors=[];
+                page.on('pageerror',e=>errors.push(e.message));
+                await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded'});
+                await page.waitForTimeout(1700);
+                await page.locator('.tabs .tab').first().waitFor();
+                assert.ok(await page.locator('.tabs .tab').count()>=6,'Main tabs missing');
+                assert.ok(await page.locator('#page-map').count()===1,'Map missing');
+                const nav=page.locator('nav.tabs');
+                if(mobile){
+                  await page.locator('#mobilePagesV51').waitFor();
+                  assert.equal(await nav.evaluate(el=>getComputedStyle(el).position),'fixed','Mobile tabs should be fixed');
+                  assert.ok(await page.locator('.mobile-map-help-v51').isVisible(),'Mobile map hint invisible');
+                  assert.ok(await page.locator('.mobile-map-action-v51').isVisible(),'Mobile editor shortcut missing');
+                  assert.ok(await page.locator('.mobile-back-v51').isVisible(),'Mobile back button missing');
+                  await page.locator('#mobilePagesV51').selectOption('learning');
+                  await page.waitForTimeout(160);
+                  assert.ok(await page.locator('#page-learning').isVisible(),'Learning section did not activate');
+                  await page.locator('#mobilePagesV51').selectOption('map');
+                  assert.ok(await page.locator('#page-map').isVisible(),'Map section did not reactivate');
+                  const wrap=page.locator('#canvasWrap');
+                  await wrap.evaluate(el=>el.scrollLeft=250);
+                  assert.ok((await wrap.evaluate(el=>el.scrollLeft))>0,'Map should scroll horizontally');
+                  await page.locator('.mobile-map-action-v51').click();
+                  await page.waitForTimeout(200);
+                  const title=page.locator('#page-map .side h2');
+                  assert.ok(await title.isVisible(),'Editor must be available');
+                  await page.locator('.mobile-back-v51').click();
+                  const dims=await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth,bw:document.body.scrollWidth}));
+                  assert.ok(dims.sw<=dims.w+3,'Horizontal page overflow: '+JSON.stringify(dims));
+                }else{
+                  assert.ok(!(await page.locator('#mobileSelectV51').isVisible()),'Mobile select visible on desktop');
+                  assert.notEqual(await nav.evaluate(el=>getComputedStyle(el).position),'fixed','Desktop tabs incorrectly fixed');
+                }
+                if(width===390||width===1280){
+                  await page.screenshot({path:'/tmp/second-v51-shot-'+width+'.png',fullPage:true,animations:'disabled'});
+                }
+                console.log('PASS viewport '+width+'px ; errors='+errors.length+(errors.length?' : '+errors.slice(0,2).join(' ; '):''));
+                await page.close();
+              }
+            }finally{await browser.close();}
+          })().catch(err=>{console.error(err);process.exit(1);});
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-v51-screenshots
+          path: /tmp/second-v51-shot-*.png
+          if-no-files-found: ignore
