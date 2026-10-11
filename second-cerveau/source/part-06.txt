@@ -113,4 +113,130 @@
   else install();
 })();
 </script>
+
+<!-- V51: navigation et affichage mobile (brouillon non publie) -->
+<style id="mobileResponsiveV51">
+.mobile-select-v51,.mobile-map-help-v51,.mobile-map-action-v51,.mobile-back-v51{display:none}
+@media screen and (max-width:760px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .app{width:100%;max-width:100%;padding:12px 12px calc(116px + env(safe-area-inset-bottom,0px))}
+  .top{display:block;margin-bottom:12px}
+  .top h1{font-size:clamp(24px,6vw,31px);line-height:1.16;letter-spacing:-.035em}
+  .top p{font-size:13px;line-height:1.45}
+  .top .pill{font-size:10px}
+  .mobile-select-v51{display:block;margin:10px 0 14px;padding:11px 13px;border:1px solid #dbe0d6;border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(28,36,29,.06)}
+  .mobile-select-v51 label{display:block;margin-bottom:6px;color:#526b55;font-weight:800;font-size:12px}
+  .mobile-select-v51 select{width:100%;min-height:46px;padding:10px 12px;border-radius:11px;border:1px solid #cbd9cb;background:#f8fbf6;color:#243b2b;font-weight:800}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:99995;display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:7px;margin:0;padding:9px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.97);border-top:1px solid #dce4db;box-shadow:0 -10px 28px rgba(25,43,31,.10);scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;zoom:1!important}
+  nav.tabs .tab{flex:0 0 auto;max-width:178px;min-height:48px;padding:9px 12px;border-radius:13px;white-space:normal;line-height:1.2;font-size:12px;text-align:center;scroll-snap-align:center}
+  nav.tabs .tab.active{box-shadow:0 2px 8px rgba(25,43,31,.17)}
+  .page,.card,.panel,.section-card{min-width:0;max-width:100%;overflow-wrap:anywhere}
+  .grid,.memory-layout,.tasks-layout,.backup-layout,.three,.split,.learning-grid,.learning-questions{grid-template-columns:minmax(0,1fr)!important}
+  .mapcard,.side,.section-card{padding:12px}
+  .maphead{display:block}
+  .maphead h2,.side h2,.section-card h2{font-size:20px}
+  .maphead p{font-size:12px}
+  #page-map .maphead .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+  #page-map .maphead .actions .btn{min-width:0;width:100%;height:auto;min-height:44px;padding:8px;white-space:normal;line-height:1.2}
+  .mobile-map-help-v51{display:block;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#edf5ea;color:#31543b;font-size:12px;line-height:1.4}
+  .mobile-map-action-v51{display:inline-flex;align-items:center;justify-content:center}
+  .mobile-back-v51{display:inline-flex;align-items:center;justify-content:center;margin:0 0 13px}
+  .canvas-wrap{height:min(54dvh,520px);min-height:340px;max-height:640px;max-width:100%;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+  #page-map .side{scroll-margin-top:16px}
+  #page-map .side .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #page-map .side .actions .btn{min-width:0;white-space:normal;min-height:44px;height:auto;padding:8px}
+  .row>.field,.row .field{width:100%;min-width:0}
+  .actions>.btn,.actions>a.btn{min-height:44px}
+  input:not([type="checkbox"]):not([type="radio"]),textarea,select{max-width:100%;font-size:16px!important}
+  img,video,iframe{max-width:100%;height:auto}
+  pre,code{max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap}
+  table{max-width:100%}
+  .sb-zoom-controls{right:12px!important;bottom:calc(91px + env(safe-area-inset-bottom,0px))!important;padding:4px!important;z-index:99993!important}
+  .sb-zoom-btn{width:36px!important;height:36px!important}
+  .sb-zoom-value{height:36px!important;min-width:50px!important;padding:0 5px!important;font-size:12px!important}
+  #pomoMiniV49{right:12px!important;bottom:calc(154px + env(safe-area-inset-bottom,0px))!important;z-index:99992!important}
+}
+@media screen and (max-width:360px){
+  .app{padding-left:8px;padding-right:8px}
+  #page-map .maphead .actions{grid-template-columns:minmax(0,1fr)}
+  nav.tabs .tab{font-size:11px;padding:8px 10px}
+}
+</style>
+<script id="mobileNavigationV51">
+(() => {
+  'use strict';
+  function install(){
+    if(document.getElementById('mobileSelectV51'))return;
+    const nav=document.querySelector('nav.tabs');
+    const top=document.querySelector('.top');
+    if(!nav||!top)return;
+    const chooser=document.createElement('div');
+    chooser.className='mobile-select-v51';
+    chooser.id='mobileSelectV51';
+    const label=document.createElement('label');
+    label.textContent='Accès rapide aux sections';
+    label.htmlFor='mobilePagesV51';
+    const select=document.createElement('select');
+    select.id='mobilePagesV51';
+    select.setAttribute('aria-label','Choisir une section du Second Cerveau');
+    chooser.append(label,select);
+    top.insertAdjacentElement('afterend',chooser);
+    const findTabs=()=>Array.from(nav.querySelectorAll('button.tab[data-page]'));
+    const sync=()=>{
+      const active=nav.querySelector('button.tab.active[data-page]');
+      const previous=active?.dataset.page||select.value||'map';
+      const buttons=findTabs();
+      select.replaceChildren();
+      buttons.forEach(button=>{
+        const option=document.createElement('option');
+        option.value=button.dataset.page;
+        option.textContent=(button.textContent||button.dataset.page).trim();
+        select.appendChild(option);
+      });
+      if(buttons.some(b=>b.dataset.page===previous))select.value=previous;
+    };
+    sync();
+    new MutationObserver(sync).observe(nav,{childList:true});
+    select.addEventListener('change',()=>{
+      const target=findTabs().find(b=>b.dataset.page===select.value);
+      target?.click();
+    });
+    nav.addEventListener('click',event=>{
+      const tab=event.target.closest('button.tab[data-page]');
+      if(!tab)return;
+      select.value=tab.dataset.page;
+      if(window.matchMedia('(max-width:760px)').matches){
+        requestAnimationFrame(()=>{
+          tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+          window.scrollTo({top:0,behavior:'smooth'});
+        });
+      }
+    });
+    const canvas=document.getElementById('canvasWrap');
+    const sidebar=document.querySelector('#page-map .side');
+    const actions=document.querySelector('#page-map .maphead .actions');
+    const maphead=document.querySelector('#page-map .maphead');
+    if(canvas&&sidebar&&actions&&maphead){
+      const hint=document.createElement('p');
+      hint.className='mobile-map-help-v51';
+      hint.textContent='Glisse la carte pour la parcourir. Touche un bloc, puis utilise « Modifier le bloc » pour accéder à sa fiche.';
+      maphead.insertAdjacentElement('afterend',hint);
+      const openEditor=document.createElement('button');
+      openEditor.type='button';
+      openEditor.className='btn primary mobile-map-action-v51';
+      openEditor.textContent='Modifier le bloc';
+      openEditor.addEventListener('click',()=>sidebar.scrollIntoView({behavior:'smooth',block:'start'}));
+      actions.appendChild(openEditor);
+      const back=document.createElement('button');
+      back.type='button';
+      back.className='btn mobile-back-v51';
+      back.textContent='← Retour à la carte';
+      back.addEventListener('click',()=>canvas.scrollIntoView({behavior:'smooth',block:'start'}));
+      sidebar.insertBefore(back,sidebar.firstChild);
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+  else install();
+})();
+</script>
 </body></html>
