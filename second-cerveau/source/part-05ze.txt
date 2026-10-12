@@ -43,12 +43,12 @@
   // Sept ateliers existants de « Comprendre » ; aucun autre groupe n'est modifié.
   // Les questions guident la réflexion mais ne fournissent jamais les réponses.
   const LESSON15_STEPS = [
-    {i:0, prompt:'Sans réciter le texte, explique à un débutant qui est Jésus. Quels sont ses rôles et sa relation avec Jéhovah ?', refs:'Colossiens 1:15 ; Jean 3:16 ; Proverbes 8:30 ; Jean 1:14'},
-    {i:4, prompt:'Pourquoi Jésus est-il venu sur terre ? Comment les prophéties permettent-elles de reconnaître le Messie ?', refs:'Luc 1:34-35 ; Matthieu 16:16 ; Michée 5:2 ; Matthieu 2:1'},
-    {i:6, prompt:'Dessine un schéma pour montrer les relations entre Jéhovah, Jésus et les humains. Nomme et explique chaque lien, en t’appuyant sur les versets.', refs:'Jean 1:14 ; Jean 14:6 ; Jean 17:3'},
+    {i:0, prompt:'Avec tes propres mots, explique qui est Jésus, ce qu’il faisait avant de venir sur terre et où il se trouve aujourd’hui.', refs:'Colossiens 1:15 ; Jean 3:16 ; Proverbes 8:30 ; Philippiens 2:9'},
+    {i:4, prompt:'Pourquoi Jésus est-il venu sur terre ? Comment est-il devenu un humain et en quoi son rôle de Messie concerne-t-il les humains ?', refs:'Luc 1:34-35 ; Matthieu 16:16 ; Jean 3:16'},
+    {i:6, prompt:'Dessine une frise pour situer Jésus avant sa naissance, pendant sa vie terrestre et après sa résurrection. Ajoute Jéhovah et explique leur relation.', refs:'Proverbes 8:30 ; Luc 1:34-35 ; Philippiens 2:9'},
     {i:7, prompt:'Choisis deux exemples précis de prophéties mentionnées dans la leçon et explique comment les récits bibliques les relient à Jésus.', refs:'Michée 5:2 ; Matthieu 2:1 ; Psaume 34:20 ; Zacharie 12:10 ; Jean 19:33-37'},
     {i:8, prompt:'Compare le rôle de Jéhovah et celui de Jésus. Quelles ressemblances et différences les textes indiquent-ils ?', refs:'Luc 1:30-32 ; Matthieu 3:16-17 ; Jean 14:28 ; Jean 12:49'},
-    {i:14, prompt:'Prépare puis explique à voix haute, en une minute, pourquoi il est important de connaître Jésus. Termine par une question pour vérifier la compréhension.', refs:'Jean 14:6 ; Jean 17:3'},
+    {i:14, prompt:'Explique à voix haute pourquoi connaître Jésus est important. Entraîne-toi aussi à répondre respectueusement à la phrase : « Les Témoins de Jéhovah ne croient pas en Jésus. »', refs:'Jean 14:6 ; Jean 17:3'},
     {i:16, prompt:'Trouve une analogie pour le rôle de Jésus en tant que porte-parole. Dis aussi ce que cette analogie ne peut pas expliquer : une analogie n’est pas une preuve.', refs:'Jean 1:14 ; Jean 12:49'}
   ];
   const glyphs = ['Aa','?','+1','</>','?→','◎','✎','Ex','A/B','▦','⇄','✓','▤','5R','▷','!','≈','▣','↔','↻'];
