@@ -1,0 +1,59 @@
+name: Test Google Sync V52
+
+on:
+  pull_request:
+    paths:
+      - 'second-cerveau/source/**'
+      - 'scripts/test-google-sync-v52.cjs'
+      - '.github/workflows/google-sync-v52-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  google-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app and verify markup
+        run: |
+          set -e
+          mkdir -p /tmp/second-cerveau-v52
+          cat second-cerveau/source/part-*.txt > /tmp/second-cerveau-v52/index.html
+          grep -q 'googleSyncV52' /tmp/second-cerveau-v52/index.html
+          grep -q 'SecondBrainGoogleSyncV52' /tmp/second-cerveau-v52/index.html
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Scripts(HTMLParser):
+            def __init__(self): super().__init__();self.active=False;self.blocks=[];self.buffer=[]
+            def handle_starttag(self,tag,attrs):
+              d=dict(attrs)
+              if tag=='script':
+                self.active=not d.get('src') and d.get('type','') in ('','module','text/javascript')
+                self.buffer=[]
+            def handle_data(self,data):
+              if self.active:self.buffer.append(data)
+            def handle_endtag(self,tag):
+              if tag=='script' and self.active:
+                self.blocks.append(''.join(self.buffer));self.active=False
+          p=Scripts();p.feed(Path('/tmp/second-cerveau-v52/index.html').read_text())
+          assert len(p.blocks)>=3, 'Missing script blocks'
+          for i,s in enumerate(p.blocks):
+            f=Path(f'/tmp/second-v52-{i}.js');f.write_text(s)
+            subprocess.run(['node','--check',str(f)],check=True)
+          print(f'{len(p.blocks)} script blocks syntactically valid')
+          PY
+      - name: Install Chromium and Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test Google Drive sync end-to-end with simulated API
+        run: |
+          set -e
+          python3 -m http.server 8765 --directory /tmp/second-cerveau-v52 > /tmp/v52-http.log 2>&1 &
+          sleep 2
+          node scripts/test-google-sync-v52.cjs
