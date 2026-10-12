@@ -130,7 +130,7 @@ jobs:
           node - <<'JS'
           const {chromium}=require('playwright');
           const assert=require('node:assert/strict');
-          const makeMock = remote => () => {
+          const installMock = ({remote}) => {
             localStorage.setItem('second-brain-learning-v33',JSON.stringify({topic:'Test multi-appareils',answer:'bonjour'}));
             localStorage.setItem('second-brain-verify-token-v43','SECRET-NE-DOIT-PAS-ETRE-SYNCHRONISE');
             localStorage.setItem('second-brain-private-api-key','SECRET-API');
@@ -163,7 +163,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             try{
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-              await page.addInitScript(makeMock(null));
+              await page.addInitScript(installMock,{remote:null});
               await page.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded'});
               await page.locator('#secondBrainCloudV52').waitFor({state:'attached'});
               await page.waitForFunction(()=>window.__mockUpserts.length===1);
@@ -181,7 +181,7 @@ jobs:
 
               const remotePayload={'second-brain-learning-v33':JSON.stringify({topic:'Version cloud'})};
               const page2=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-              await page2.addInitScript(makeMock({payload:remotePayload,updated_at:'2026-10-12T02:00:00.000Z',device_label:'autre appareil'}));
+              await page2.addInitScript(installMock,{remote:{payload:remotePayload,updated_at:'2026-10-12T02:00:00.000Z',device_label:'autre appareil'}});
               await page2.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded'});
               await page2.locator('#secondBrainCloudV52').waitFor({state:'attached'});
               await page2.waitForFunction(()=>document.getElementById('cloudConflictV52') && !document.getElementById('cloudConflictV52').hidden);
