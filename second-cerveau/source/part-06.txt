@@ -263,6 +263,13 @@
 <script id="cloudSyncV52">
 (() => {
   'use strict';
+  try{
+    document.title='Second Cerveau IA — V52';
+    const pill=document.querySelector('.pill');
+    if(pill)pill.textContent='Second Cerveau IA — V52';
+    const versionStatus=document.getElementById('versionStatus');
+    if(versionStatus)versionStatus.textContent='V52 · Connexion Google et synchronisation sécurisée entre tes appareils.';
+  }catch(e){}
   const SUPABASE_URL='https://wuhbalxjpcfemsxdnggp.supabase.co';
   const SUPABASE_KEY='sb_publishable_mPFAK_h6L8JjUQRuVx5RVg_odLPQNRn';
   const REDIRECT_URL='https://jonathan777888.github.io/jonathan-os/';
