@@ -239,4 +239,279 @@
   else install();
 })();
 </script>
+
+<!-- V52 — Compte Google + synchronisation Supabase multi-appareils -->
+<style id="cloudSyncStyleV52">
+#secondBrainCloudV52{margin-bottom:14px;border:1px solid #cfe0cf;background:linear-gradient(180deg,#fbfdf9,#f4f8f1)}
+#secondBrainCloudV52 .cloud-head-v52{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+#secondBrainCloudV52 .cloud-head-v52 h3{margin:0}
+#secondBrainCloudV52 .cloud-head-v52 p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.5;max-width:820px}
+#secondBrainCloudV52 .cloud-badge-v52{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#eef3ec;color:#506451;font-size:11px;font-weight:900}
+#secondBrainCloudV52 .cloud-badge-v52.ok{background:var(--green2);color:var(--green)}
+#secondBrainCloudV52 .cloud-badge-v52.warn{background:#fff4df;color:#8d651b}
+#secondBrainCloudV52 .cloud-user-v52{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+#secondBrainCloudV52 .google-btn-v52{min-height:44px;padding:0 15px;border:1px solid #cfd7cf;border-radius:12px;background:#fff;font-weight:900;cursor:pointer}
+#secondBrainCloudV52 .cloud-email-v52{font-weight:800;overflow-wrap:anywhere}
+#secondBrainCloudV52 .cloud-status-v52{margin-top:10px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #e1e7df;color:#526052;font-size:12px;line-height:1.45}
+#secondBrainCloudV52 .cloud-conflict-v52{margin-top:12px;padding:13px;border-radius:14px;border:1px solid #e5c78f;background:#fff8eb}
+#secondBrainCloudV52 .cloud-conflict-v52 strong{display:block;margin-bottom:5px}
+#secondBrainCloudV52 .cloud-conflict-v52 p{margin:0 0 10px;color:#6c5a35;font-size:12px;line-height:1.45}
+@media(max-width:760px){
+  #secondBrainCloudV52 .cloud-user-v52 .btn,#secondBrainCloudV52 .google-btn-v52{width:100%}
+}
+</style>
+<script id="cloudSyncV52">
+(() => {
+  'use strict';
+  const SUPABASE_URL='https://wuhbalxjpcfemsxdnggp.supabase.co';
+  const SUPABASE_KEY='sb_publishable_mPFAK_h6L8JjUQRuVx5RVg_odLPQNRn';
+  const REDIRECT_URL='https://jonathan777888.github.io/jonathan-os/';
+  const TABLE='second_brain_sync';
+  const META_KEY='second-brain-sync-meta-v52';
+  const SENSITIVE=/(token|secret|password|passcode|api[-_]?key|access[-_]?code)/i;
+  const nativeSet=Storage.prototype.setItem;
+  const nativeRemove=Storage.prototype.removeItem;
+  const nativeGet=Storage.prototype.getItem;
+  let client=null,user=null,syncing=false,applying=false,pushTimer=null,pendingRemote=null,bootedUserId=null,remoteTimer=null;
+
+  function isSyncableKey(key){
+    key=String(key||'');
+    if(!key||key===META_KEY||SENSITIVE.test(key))return false;
+    return key.startsWith('second-brain-')||key.startsWith('jonathan-racines')||key.startsWith('carte-racines');
+  }
+  function snapshot(){
+    const out={};
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(isSyncableKey(key))out[key]=nativeGet.call(localStorage,key);
+      }
+    }catch(e){}
+    return out;
+  }
+  function readMeta(){
+    try{return JSON.parse(nativeGet.call(localStorage,META_KEY)||'{}')||{}}catch(e){return{}}
+  }
+  function writeMeta(patch){
+    const next=Object.assign({},readMeta(),patch||{});
+    try{nativeSet.call(localStorage,META_KEY,JSON.stringify(next))}catch(e){}
+    return next;
+  }
+  function time(v){const n=Date.parse(v||'');return Number.isFinite(n)?n:0}
+  function localDirty(meta=readMeta()){return time(meta.lastLocalChangeAt)>time(meta.lastSyncedAt)}
+  function status(text,tone){
+    const el=document.getElementById('cloudStatusV52');
+    if(el)el.textContent=text;
+    const badge=document.getElementById('cloudBadgeV52');
+    if(badge){
+      badge.textContent=tone==='ok'?'Synchronisé':tone==='warn'?'Attention':user?'Connecté':'Non connecté';
+      badge.className='cloud-badge-v52'+(tone?' '+tone:'');
+    }
+  }
+  function installUI(){
+    const page=document.getElementById('page-backup');
+    if(!page||document.getElementById('secondBrainCloudV52'))return;
+    const box=document.createElement('div');
+    box.id='secondBrainCloudV52';
+    box.className='panel';
+    box.innerHTML=
+      '<div class="cloud-head-v52">'+
+        '<div><h3>Compte Google & synchronisation</h3><p>Connecte ton compte Google pour retrouver les mêmes données du Second Cerveau sur ordinateur, téléphone et tablette. Les codes d’accès, jetons et secrets restent uniquement sur cet appareil.</p></div>'+
+        '<span class="cloud-badge-v52" id="cloudBadgeV52">Non connecté</span>'+
+      '</div>'+
+      '<div class="cloud-user-v52">'+
+        '<button type="button" class="google-btn-v52" id="cloudGoogleV52">Continuer avec Google</button>'+
+        '<span class="cloud-email-v52" id="cloudEmailV52" hidden></span>'+
+        '<button type="button" class="btn primary" id="cloudSyncNowV52" hidden>Synchroniser maintenant</button>'+
+        '<button type="button" class="btn" id="cloudSignOutV52" hidden>Se déconnecter</button>'+
+      '</div>'+
+      '<div class="cloud-conflict-v52" id="cloudConflictV52" hidden>'+
+        '<strong>Deux versions de tes données ont été détectées</strong>'+
+        '<p>Choisis celle que tu veux garder. Rien n’est remplacé automatiquement tant que tu n’as pas choisi.</p>'+
+        '<div class="actions"><button type="button" class="btn primary" id="cloudUseCloudV52">Utiliser les données du cloud</button><button type="button" class="btn" id="cloudUseDeviceV52">Utiliser les données de cet appareil</button></div>'+
+      '</div>'+
+      '<div class="cloud-status-v52" id="cloudStatusV52">Connexion Google non activée sur cet appareil.</div>';
+    page.insertBefore(box,page.firstChild);
+    document.getElementById('cloudGoogleV52').onclick=signIn;
+    document.getElementById('cloudSyncNowV52').onclick=manualSync;
+    document.getElementById('cloudSignOutV52').onclick=signOut;
+    document.getElementById('cloudUseCloudV52').onclick=()=>pendingRemote&&applyRemote(pendingRemote);
+    document.getElementById('cloudUseDeviceV52').onclick=async()=>{pendingRemote=null;hideConflict();await pushNow('Version de cet appareil envoyée au cloud.');};
+  }
+  function renderAuth(){
+    const login=document.getElementById('cloudGoogleV52');
+    const email=document.getElementById('cloudEmailV52');
+    const sync=document.getElementById('cloudSyncNowV52');
+    const out=document.getElementById('cloudSignOutV52');
+    if(!login)return;
+    if(user){
+      login.hidden=true;email.hidden=false;sync.hidden=false;out.hidden=false;
+      email.textContent=user.email||'Compte Google connecté';
+      status('Compte connecté. Vérification de la synchronisation…');
+    }else{
+      login.hidden=false;email.hidden=true;sync.hidden=true;out.hidden=true;
+      hideConflict();status('Connexion Google non activée sur cet appareil.');
+    }
+  }
+  function hideConflict(){
+    const el=document.getElementById('cloudConflictV52');
+    if(el)el.hidden=true;
+  }
+  function showConflict(remote,message){
+    pendingRemote=remote;
+    const el=document.getElementById('cloudConflictV52');
+    if(el)el.hidden=false;
+    status(message||'Le cloud et cet appareil contiennent des changements différents. Choisis la version à conserver.','warn');
+  }
+  async function loadLibrary(){
+    if(window.supabase&&typeof window.supabase.createClient==='function')return;
+    await new Promise((resolve,reject)=>{
+      const existing=document.querySelector('script[data-sb-supabase-v52]');
+      if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      s.async=true;s.dataset.sbSupabaseV52='1';s.onload=resolve;s.onerror=()=>reject(new Error('Bibliothèque Supabase indisponible'));
+      document.head.appendChild(s);
+    });
+  }
+  async function signIn(){
+    if(!client){status('Connexion Supabase indisponible. Vérifie ta connexion Internet.','warn');return}
+    status('Ouverture de Google…');
+    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL}});
+    if(result.error)status('Connexion Google impossible : '+result.error.message,'warn');
+  }
+  async function signOut(){
+    if(!client)return;
+    await client.auth.signOut();
+    user=null;bootedUserId=null;pendingRemote=null;hideConflict();renderAuth();
+  }
+  async function fetchRemote(){
+    if(!client||!user)return null;
+    const result=await client.from(TABLE).select('payload,updated_at,device_label').eq('user_id',user.id).maybeSingle();
+    if(result.error)throw result.error;
+    return result.data||null;
+  }
+  async function pushNow(message){
+    if(!client||!user||syncing||pendingRemote)return;
+    clearTimeout(pushTimer);
+    syncing=true;status('Envoi des données vers le cloud…');
+    try{
+      const row={user_id:user.id,payload:snapshot(),device_label:(navigator.platform||'navigateur')+' · '+(navigator.userAgent||'').slice(0,120)};
+      const result=await client.from(TABLE).upsert(row,{onConflict:'user_id'}).select('updated_at').single();
+      if(result.error)throw result.error;
+      const now=new Date().toISOString();
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:result.data.updated_at,lastSyncedAt:now});
+      status(message||'Données synchronisées avec le cloud.','ok');
+    }catch(e){
+      status('Synchronisation impossible : '+(e&&e.message?e.message:String(e)),'warn');
+    }finally{syncing=false}
+  }
+  async function applyRemote(remote){
+    if(!remote||!remote.payload||!user)return;
+    applying=true;
+    try{
+      const payload=remote.payload||{};
+      const localKeys=[];
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(isSyncableKey(k))localKeys.push(k)}
+      localKeys.forEach(k=>{if(!Object.prototype.hasOwnProperty.call(payload,k))nativeRemove.call(localStorage,k)});
+      Object.entries(payload).forEach(([k,v])=>{if(isSyncableKey(k)&&typeof v==='string')nativeSet.call(localStorage,k,v)});
+      const now=new Date().toISOString();
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:null});
+      pendingRemote=null;hideConflict();status('Données du cloud récupérées. Rechargement…','ok');
+      setTimeout(()=>location.reload(),250);
+    }catch(e){
+      status('Impossible de restaurer les données du cloud : '+(e&&e.message?e.message:String(e)),'warn');
+    }finally{applying=false}
+  }
+  async function initialSync(){
+    if(!user)return;
+    try{
+      const remote=await fetchRemote();
+      const meta=readMeta();
+      if(!remote){await pushNow('Première sauvegarde cloud créée.');return}
+      if(meta.userId!==user.id||!meta.initialized){
+        showConflict(remote,'Ce compte possède déjà des données dans le cloud. Choisis la version à conserver avant la première synchronisation sur cet appareil.');
+        return;
+      }
+      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
+        if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
+        else await applyRemote(remote);
+        return;
+      }
+      if(localDirty(meta))await pushNow();
+      else status('Tout est à jour.','ok');
+    }catch(e){
+      status('Vérification du cloud impossible : '+(e&&e.message?e.message:String(e)),'warn');
+    }
+  }
+  async function manualSync(){
+    if(!user){await signIn();return}
+    if(pendingRemote){status('Choisis d’abord quelle version tu veux conserver.','warn');return}
+    try{
+      const remote=await fetchRemote(),meta=readMeta();
+      if(!remote){await pushNow();return}
+      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
+        if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
+        else await applyRemote(remote);
+      }else await pushNow();
+    }catch(e){status('Synchronisation impossible : '+(e&&e.message?e.message:String(e)),'warn')}
+  }
+  async function checkRemote(){
+    if(!user||syncing||pendingRemote||document.hidden)return;
+    try{
+      const remote=await fetchRemote();
+      if(!remote)return;
+      const meta=readMeta();
+      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
+        if(localDirty(meta))showConflict(remote,'De nouvelles données existent dans le cloud et cet appareil contient aussi des changements.');
+        else await applyRemote(remote);
+      }
+    }catch(e){}
+  }
+  function markDirty(){
+    writeMeta({userId:user?user.id:readMeta().userId||null,lastLocalChangeAt:new Date().toISOString()});
+    if(user&&!pendingRemote){
+      status('Modification locale détectée. Synchronisation automatique en attente…');
+      clearTimeout(pushTimer);pushTimer=setTimeout(()=>pushNow(),1400);
+    }
+  }
+
+  Storage.prototype.setItem=function(key,value){
+    const result=nativeSet.call(this,key,value);
+    if(this===localStorage&&isSyncableKey(key)&&!applying)markDirty();
+    return result;
+  };
+  Storage.prototype.removeItem=function(key){
+    const result=nativeRemove.call(this,key);
+    if(this===localStorage&&isSyncableKey(key)&&!applying)markDirty();
+    return result;
+  };
+
+  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync};
+
+  async function start(){
+    installUI();
+    try{
+      await loadLibrary();
+      client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+      const sessionResult=await client.auth.getSession();
+      user=sessionResult.data&&sessionResult.data.session?sessionResult.data.session.user:null;
+      renderAuth();
+      if(user){bootedUserId=user.id;await initialSync()}
+      client.auth.onAuthStateChange((event,session)=>{
+        const next=session&&session.user?session.user:null;
+        user=next;renderAuth();
+        if(user&&bootedUserId!==user.id){bootedUserId=user.id;setTimeout(()=>initialSync(),0)}
+        if(!user)bootedUserId=null;
+      });
+      remoteTimer=setInterval(checkRemote,60000);
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkRemote()});
+    }catch(e){
+      status('Le module de synchronisation n’a pas pu démarrer. Tes données locales restent disponibles.','warn');
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+
 </body></html>
