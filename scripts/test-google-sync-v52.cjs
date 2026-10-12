@@ -63,7 +63,7 @@ async function openApp(browser,width){
   page.on('pageerror',e=>errors.push(e.message));
   await connectMock(page);
   await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded'});
-  await page.locator('#googleSyncV52').waitFor({timeout:15000});
+  await page.locator('#googleSyncV52').waitFor({state:'attached',timeout:15000});
   const tabs=page.locator('button.tab[data-page="backup"]');
   await tabs.click();
   await page.locator('#g52ClientId').fill(GOOGLE_ID);
