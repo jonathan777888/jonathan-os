@@ -94,8 +94,13 @@ jobs:
                   await page.locator('#mobilePagesV51').selectOption('map');
                   assert.ok(await page.locator('#page-map').isVisible(),'Map section did not reactivate');
                   const wrap=page.locator('#canvasWrap');
+                  const beforeScroll=await wrap.evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,childWidth:el.firstElementChild?.getBoundingClientRect().width||0,styleWidth:el.firstElementChild?.style.width||'',display:getComputedStyle(el).display,overflowX:getComputedStyle(el).overflowX}));
+                  console.log('MAP-DIAG '+width+'px '+JSON.stringify(beforeScroll));
                   await wrap.evaluate(el=>el.scrollLeft=250);
-                  assert.ok((await wrap.evaluate(el=>el.scrollLeft))>0,'Map should scroll horizontally');
+                  await page.waitForTimeout(80);
+                  const afterScroll=await wrap.evaluate(el=>({scrollLeft:el.scrollLeft,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth}));
+                  console.log('MAP-DIAG-AFTER '+width+'px '+JSON.stringify(afterScroll));
+                  assert.ok(afterScroll.scrollLeft>0,'Map should scroll horizontally: '+JSON.stringify({beforeScroll,afterScroll}));
                   await page.locator('.mobile-map-action-v51').click();
                   await page.waitForTimeout(200);
                   const title=page.locator('#page-map .side h2');
