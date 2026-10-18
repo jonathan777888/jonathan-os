@@ -1,6 +1,6 @@
 Second Cerveau IA — V13</span><h1>Carte, mémoire, contexte et réflexion</h1><p>Un système évolutif pour relier tes racines, tes études, ton travail, tes rêves, tes tâches, tes notes et tes bilans quotidiens. Les données restent sauvegardées dans ton navigateur et peuvent être exportées vers Google Drive.</p><p class="muted" id="versionStatus" style="margin-top:7px">V13 hérite directement de V12 : toutes les fonctions précédentes sont conservées, avec une carte extensible qui grandit automatiquement.</p></div></header>
 <nav class="tabs" aria-label="Navigation principale">
-<button class="tab active" data-page="map">Carte</button><button class="tab" data-page="review">Bilan du jour</button><button class="tab" data-page="memory">Mémoire & contexte</button><button class="tab" data-page="tasks">Tâches</button><button class="tab" data-page="backup">Sauvegardes & Google</button>
+<button class="tab active" data-page="map">Carte</button><button class="tab" data-page="review">Bilan du jour</button><button class="tab" data-page="memory">Mémoire & contexte</button><button class="tab" data-page="tasks">Tâches</button><button class="tab" data-page="backup">Sauvegardes & Google</button><a class="tab" href="https://jonathan777888.github.io/bible-study-canvas/" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;text-decoration:none">📖 Bible Study ↗</a>
 </nav>
 
 <section class="page active" id="page-map"><div class="grid">
