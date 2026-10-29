@@ -521,4 +521,6 @@
 })();
 </script>
 
+
+<script src="challenge-40-days.js" defer></script>
 </body></html>
