@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'second-cerveau/source/**'
+      - 'second-cerveau/challenge-40-days.js'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
@@ -33,7 +34,9 @@ jobs:
           code = Path('second-cerveau/challenge-40-days.js').read_text()
           text = html.read_text()
           assert '</body></html>' in text, 'Missing page ending'
-          text = text.replace('</body></html>', '<script>\n'+code+'\n</script>\n</body></html>', 1)
+          head, closing, tail = text.rpartition('</body></html>')
+          assert closing, 'Missing final body tag'
+          text = head + '<script>\n' + code + '\n</script>\n' + closing + tail
           html.write_text(text)
           PY
           grep -q 'Second Cerveau IA — V43' public/index.html
