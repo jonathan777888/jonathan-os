@@ -27,6 +27,15 @@ jobs:
         run: |
           mkdir -p public
           cat second-cerveau/source/part-*.txt > public/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('public/index.html')
+          code = Path('second-cerveau/challenge-40-days.js').read_text()
+          text = html.read_text()
+          assert '</body></html>' in text, 'Missing page ending'
+          text = text.replace('</body></html>', '<script>\n'+code+'\n</script>\n</body></html>', 1)
+          html.write_text(text)
+          PY
           grep -q 'Second Cerveau IA — V43' public/index.html
           grep -q 'learningVerifyV43' public/index.html
           grep -q 'Vérifier mon travail' public/index.html
