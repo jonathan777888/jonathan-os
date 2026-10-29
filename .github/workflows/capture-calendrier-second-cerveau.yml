@@ -1,0 +1,72 @@
+name: Capture Second Cerveau - calendrier 40 jours
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/capture-calendrier-second-cerveau.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer le navigateur
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Capturer le calendrier publie, sans modifier les donnees
+        run: |
+          mkdir -p screenshots
+          node - <<'JS'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            const page = await browser.newPage({
+              viewport:{width:390,height:844},
+              deviceScaleFactor:1,
+              isMobile:true,
+              hasTouch:true
+            });
+            try {
+              await page.goto('https://jonathan777888.github.io/jonathan-os/', {waitUntil:'domcontentloaded',timeout:60000});
+              await page.locator('#combatDaysCard').waitFor({state:'visible',timeout:30000});
+              await page.locator('#fortyDaysProgram').waitFor({state:'visible',timeout:30000});
+              await page.waitForTimeout(700);
+              const title = await page.locator('#fortyDaysProgram h3').innerText();
+              if(!title.includes('40 jours')) throw Error('Calendrier 40 jours introuvable');
+              console.log('CALENDRIER TROUVE: '+title);
+              console.log('URL: '+page.url());
+              await page.locator('#combatDaysCard').screenshot({
+                path:'screenshots/second-cerveau-calendrier-complet.png',
+                animations:'disabled'
+              });
+              await page.locator('#fortyDaysProgram').screenshot({
+                path:'screenshots/second-cerveau-40-jours-focus.png',
+                animations:'disabled'
+              });
+              await page.locator('#combatDaysCard').scrollIntoViewIfNeeded();
+              await page.screenshot({
+                path:'screenshots/second-cerveau-emplacement-mobile.png',
+                animations:'disabled'
+              });
+            } catch (e) {
+              await page.screenshot({path:'screenshots/second-cerveau-diagnostic.png',fullPage:true}).catch(()=>{});
+              throw e;
+            } finally {
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exit(1);});
+          JS
+      - name: Partager les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures-second-cerveau-calendrier
+          path: screenshots/*.png
+          if-no-files-found: warn
