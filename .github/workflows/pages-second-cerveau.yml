@@ -6,6 +6,7 @@ on:
     paths:
       - 'second-cerveau/source/**'
       - 'second-cerveau/challenge-40-days.js'
+      - 'second-cerveau/spiritual-ladder.js'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
@@ -32,14 +33,17 @@ jobs:
           from pathlib import Path
           html = Path('public/index.html')
           code = Path('second-cerveau/challenge-40-days.js').read_text()
+          ladder_code = Path('second-cerveau/spiritual-ladder.js').read_text(encoding='utf-8')
           text = html.read_text()
           assert '</body></html>' in text, 'Missing page ending'
           head, closing, tail = text.rpartition('</body></html>')
           assert closing, 'Missing final body tag'
-          text = head + '<script>\n' + code + '\n</script>\n' + closing + tail
+          text = head + '<script>\n' + code + '\n</script>\n' + '<script>\n' + ladder_code + '\n</script>\n' + closing + tail
           html.write_text(text)
           PY
           grep -q 'Second Cerveau IA — V43' public/index.html
+          grep -q 'Échelle de progression spirituelle et personnelle' public/index.html
+          grep -q 'spiritual-ladder-local-v1' public/index.html
           grep -q 'learningVerifyV43' public/index.html
           grep -q 'Vérifier mon travail' public/index.html
           grep -q 'Configurer l’accès sécurisé' public/index.html
