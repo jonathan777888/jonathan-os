@@ -36,7 +36,7 @@
     <div><h3 class="schedule-title">Projets personnels</h3><div class="projects-grid">
       <div class="project-row"><div class="project-day">LUN. → JEU.<small>20 h — 21 h</small></div><div class="project-text">S’entraîner à combiner ChatGPT, Adobe Premiere Pro et After Effects</div></div>
       <div class="project-row friday"><div class="project-day">VENDREDI<small>20 h — 21 h</small></div><div class="project-text">Créer un chapitre de « La Ferme de l’avenir »</div></div>
-      <div class="project-row saturday"><div class="project-day">SAMEDI</div><div class="project-text"><strong>9 h — 12 h</strong> · Projet MAPAT<br><br><strong>14 h — 17 h</strong> · Créer ou monter une vidéo</div></div>
+      <div class="project-row saturday"><div class="project-day">SAMEDI</div><div class="project-text"><strong>Jeûne</strong> · Chaque samedi (horaire non défini)<br><br><strong>9 h — 12 h</strong> · Projet MAPAT<br><br><strong>14 h — 17 h</strong> · Créer ou monter une vidéo</div></div>
       <div class="project-row sunday"><div class="project-day">DIMANCHE<small>15 h — 17 h</small></div><div class="project-text">Écrire une histoire</div></div>
     </div></div>
     <div class="schedule-footer">Une priorité à la fois • rester régulier</div>
