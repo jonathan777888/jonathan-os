@@ -1,0 +1,41 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transférer mes données — Second Cerveau OS</title>
+<style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:30px 16px;background:#0c171b;color:#edf9f5;font:16px/1.6 system-ui,-apple-system,sans-serif}main{max-width:700px;margin:auto}a{color:#85e5c5}h1{letter-spacing:-.04em;line-height:1.1}p,small{color:#b8c8c2}section{border:1px solid #325054;background:#11262a;padding:24px;border-radius:18px;margin:20px 0}button,.btn{display:inline-block;border:0;background:#d8f8e8;color:#102a22;padding:13px 19px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none}button:disabled{opacity:.5}input[type=file]{display:block;width:100%;margin:12px 0}#message{white-space:pre-wrap;min-height:2rem;color:#bff5d5}code{color:#b1e6dd}footer{padding:20px 0;color:#9aa}</style></head>
+<body><main><p><a href="./">← Retour à l’accueil</a></p><h1>Sauvegarder et transférer mon Second Cerveau</h1><p>Cette page fonctionne uniquement sur ton navigateur : <strong>aucune donnée n’est envoyée à un serveur</strong>. Si tu veux récupérer tes anciennes notes du site GitHub Pages vers le nouveau site Vercel, utilise les deux étapes ci-dessous sur le même appareil et avec le même navigateur que précédemment.</p>
+<section><h2>1. Télécharger mon ancienne sauvegarde</h2><p>Ouvre cette page depuis l’ancien site GitHub Pages, puis télécharge ton fichier. Seules les données du Second Cerveau présentes dans ce navigateur seront exportées, sans jetons de connexion ni clés secrètes.</p><button id="export" type="button">Télécharger ma sauvegarde</button><p><small>Domaine actuel : <code id="hostname"></code> • Entrées trouvées : <strong id="count">…</strong></small></p></section>
+<section><h2>2. Restaurer sur le nouveau site</h2><p>Va sur <a href="https://second-cerveau-os.vercel.app/transfer.html">la page de transfert Vercel</a>, puis sélectionne le fichier téléchargé. Les données présentes dans ce navigateur seront préservées jusqu’à ta confirmation.</p><label for="restore">Choisir ma sauvegarde JSON</label><input id="restore" type="file" accept=".json,application/json"><button id="import" type="button">Importer dans mon Second Cerveau</button></section>
+<section><h2>3. Reprendre mon travail</h2><p>Une fois le transfert terminé, <a class="btn" href="./local.html">ouvrir mon espace local</a>. Tu y retrouveras tes données de cet appareil. La synchronisation entre appareils exige toujours une connexion Supabase réparée.</p></section>
+<div role="status" aria-live="polite" id="message"></div><footer>Conseil : conserve le fichier dans un endroit privé, car il peut contenir tes notes personnelles.</footer></main>
+<script>
+(function(){
+'use strict';
+const status=document.getElementById('message'),count=document.getElementById('count'),input=document.getElementById('restore');
+const filter=/^(second-brain-|jonathan-racines|carte-racines)/;
+const unsafe=/(token|secret|password|passcode|api[-_]?key|access[-_]?code|sync-meta)/i;
+const safe=k=>typeof k==='string'&&filter.test(k)&&!unsafe.test(k);
+const entries=()=>{const o={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(safe(k))o[k]=localStorage.getItem(k);}}catch(e){}return o};
+const update=()=>count.textContent=Object.keys(entries()).length;
+document.getElementById('hostname').textContent=location.hostname;update();
+document.getElementById('export').addEventListener('click',()=>{
+const data=entries(),n=Object.keys(data).length;
+if(!n){status.textContent="Aucune donnée locale Second Cerveau trouvée sur ce domaine et dans ce navigateur. Essaie l’ancien appareil ou navigateur.";return}
+const payload={format:'second-cerveau-local-v1',created_at:new Date().toISOString(),source:location.origin,data};
+const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+const href=URL.createObjectURL(blob);const a=document.createElement('a');a.href=href;a.download='second-cerveau-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1000);
+status.textContent=n+' entrées sauvegardées. Ouvre maintenant la page de transfert sur Vercel pour les importer.';
+});
+document.getElementById('import').addEventListener('click',async()=>{
+const f=input.files?.[0];if(!f){status.textContent='Sélectionne d’abord ton fichier .json.';return}
+if(f.size>15*1024*1024){status.textContent='Fichier trop volumineux pour une restauration automatique (15 Mo maximum).';return}
+try{
+const p=JSON.parse(await f.text());
+if(p.format!=='second-cerveau-local-v1'||!p.data||typeof p.data!=='object'||Array.isArray(p.data))throw Error('Format de sauvegarde non reconnu.');
+const pairs=Object.entries(p.data).filter(([k,v])=>safe(k)&&typeof v==='string');
+if(!pairs.length)throw Error('Ce fichier ne contient aucune donnée Second Cerveau utilisable.');
+const existing=Object.keys(entries()).length;
+if(!confirm('Importer '+pairs.length+' entrées depuis la sauvegarde ? '+(existing?'Attention : certaines de tes '+existing+' entrées locales actuelles pourront être remplacées.':'')+' Cette opération ne modifie pas ton compte Supabase.'))return;
+let saved=0;for(const [k,v] of pairs){localStorage.setItem(k,v);saved++}
+update();status.textContent=saved+' entrées importées. Clique sur « ouvrir mon espace local ».';
+}catch(e){status.textContent='Importation impossible : '+e.message}
+});
+})();
+</script></body></html>
