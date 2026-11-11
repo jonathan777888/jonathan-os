@@ -11,5 +11,8 @@ const gate=`<script>(function(){document.documentElement.style.visibility='hidde
 html=html.replace('</head>',gate+'</head>');
 fs.writeFileSync(path.join(out,'index.html'),fs.readFileSync(path.join(root,'landing.html'),'utf8'));
 fs.writeFileSync(path.join(out,'app.html'),html);
+const localHtml=html.replace(gate,'').replace('</head>', '<style>body{padding-top:56px!important}#secondBrainLocalNotice{position:fixed;top:0;left:0;right:0;z-index:999999;background:#173b33;color:#e7fff2;text-align:center;font:13px/1.4 system-ui;padding:9px 14px;border-bottom:1px solid #4fa58c}</style></head>').replace('<body>', '<body><aside id="secondBrainLocalNotice">Mode local sur cet appareil • Sans connexion Google ni synchronisation cloud • <a href="/transfer.html" style="color:#d1fff0">Sauvegarder / transférer</a> • <a href="/" style="color:#d1fff0">Accueil</a></aside>');
+fs.writeFileSync(path.join(out,'local.html'),localHtml);
+fs.copyFileSync(path.join(root,'transfer.html'),path.join(out,'transfer.html'));
 for(const file of ['challenge-40-days.js','spiritual-ladder.js'])fs.copyFileSync(path.join(root,file),path.join(out,file));
 console.log('Built Second Cerveau V52:',parts.length,'parts,',html.length,'bytes');
