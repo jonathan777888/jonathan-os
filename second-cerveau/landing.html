@@ -27,7 +27,7 @@ button.primary:hover{background:#bcf8dc;transform:translateY(-1px)}button:disabl
 .foot{border-top:1px solid var(--border);color:#78938d;font-size:.8rem;padding:24px 0}
 @media(max-width:850px){main{grid-template-columns:1fr;gap:22px;padding-top:50px}.panel{padding:28px 24px}header nav a{display:none}h1{font-size:3.2rem}}
 </style></head>
-<body><div class="wrap"><header><a class="logo" href="/"><span class="mark">✦</span> Second Cerveau OS</a><nav><a href="#fonctionnalites">Fonctionnalités</a><a href="#connexion">Mon espace</a></nav></header>
+<body><div class="wrap"><header><a class="logo" href="./"><span class="mark">✦</span> Second Cerveau OS</a><nav><a href="#fonctionnalites">Fonctionnalités</a><a href="#connexion">Mon espace</a></nav></header>
 <main><section><div class="eyebrow">Ton système personnel • Édition indépendante</div><h1>Construis ton avenir.<br><span>Un jour à la fois.</span></h1><p>Un seul espace pour organiser tes projets, apprendre activement, suivre tes habitudes et mesurer tes progrès intellectuels, personnels et spirituels.</p><div id="fonctionnalites" class="features"><span>✧ Apprentissage actif</span><span>✧ Planification</span><span>✧ Révision</span><span>✧ Progression personnelle</span><span>✧ Synchronisation cloud</span></div><div class="preview"><small>UNE MÉTHODE POUR PROGRESSER</small><strong>Comprendre → Expliquer → Pratiquer → Construire → Tester → Corriger</strong><div class="progress"><b></b></div><small>La constance transforme les petites actions.</small></div></section>
 <section class="panel" id="connexion" aria-label="Connexion"><div class="symbol">⌘</div><h2>Bienvenue dans ton espace</h2><p>Connecte-toi pour retrouver ton Second Cerveau et synchroniser tes progrès entre tes appareils.</p>
 <button class="primary" id="login" type="button"><svg width="21" height="21" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 5.38 6.51 13.22 2.56l7.98 6.19C13.45 13.72 18.28 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.25 5.48-4.76 7.18l7.73 6C44.42 37.99 46.98 31.61 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.39A14.38 14.38 0 0 1 9.75 24c0-1.52.26-3 .76-4.39l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.86.92 7.5 2.53 10.58z"/><path fill="#34A853" d="M24 48c6.48 0 11.92-2.13 15.9-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.17 2.3-6.28 0-11.61-4.22-13.47-9.89l-7.98 6.19C6.51 41.49 14.62 48 24 48z"/></svg><span id="loginText">Continuer avec Google</span></button>
@@ -45,14 +45,14 @@ function init(){
  client=window.supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  client.auth.getSession().then(({data,error})=>{
   if(error)throw error;
-  if(data.session?.user){location.replace('/app.html');return}
+  if(data.session?.user){location.replace(new URL('app.html',location.href).href);return}
   message('Connecte-toi avec ton compte Google pour continuer.');login.disabled=false;
  }).catch(e=>{message('Impossible de vérifier la session : '+e.message);retry.hidden=false;login.disabled=true});
 }
 login.disabled=true;
 login.addEventListener('click',async()=>{
  if(!client)return;login.disabled=true;txt.textContent='Ouverture de Google…';message('Redirection vers Google…');
- try{const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+'/app.html'}});if(error)throw error}
+ try{const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('app.html',location.href).href}});if(error)throw error}
  catch(e){message('Connexion impossible : '+e.message);login.disabled=false;txt.textContent='Continuer avec Google'}
 });
 retry.addEventListener('click',()=>{retry.hidden=true;init()});
