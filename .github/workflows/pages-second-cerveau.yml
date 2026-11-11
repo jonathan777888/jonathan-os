@@ -8,6 +8,7 @@ on:
       - 'second-cerveau/challenge-40-days.js'
       - 'second-cerveau/spiritual-ladder.js'
       - 'second-cerveau/landing.html'
+      - 'second-cerveau/transfer.html'
       - 'second-cerveau/build_site.cjs'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
@@ -166,9 +167,12 @@ jobs:
           assert '</head>' in text
           text=text.replace('</head>',gate+'</head>',1)
           (root/'app.html').write_text(text,encoding='utf-8')
+          (root/'local.html').write_text(app.read_text(encoding='utf-8'),encoding='utf-8')
+          (root/'transfer.html').write_text(Path('second-cerveau/transfer.html').read_text(encoding='utf-8'),encoding='utf-8')
           (root/'index.html').write_text(Path('second-cerveau/landing.html').read_text(encoding='utf-8'),encoding='utf-8')
           assert 'Continuer avec Google' in (root/'index.html').read_text(encoding='utf-8')
           assert 'cloudSyncV52' in (root/'app.html').read_text(encoding='utf-8')
+          assert 'Second Cerveau' in (root/'local.html').read_text(encoding='utf-8')
           PY
 
       - uses: actions/configure-pages@v5
