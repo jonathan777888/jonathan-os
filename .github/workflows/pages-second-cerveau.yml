@@ -7,6 +7,8 @@ on:
       - 'second-cerveau/source/**'
       - 'second-cerveau/challenge-40-days.js'
       - 'second-cerveau/spiritual-ladder.js'
+      - 'second-cerveau/landing.html'
+      - 'second-cerveau/build_site.cjs'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
@@ -135,6 +137,38 @@ jobs:
               path=Path('/tmp')/f'second-cerveau-{i}.mjs'; path.write_text(code)
               subprocess.run(['node','--check',str(path)],check=True)
           print(f'Checked {len(parser.blocks)} inline scripts')
+          PY
+
+      - name: Publish independent homepage and authenticated app
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('public')
+          app=root/'index.html'
+          text=app.read_text(encoding='utf-8')
+          text=text.replace("const REDIRECT_URL='https://jonathan777888.github.io/jonathan-os/';", "const REDIRECT_URL=location.origin+location.pathname;")
+          gate="""<script id="second-brain-independent-login">(function(){
+          document.documentElement.style.visibility='hidden';
+          var s=document.createElement('script');
+          s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+          s.onload=async function(){
+            try{
+              var c=window.supabase.createClient('https://wuhbalxjpcfemsxdnggp.supabase.co','sb_publishable_mPFAK_h6L8JjUQRuVx5RVg_odLPQNRn');
+              var r=await c.auth.getSession();
+              if(r.error||!r.data.session?.user){location.replace('./');return}
+              document.documentElement.style.visibility='visible';
+              c.auth.onAuthStateChange(function(event,session){if(event==='SIGNED_OUT'||!session)location.replace('./')});
+            }catch(e){location.replace('./')}
+          };
+          s.onerror=function(){location.replace('./')};
+          document.head.appendChild(s);
+          })();</script>"""
+          assert '</head>' in text
+          text=text.replace('</head>',gate+'</head>',1)
+          (root/'app.html').write_text(text,encoding='utf-8')
+          (root/'index.html').write_text(Path('second-cerveau/landing.html').read_text(encoding='utf-8'),encoding='utf-8')
+          assert 'Continuer avec Google' in (root/'index.html').read_text(encoding='utf-8')
+          assert 'cloudSyncV52' in (root/'app.html').read_text(encoding='utf-8')
           PY
 
       - uses: actions/configure-pages@v5
