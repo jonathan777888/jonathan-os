@@ -5,6 +5,9 @@
   const page = document.getElementById('page-learning');
   if (!page || document.getElementById('atelierV44')) return;
   const WORK = 'second-brain-method-workspaces-v35';
+  const LESSON15_WORK = 'second-brain-lecon15-comprendre-v1';
+  const LESSON15_TOPIC = 'Vivez pour toujours ! — Leçon 15 : Qui est Jésus ?';
+  const LESSON15_URL = 'https://www.jw.org/fr/biblioth%C3%A8que/livres/vivez-pour-toujours/partie-2/lecon-15/';
   const VERIFY = 'second-brain-verify-v43';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -37,6 +40,17 @@
     ['Révision cumulative','Mémoriser','Réviser de l’ancien en ajoutant de nouvelles notions.','Ancien + nouveau','Nouvelle notion|Anciennes notions|Réponses mélangées|Points fragiles']
   ];
   const categories = ['Tous','Comprendre','Mémoriser','Organiser','Pratiquer','S’évaluer'];
+  // Sept ateliers existants de « Comprendre » ; aucun autre groupe n'est modifié.
+  // Les questions guident la réflexion mais ne fournissent jamais les réponses.
+  const LESSON15_STEPS = [
+    {i:0, prompt:'Avec tes propres mots, explique qui est Jésus, ce qu’il faisait avant de venir sur terre et où il se trouve aujourd’hui.', refs:'Colossiens 1:15 ; Jean 3:16 ; Proverbes 8:30 ; Philippiens 2:9'},
+    {i:4, prompt:'Pourquoi Jésus est-il venu sur terre ? Comment est-il devenu un humain et en quoi son rôle de Messie concerne-t-il les humains ?', refs:'Luc 1:34-35 ; Matthieu 16:16 ; Jean 3:16'},
+    {i:6, prompt:'Dessine une frise pour situer Jésus avant sa naissance, pendant sa vie terrestre et après sa résurrection. Ajoute Jéhovah et explique leur relation.', refs:'Proverbes 8:30 ; Luc 1:34-35 ; Philippiens 2:9'},
+    {i:7, prompt:'Choisis deux exemples précis de prophéties mentionnées dans la leçon et explique comment les récits bibliques les relient à Jésus.', refs:'Michée 5:2 ; Matthieu 2:1 ; Psaume 34:20 ; Zacharie 12:10 ; Jean 19:33-37'},
+    {i:8, prompt:'Compare le rôle de Jéhovah et celui de Jésus. Quelles ressemblances et différences les textes indiquent-ils ?', refs:'Luc 1:30-32 ; Matthieu 3:16-17 ; Jean 14:28 ; Jean 12:49'},
+    {i:14, prompt:'Explique à voix haute pourquoi connaître Jésus est important. Entraîne-toi aussi à répondre respectueusement à la phrase : « Les Témoins de Jéhovah ne croient pas en Jésus. »', refs:'Jean 14:6 ; Jean 17:3'},
+    {i:16, prompt:'Trouve une analogie pour le rôle de Jésus en tant que porte-parole. Dis aussi ce que cette analogie ne peut pas expliquer : une analogie n’est pas une preuve.', refs:'Jean 1:14 ; Jean 12:49'}
+  ];
   const glyphs = ['Aa','?','+1','</>','?→','◎','✎','Ex','A/B','▦','⇄','✓','▤','5R','▷','!','≈','▣','↔','↻'];
   const css = document.createElement('style');
   css.textContent = `
@@ -49,29 +63,83 @@
   @media(max-width:900px){.a44-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.a44-grid,.a44-two,.a44-board{grid-template-columns:1fr}.a44-seal{display:none}.a44-head,.a44-body,.a44-footer{padding:16px}.a44-dialog{max-height:96dvh;border-radius:16px}.a44-cornell{grid-template-columns:1fr}.a44-cornell>div:first-child{border-right:0;border-bottom:1px solid #cdd3b2}.a44-map{min-height:230px}.a44-node{width:22%;font-size:10px}.a44-stepnav button{min-width:80px;font-size:12px}.a44-flash{padding:20px}.a44-table td{min-width:90px}}@media(prefers-reduced-motion:reduce){.a44-dialog *{scroll-behavior:auto}}
   `;
   document.head.appendChild(css);
+  const lessonStyle=document.createElement('style');
+  lessonStyle.textContent='#a44lesson15{background:#fff;border:1px solid #c7ddcf;border-radius:17px;padding:20px;margin:0 0 20px}#a44lesson15 h3{font-size:22px;margin:5px 0}#a44lesson15 .a44-l15-head{display:flex;justify-content:space-between;align-items:start;gap:18px;flex-wrap:wrap}#a44lesson15 .a44-l15-count{padding:7px 11px;border:1px solid #bfd5c8;border-radius:12px;background:#eff7f1;color:#265f49;font-size:12px;font-weight:800}#a44lesson15 .a44-l15-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}#a44lesson15 .a44-l15-card{border:1px solid #d8e3db;border-radius:12px;padding:14px;background:#f9fbf8;display:flex;flex-direction:column;gap:7px}#a44lesson15 .a44-l15-card h4{font-size:15px;margin:0}#a44lesson15 .a44-l15-card p{font-size:13px;margin:0;color:#42594c}#a44lesson15 .a44-l15-card small{font-size:12px;color:#65736a;line-height:1.5}#a44lesson15 .a44-l15-card button{margin-top:auto}#a44lesson15 a,.a44-l15-context a{color:#205e49;text-decoration:underline;text-underline-offset:3px}.a44-l15-context{padding:14px 16px;background:#f2f7eb;border:1px solid #d5e4cf;border-radius:12px;margin:15px 0}.a44-l15-context p{margin:5px 0;font-size:14px}.a44-l15-context small{display:block;line-height:1.5;color:#54655e}@media(max-width:650px){#a44lesson15 .a44-l15-grid{grid-template-columns:1fr}#a44lesson15{padding:14px}}';
+  document.head.appendChild(lessonStyle);
   const hub = document.createElement('section'); hub.id='atelierV44';
-  hub.innerHTML=`<div class="a44-hero"><div><span class="a44-eyebrow">V44 / ateliers d’apprentissage</span><h2>Apprendre en faisant.</h2><p>Choisis ton objectif. Chaque méthode ouvre un outil différent, pas le même formulaire.</p></div><div class="a44-seal"><b>20</b>ateliers</div></div><div class="a44-filters" role="group" aria-label="Filtrer les méthodes">${categories.map((c,i)=>`<button class="a44-btn" data-filter="${i}" aria-pressed="${i===0}">${esc(c)}</button>`).join('')}</div><div class="a44-grid" id="a44cards"></div><p class="a44-help">Sauvegarde locale automatique. Tes anciennes réponses restent disponibles dans chaque atelier. Les auto-évaluations ne sont pas une correction IA.</p>`;
+  hub.innerHTML=`<div class="a44-hero"><div><span class="a44-eyebrow">V44 / ateliers d’apprentissage</span><h2>Apprendre en faisant.</h2><p>Choisis ton objectif. Chaque méthode ouvre un outil différent, pas le même formulaire.</p></div><div class="a44-seal"><b>20</b>ateliers</div></div><div class="a44-filters" role="group" aria-label="Filtrer les méthodes">${categories.map((c,i)=>`<button class="a44-btn" data-filter="${i}" aria-pressed="${i===0}">${esc(c)}</button>`).join('')}</div><section class="a44-l15" id="a44lesson15" hidden aria-labelledby="a44lesson15title"><div class="a44-l15-head"><div><span class="a44-eyebrow">Étude biblique guidée · Leçon 15</span><h3 id="a44lesson15title">Qui est Jésus ?</h3><p class="a44-help">Lis la leçon officielle, puis utilise les sept méthodes « Comprendre ». Tes réponses sont personnelles et sauvegardées séparément des autres cours.</p></div><span class="a44-l15-count" id="a44lesson15count" role="status" aria-live="polite">0 / 7 commencées</span></div><p><a href="${LESSON15_URL}" target="_blank" rel="noopener noreferrer">Lire la leçon 15 sur JW.org ↗</a></p><div class="a44-l15-grid" id="a44lesson15steps"></div></section><div class="a44-grid" id="a44cards"></div><p class="a44-help">Sauvegarde locale automatique. Tes anciennes réponses restent disponibles dans chaque atelier. Les auto-évaluations ne sont pas une correction IA.</p>`;
   const guide=$('#methodsGuideV34');
   (guide || page.lastElementChild)?.insertAdjacentElement('beforebegin',hub);
   if(!hub.isConnected)page.appendChild(hub);
   if(guide){ const fold=document.createElement('details'); fold.className='a44-details'; fold.innerHTML='<summary>Consulter les anciennes fiches explicatives</summary>'; guide.before(fold); fold.appendChild(guide); }
-  let filter=0, active=-1, s=null, tab='atelier', focusBack=null, session=null, step=0, hidden=false, dragId=null, clock=null, seconds=180;
+  let filter=0, active=-1, s=null, lessonMode=false, tab='atelier', focusBack=null, session=null, step=0, hidden=false, dragId=null, clock=null, seconds=180;
   const d=document.createElement('dialog'); d.className='a44-dialog'; d.id='methodStudioV44'; d.setAttribute('aria-labelledby','a44title'); document.body.appendChild(d);
-  function drawHub(){const all=read(WORK);$('#a44cards').innerHTML=defs.map((m,i)=>{const w=all[i]||{};const due=(w.interactiveV44?.cards||[]).filter(c=>!c.due||c.due<=date()).length;return `<article class="a44-card" ${filter && m[1]!==categories[filter]?'hidden':''}><div class="a44-row"><span class="a44-icon" aria-hidden="true">${esc(glyphs[i])}</span><span class="a44-tag">${esc(m[1])}</span></div><h3>${esc(m[0])}</h3><p>${esc(m[2])}</p><small>${esc(m[3])}${i===2&&due?' · '+due+' à revoir':''}${w.updatedAt?' · Enregistré':''}</small><button class="a44-btn" data-open="${i}">Ouvrir l’atelier <span aria-hidden="true">→</span></button></article>`}).join('');}
+  function drawHub(){const all=read(WORK);$('#a44cards').innerHTML=defs.map((m,i)=>{const w=all[i]||{};const due=(w.interactiveV44?.cards||[]).filter(c=>!c.due||c.due<=date()).length;return `<article class="a44-card" ${filter && m[1]!==categories[filter]?'hidden':''}><div class="a44-row"><span class="a44-icon" aria-hidden="true">${esc(glyphs[i])}</span><span class="a44-tag">${esc(m[1])}</span></div><h3>${esc(m[0])}</h3><p>${esc(m[2])}</p><small>${esc(m[3])}${i===2&&due?' · '+due+' à revoir':''}${w.updatedAt?' · Enregistré':''}</small><button class="a44-btn" data-open="${i}">Ouvrir l’atelier <span aria-hidden="true">→</span></button></article>`}).join('');drawLesson15();}
+  function drawLesson15(){
+    const panel=$('#a44lesson15',hub);
+    if(!panel)return;
+    panel.hidden=filter!==1;
+    if(filter!==1)return;
+    const saved=read(LESSON15_WORK);
+    const grid=$('#a44lesson15steps',panel);
+    grid.textContent='';
+    let started=0;
+    for(const item of LESSON15_STEPS){
+      const work=saved[item.i]||{};
+      const x=work.interactiveV44||{};
+      const touched=(work.answers||[]).some(v=>String(v||'').trim())||(x.paths||[]).length>0||(x.rows||[]).some(v=>v.criterion||v.a||v.b)||(x.examples||[]).length>0;
+      if(touched)started++;
+      const article=document.createElement('article');
+      article.className='a44-l15-card';
+      const heading=document.createElement('h4');
+      heading.textContent=defs[item.i][0]+(touched?' · Commencée':'');
+      const prompt=document.createElement('p');
+      prompt.textContent=item.prompt;
+      const refs=document.createElement('small');
+      refs.textContent='Passages à lire : '+item.refs;
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='a44-btn';
+      button.dataset.open=String(item.i);
+      button.dataset.lesson15='1';
+      button.textContent=touched?'Reprendre cet atelier →':'Commencer cet atelier →';
+      article.append(heading,prompt,refs,button);
+      grid.appendChild(article);
+    }
+    $('#a44lesson15count',panel).textContent=started+' / '+LESSON15_STEPS.length+' méthodes commencées';
+  }
   hub.addEventListener('click',e=>{const f=e.target.closest('[data-filter]');if(f){filter=+f.dataset.filter;$$('[data-filter]',hub).forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.filter===filter)));drawHub();}const b=e.target.closest('[data-open]');if(b)open(+b.dataset.open,b);});
   if(guide)$$('.use-method-v35 button',guide).forEach((b,i)=>b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();open(i,b);},true));
   function note(t){const n=$('#a44save',d);if(n)n.textContent=t;}
   function backup(){const key='second-brain-before-interactive-v44';if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({at:new Date().toISOString(),work:read(WORK),cornell:read('second-brain-cornell-v37'),verification:read(VERIFY)}));}
-  function save(){if(!s)return false;try{if([1,2,10,11,19].includes(active)){if(session)s.x.sessionDraft=clone(session);else delete s.x.sessionDraft;}backup();const all=read(WORK);all[active]={...all[active],topic:s.topic,answers:[...s.a],interactiveV44:clone(s.x),updatedAt:new Date().toISOString()};localStorage.setItem(WORK,JSON.stringify(all));note('Enregistré sur cet appareil · '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'}));return true;}catch(e){console.error('V44 save failed',e);note('Sauvegarde impossible : garde cette fenêtre ouverte et copie tes réponses. Le stockage peut être plein.');return false;}}
+  function save(){if(!s)return false;try{if([1,2,10,11,19].includes(active)){if(session)s.x.sessionDraft=clone(session);else delete s.x.sessionDraft;}if(!lessonMode)backup();const key=lessonMode?LESSON15_WORK:WORK;const all=read(key);all[active]={...all[active],topic:s.topic,answers:[...s.a],interactiveV44:clone(s.x),updatedAt:new Date().toISOString()};localStorage.setItem(key,JSON.stringify(all));note('Enregistré sur cet appareil · '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'}));return true;}catch(e){console.error('V44 save failed',e);note('Sauvegarde impossible : garde cette fenêtre ouverte et copie tes réponses. Le stockage peut être plein.');return false;}}
   function auto(i,text){s.x.base??=[...s.a];s.x.generated??={};s.x.generated[i]=text;s.a[i]=[s.x.base[i],text?'[Atelier interactif]\n'+text:''].filter(Boolean).join('\n\n');}
   function field(i,label,attr=''){return `<label class="a44-field"><span>${esc(label||defs[active][4].split('|')[i])}</span><textarea data-a="${i}" ${attr}>${esc(s.a[i])}</textarea></label>`;}
   function extra(key,label,type='textarea'){return `<label class="a44-field"><span>${esc(label)}</span>${type==='textarea'?`<textarea data-x="${key}">${esc(s.x[key]||'')}</textarea>`:`<input data-x="${key}" value="${esc(s.x[key]||'')}" type="${type}">`}</label>`;}
   function btn(act,label,primary=false,attrs=''){return `<button type="button" class="a44-btn${primary?' primary':''}" data-action="${act}" ${attrs}>${label}</button>`;}
-  function open(i,el){if(i<0||i>=defs.length)return;active=i;const w=read(WORK)[i]||{};s={topic:w.topic||$('#learnTopic')?.value||'',a:[0,1,2,3].map(k=>String(w.answers?.[k]||'')),x:clone(w.interactiveV44||{})};step=0;tab='atelier';session=s.x.sessionDraft?clone(s.x.sessionDraft):null;hidden=false;focusBack=el;seconds=180;render();d.showModal();}
+  function open(i,el){if(i<0||i>=defs.length)return;lessonMode=el?.dataset?.lesson15==='1'&&defs[i][1]==='Comprendre';active=i;const w=read(lessonMode?LESSON15_WORK:WORK)[i]||{};s={topic:w.topic||(lessonMode?LESSON15_TOPIC:$('#learnTopic')?.value||''),a:[0,1,2,3].map(k=>String(w.answers?.[k]||'')),x:clone(w.interactiveV44||{})};step=0;tab='atelier';session=s.x.sessionDraft?clone(s.x.sessionDraft):null;hidden=false;focusBack=el;seconds=180;render();d.showModal();}
   function close(){if(!save()&&!confirm('La sauvegarde a échoué. Fermer quand même ?'))return;stopClock();d.close();drawHub();focusBack?.focus();}
   d.addEventListener('cancel',e=>{e.preventDefault();close();});
-  function render(){const m=defs[active];d.innerHTML=`<header class="a44-head"><div><span class="a44-eyebrow">${esc(m[1])} / atelier ${active+1}</span><h2 id="a44title">${esc(m[0])}</h2><p>${esc(m[2])}</p></div>${btn('close','Fermer ×',false,'aria-label="Fermer l’atelier"')}</header><div class="a44-body"><label class="a44-field"><span>Sujet de cette séance</span><input id="a44topic" value="${esc(s.topic)}" placeholder="Un sujet de ton cours, de ton travail ou de ta lecture"></label><nav class="a44-row" aria-label="Vues de l’atelier">${['atelier','reponses','reperes'].map((k,i)=>btn('tab', ['Atelier','Mes réponses / Word','Repères'][i],tab===k,`data-tab="${k}"`)).join('')}</nav><div id="a44content" style="margin-top:20px">${tab==='reponses'?archive():tab==='reperes'?guideText():tool()}</div></div><footer class="a44-footer"><span class="a44-save" id="a44save" role="status" aria-live="polite">Sauvegarde automatique sur cet appareil.</span><div class="a44-row">${btn('save','Enregistrer')}${btn('verify','Vérifier avec mes sources',true)}</div></footer>`;if(tab==='atelier'){if(active===5)paintMap();if(active===6)paintCanvas();}}
-  function archive(){const generated=!!s.x.generated;return `<p class="a44-help">Ces quatre réponses sont compatibles avec la vérification existante et l’export Word. ${generated?'Les activités structurées complètent les textes antérieurs ci-dessous. Modifie ces activités dans l’atelier.':''}</p>${[0,1,2,3].map(i=>field(i,null,generated?'readonly':'')).join('')}`;}
+  function render(){const m=defs[active];d.innerHTML=`<header class="a44-head"><div><span class="a44-eyebrow">${esc(m[1])} / atelier ${active+1}</span><h2 id="a44title">${esc(m[0])}</h2><p>${esc(m[2])}</p></div>${btn('close','Fermer ×',false,'aria-label="Fermer l’atelier"')}</header><div class="a44-body"><label class="a44-field"><span>Sujet de cette séance</span><input id="a44topic" value="${esc(s.topic)}" placeholder="Un sujet de ton cours, de ton travail ou de ta lecture"></label><nav class="a44-row" aria-label="Vues de l’atelier">${['atelier','reponses','reperes'].map((k,i)=>btn('tab', ['Atelier','Mes réponses / Word','Repères'][i],tab===k,`data-tab="${k}"`)).join('')}</nav><div id="a44content" style="margin-top:20px">${tab==='reponses'?archive():tab==='reperes'?guideText():tool()}</div></div><footer class="a44-footer"><span class="a44-save" id="a44save" role="status" aria-live="polite">Sauvegarde automatique sur cet appareil.</span><div class="a44-row">${btn('save','Enregistrer')}${btn('verify','Vérifier avec mes sources',true)}</div></footer>`;if(lessonMode){
+      const info=LESSON15_STEPS.find(v=>v.i===active);
+      const aside=document.createElement('aside');
+      aside.className='a44-l15-context';
+      const title=document.createElement('strong');
+      title.textContent='Leçon 15 · '+defs[active][0];
+      const question=document.createElement('p');
+      question.textContent=info?.prompt||'Lis le texte et formule ta propre réponse.';
+      const references=document.createElement('small');
+      references.textContent='Passages à lire : '+(info?.refs||'Voir la leçon officielle.');
+      const a=document.createElement('a');
+      a.href=LESSON15_URL;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Source officielle sur JW.org ↗';
+      aside.append(title,question,references,a);
+      $('#a44content',d).before(aside);
+      const sourceBtn=$('[data-action="verify"]',d);
+      if(sourceBtn){sourceBtn.dataset.action='source';sourceBtn.textContent='Lire la leçon officielle ↗';}
+      const tabBtn=$('[data-tab="reponses"]',d);
+      if(tabBtn)tabBtn.textContent='Mes réponses';
+    }if(tab==='atelier'){if(active===5)paintMap();if(active===6)paintCanvas();}}
+  function archive(){const generated=!!s.x.generated;return `<p class="a44-help">${lessonMode?'Ces réponses restent dans ta séance de compréhension de la leçon 15 et ne remplacent pas celles de tes autres cours.':'Ces quatre réponses sont compatibles avec la vérification existante et l’export Word.'} ${generated?'Les activités structurées complètent les textes antérieurs ci-dessous. Modifie ces activités dans l’atelier.':''}</p>${[0,1,2,3].map(i=>field(i,null,generated?'readonly':'')).join('')}`;}
   function guideText(){return `<div class="a44-pane"><h3>Un outil pour pratiquer, pas un verdict</h3><p>Les réponses de référence des cartes sont celles que tu saisis. Le site ne les déclare pas vraies automatiquement. Utilise tes documents et le bouton de vérification pour les contrôler.</p><p>La révision espacée propose les intervalles 1, 3, 7, 14 et 30 jours : c’est un calendrier pratique ajustable, pas un rythme optimal universel. Les dates sont affichées dans le site, sans notification en arrière-plan.</p><p>Tes données restent dans ce navigateur. Ne vide pas son stockage pour changer de version.</p><h3>Repères de conception</h3><p><a href="https://lsc.cornell.edu/notes.html" target="_blank" rel="noopener">Cornell : notes, questions et rappel notes cachées</a><br><a href="https://www.retrievalpractice.org/strategies" target="_blank" rel="noopener">Retrieval Practice : rappel, espacement et feedback</a><br><a href="https://www.retrievalpractice.org/interleaving" target="_blank" rel="noopener">Entrelacement de familles proches</a><br><a href="https://cmap.ihmc.us/docs/conceptmap.php" target="_blank" rel="noopener">IHMC : concepts et relations nommées</a></p></div>`;}
   function steps(labels){return `<div class="a44-stepnav">${labels.map((l,i)=>btn('step',`${i+1}. ${esc(l)}`,i===step,`data-step="${i}" aria-current="${i===step?'step':'false'}"`)).join('')}</div>`;}
   function tool(){if([1,2,10,11,19].includes(active))return cards();switch(active){case 0:return feynman();case 3:return practice();case 4:return why();case 5:return mapUI();case 6:return drawing();case 7:return examples();case 8:case 16:return matrix();case 9:return project();case 12:return cornell();case 13:return sq3r();case 14:return teaching();case 15:return errors();case 17:return chunks();case 18:return pretest();default:return '';}}
@@ -111,7 +179,7 @@
   function stopClock(){clearInterval(clock);clock=null;}
   const val=id=>$('#'+id,d)?.value.trim()||'';
   d.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const act=b.dataset.action;try{
-    if(act==='close'){close();return;}if(act==='tab'){tab=b.dataset.tab;render();return;}if(act==='save'){save();return;}if(act==='verify'){if(!save())return;stopClock();d.close();drawHub();$('#learningVerifyV43')?.scrollIntoView({behavior:'smooth',block:'start'});$('#verifyStatusV43').textContent='Tes réponses sont enregistrées. Clique sur Vérifier mon travail pour les contrôler.';return;}
+    if(act==='close'){close();return;}if(act==='tab'){tab=b.dataset.tab;render();return;}if(act==='save'){save();return;}if(act==='source'){window.open(LESSON15_URL,'_blank','noopener,noreferrer');return;}if(act==='verify'){if(!save())return;stopClock();d.close();drawHub();$('#learningVerifyV43')?.scrollIntoView({behavior:'smooth',block:'start'});$('#verifyStatusV43').textContent='Tes réponses sont enregistrées. Clique sur Vérifier mon travail pour les contrôler.';return;}
     if(act==='step'){if(active===0&&step===0&&!s.x.first&&s.a[0])s.x.first=s.a[0];step=+b.dataset.step;save();render();return;}
     if(act==='addcard'){const q=val('a44q'),a=val('a44ref');if(!q||!a){note('La question et la référence sont nécessaires.');return;}const card={id:uid(),q,a,family:val('a44family')||s.topic||'Général',source:val('a44source'),age:val('a44age')||'old',due:date(),level:-1};s.x.cards.push(card);s.x.cardDraft={};syncCards();}
     if(act==='deletecard'){if(!confirm('Supprimer cette carte ? Tes essais passés seront conservés.'))return;s.x.cards=s.x.cards.filter(c=>c.id!==b.dataset.id);syncCards();}
