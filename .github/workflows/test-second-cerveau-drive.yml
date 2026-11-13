@@ -47,6 +47,9 @@ jobs:
           drive=Path('second-cerveau/google-drive-sync-v53.js').read_text()
           deploy=Path('.github/workflows/pages-second-cerveau.yml').read_text()
           assert 'authorizeDrive' in text and 'restoreExternalSnapshot' in text
+          assert 'hasOtherAccountData' in text and 'refuseOtherAccountSync' in text
+          assert 'const owner=readMeta().userId' in text
+          assert 'bridge()?.hasOtherAccountData?.()' in drive
           assert 'drive.appdata' in text
           assert 'signInWithOAuth({provider:\'google\',options:{redirectTo:REDIRECT_URL}})' in text
           assert 'sbDrivePanelV53' in drive and 'appDataFolder' in drive
