@@ -24,7 +24,7 @@
   async function access(){
     const s=await session();
     if(!s?.user)throw new Error('Connecte-toi avec Google dans le panneau de synchronisation.');
-    if(!s.provider_token)throw new Error('Autorisation Drive absente ou expirée. Déconnecte-toi puis reconnecte-toi avec Google pour autoriser Drive.');
+    if(!s.provider_token)throw new Error('Autorisation Drive absente ou expirée. Clique sur « Autoriser Google Drive » pour accorder l’accès.');
     return {token:s.provider_token,user:s.user};
   }
   async function request(url,token,options={}){
@@ -57,8 +57,14 @@
   async function getContext(){
     const {token,user}=await access();
     const subject=user.id;
-    if(meta().subject&&meta().subject!==subject)throw new Error('Un autre compte était lié sur cet appareil. Déconnecte-toi et vérifie tes données avant toute opération.');
+    if(meta().subject&&meta().subject!==subject)throw new Error('Cet appareil est associé à un autre compte. Vérifie les sauvegardes locales avant de changer de compte.');
     return {token,subject};
+  }
+  async function connect(){
+    const s=await session();
+    if(!s?.user){status('Connecte-toi d’abord avec Google dans le panneau principal.',true);return;}
+    if(!s.provider_token){status('Redirection vers Google pour autoriser uniquement le dossier privé de l’application.');try{await bridge().authorizeDrive()}catch(e){status(e.message||String(e),true)}return;}
+    await sync(true);
   }
   async function sync(explicit=false){
     if(busy||!bridge())return;
@@ -123,10 +129,10 @@
     panel.id='sbDrivePanelV53';panel.className='panel';
     panel.innerHTML='<h3>Google Drive personnel</h3><p>Sauvegarde privée dans l’espace de données de l’application. Aucun accès à tes autres fichiers Drive.</p><div class="actions"><button class="btn primary" type="button" id="sbDriveActionV53">Activer / synchroniser Google Drive</button></div><p id="sbDriveStatusV53" role="status">Connecte ton compte Google puis autorise Drive. Aucune sauvegarde Drive créée pour le moment.</p>';
     host.insertBefore(panel,host.firstChild);
-    $('sbDriveActionV53').addEventListener('click',()=>sync(true));
+    $('sbDriveActionV53').addEventListener('click',connect);
     window.addEventListener('secondbrain:auth-change',()=>{status('Compte Google modifié. Vérifie le compte et autorise Drive avant de synchroniser.');});
     timer=setInterval(()=>{if(!document.hidden&&meta().enabled)sync(false)},60000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  window.SecondBrainDriveV53={sync};
+  window.SecondBrainDriveV53={sync,connect};
 })();
