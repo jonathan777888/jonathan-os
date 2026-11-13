@@ -398,8 +398,18 @@
     if(result.error)throw result.error;
     return result.data||null;
   }
+  function hasOtherAccountData(){
+    const owner=readMeta().userId;
+    return !!(user&&owner&&owner!==user.id&&Object.keys(snapshot()).length);
+  }
+  function refuseOtherAccountSync(){
+    if(!hasOtherAccountData())return false;
+    status('Sécurité : cet appareil contient des données appartenant à un autre compte. Elles ne seront pas envoyées vers ton nouveau compte. Utilise un profil de navigateur séparé ou exporte les données avant de changer de compte.','warn');
+    return true;
+  }
   async function pushNow(message){
     if(!client||!user||syncing||pendingRemote)return;
+    if(refuseOtherAccountSync())return;
     clearTimeout(pushTimer);
     syncing=true;status('Envoi des données vers le cloud…');
     try{
@@ -432,6 +442,7 @@
   }
   async function initialSync(){
     if(!user)return;
+    if(refuseOtherAccountSync())return;
     try{
       const remote=await fetchRemote();
       const meta=readMeta();
@@ -459,6 +470,7 @@
   }
   async function manualSync(){
     if(!user){await signIn();return}
+    if(refuseOtherAccountSync())return;
     if(pendingRemote){status('Choisis d’abord quelle version tu veux conserver.','warn');return}
     try{
       const remote=await fetchRemote(),meta=readMeta();
@@ -471,6 +483,7 @@
   }
   async function checkRemote(){
     if(!user||syncing||pendingRemote||document.hidden)return;
+    if(refuseOtherAccountSync())return;
     try{
       const remote=await fetchRemote();
       if(!remote)return;
@@ -528,7 +541,7 @@
     const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL,scopes:'https://www.googleapis.com/auth/drive.appdata'}});
     if(result.error)throw result.error;
   }
-  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync,signIn,authorizeDrive,restoreExternalSnapshot,getSession:async()=>client?(await client.auth.getSession()).data?.session||null:null};
+  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync,signIn,authorizeDrive,restoreExternalSnapshot,hasOtherAccountData,getSession:async()=>client?(await client.auth.getSession()).data?.session||null:null};
 
   async function start(){
     installUI();
