@@ -12,7 +12,7 @@ Revue du 13 novembre 2026. Correctifs préparés uniquement dans la branche de l
 | Client OAuth utilisé par Supabase | `568542524006-9u3dll4f32evqspdrke6oe929us55kvm.apps.googleusercontent.com`. Identifié dans la requête publique de redirection, sans lire de secret. Le nom et l’identifiant du projet Google Cloud restent à vérifier dans la console. |
 | Autorisations demandées | Seule autorisation Drive ajoutée : `https://www.googleapis.com/auth/drive.appdata`. Google reçoit aussi `email profile`, nécessaires à la connexion existante. Aucun scope Drive général ni `drive.file` ajouté. |
 | Règles de la table de synchronisation | `public.second_brain_sync` a RLS activé et une clé primaire `user_id`. SELECT, INSERT, UPDATE et DELETE sont limités à `auth.uid() = user_id`. UPDATE a aussi un `WITH CHECK`. Vérification des définitions uniquement, sans lire les sauvegardes personnelles. |
-| Tests de comportement | 33 tests passent avec des données fictives et des réponses Supabase/Drive simulées. Ils ne constituent pas un test OAuth réel. |
+| Tests de comportement | 35 tests passent avec des données fictives et des réponses Supabase/Drive simulées. Ils ne constituent pas un test OAuth réel. |
 | Construction | Le même script construit la version de test et l’artefact Pages. Les 7 scripts intégrés passent `node --check`, ainsi que les contrôles de compatibilité Pages. Aucun déploiement exécuté. |
 
 ## Correctifs de la PR
@@ -25,6 +25,7 @@ Revue du 13 novembre 2026. Correctifs préparés uniquement dans la branche de l
 - Validation du format, des clés autorisées, du propriétaire et de l’empreinte des sauvegardes. Les anciennes sauvegardes V53 sans propriétaire ni empreinte restent lisibles après confirmation explicite.
 - Copie locale distincte avant chaque restauration. En cas de manque d’espace ou d’échec de remplacement, restauration interrompue et retour aux données précédentes. Les métadonnées sont également rétablies si leur écriture échoue.
 - Synchronisation suspendue pendant une restauration ; rechargement immédiat après succès. Un onglet dont les données sont devenues obsolètes doit être rechargé avant de pouvoir réécrire le stockage local.
+- Bouton Drive demandant une autorisation Drive distincte de la simple connexion Google, même si celle-ci a fourni un jeton. Le retour OAuth est lié au compte et limité à dix minutes ; une vérification API réussie termine cette étape.
 - Jetons Google API conservés en mémoire uniquement et retirés des enregistrements de session persistants du client. Les jetons Supabase nécessaires à la session restent gérés par le SDK. Un jeton Google expiré ou refusé provoque une demande de reconnexion.
 - SDK Supabase fixé à `2.119.0` ; disponibilité HTTP 200 du bundle vérifiée.
 - Constructeur local corrigé : insertion des modules avant la dernière fermeture HTML, à l’extérieur des chaînes d’export intégrées, et inclusion du module Drive.

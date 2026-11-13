@@ -4,9 +4,9 @@
   'use strict';
   const API='https://www.googleapis.com/drive/v3/files';
   const UPLOAD='https://www.googleapis.com/upload/drive/v3/files';
-  const NAME='second-cerveau-backup-v53.json', META='sbdrive-sync-meta-v53';
+  const NAME='second-cerveau-backup-v53.json', META='sbdrive-sync-meta-v53', CONSENT='sbdrive-consent-request-v53';
   const FIELDS='id,name,modifiedTime,version,appProperties';
-  let busy=false,authEpoch=0;
+  let busy=false,authEpoch=0,verifiedToken=null;
   const bridge=()=>window.SecondBrainCloudV52, $=id=>document.getElementById(id);
   const meta=()=>{try{const m=JSON.parse(localStorage.getItem(META)||'{}');return m&&typeof m==='object'&&!Array.isArray(m)?m:{}}catch{return{}}};
   const saveMeta=x=>localStorage.setItem(META,JSON.stringify({...meta(),...x}));
@@ -48,6 +48,7 @@
       if(pageToken)seen.add(pageToken);
     }while(pageToken);
     if(new Set(files.map(f=>f.id)).size!==files.length||files.some(f=>!f.id))throw new Error('Liste Drive incohérente. Réessaie.');
+    verifiedToken=ctx.token;sessionStorage.removeItem(CONSENT);
     return files;
   }
   function heads(files){
@@ -102,7 +103,14 @@
     if(busy)return;
     try{
       const ctx=await context(false);
-      if(!ctx.token){status('Ouverture de Google pour autoriser le dossier privé de l’application.');await bridge().authorizeDrive();return}
+      let consent=null;try{consent=JSON.parse(sessionStorage.getItem(CONSENT)||'null')}catch{}
+      const returned=consent?.subject===ctx.subject&&Date.now()-consent.at<10*60*1000;
+      if(!ctx.token||(verifiedToken!==ctx.token&&!returned)){
+        sessionStorage.setItem(CONSENT,JSON.stringify({subject:ctx.subject,at:Date.now()}));
+        status('Ouverture de Google pour autoriser le dossier privé de l’application.');
+        try{await bridge().authorizeDrive()}catch(e){sessionStorage.removeItem(CONSENT);throw e}
+        return;
+      }
       await sync(true);
     }catch(e){status(e.message||String(e),true)}
   }

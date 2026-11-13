@@ -253,3 +253,13 @@ test('a failed local metadata write pauses sync while preserving the new local e
   const h=await harness({initial:fixture()});h.localStorage.fail=k=>k===CLOUD_META;h.localStorage.setItem(DATA,'new local edit');
   assert.equal(h.bridge.isRestorePending(),true);assert.equal(h.localStorage.getItem(DATA),'new local edit');await h.bridge.manualSync();assert.equal(h.writes.length,0);
 });
+
+test('first Drive button click requests Drive consent even when normal Google sign-in supplied a token',async()=>{
+  const h=await harness({initial:fixture()});await h.drive.connect();
+  assert.equal(h.oauth.length,1);assert.equal(h.oauth[0].options.scopes,'https://www.googleapis.com/auth/drive.appdata');assert.equal(h.server.calls.length,0);
+  await h.drive.connect();assert.equal(h.meta().enabled,true);assert.equal(h.sessionStorage.getItem('sbdrive-consent-request-v53'),null);
+});
+test('a pending Drive consent marker cannot be reused by another account',async()=>{
+  const h=await harness();h.sessionStorage.setItem('sbdrive-consent-request-v53',JSON.stringify({subject:'B',at:Date.now()}));await h.drive.connect();
+  assert.equal(h.oauth.length,1);assert.equal(h.server.calls.length,0);assert.equal(JSON.parse(h.sessionStorage.getItem('sbdrive-consent-request-v53')).subject,'A');
+});
