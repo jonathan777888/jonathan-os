@@ -495,7 +495,11 @@
     }catch(e){}
   }
   function markDirty(){
-    writeMeta({userId:user?user.id:readMeta().userId||null,lastLocalChangeAt:new Date().toISOString()});
+    const owner=readMeta().userId;
+    // Never overwrite the local ownership marker when another account signs in.
+    // Unowned data can be claimed only through the app's explicit first-sync flow.
+    writeMeta({userId:owner||null,lastLocalChangeAt:new Date().toISOString()});
+    if(refuseOtherAccountSync())return;
     if(user&&!pendingRemote){
       status('Modification locale détectée. Synchronisation automatique en attente…');
       clearTimeout(pushTimer);pushTimer=setTimeout(()=>pushNow(),1400);
