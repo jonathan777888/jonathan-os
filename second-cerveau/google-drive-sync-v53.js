@@ -63,7 +63,18 @@
   async function connect(){
     const s=await session();
     if(!s?.user){status('Connecte-toi d’abord avec Google dans le panneau principal.',true);return;}
-    if(!s.provider_token){status('Redirection vers Google pour autoriser uniquement le dossier privé de l’application.');try{await bridge().authorizeDrive()}catch(e){status(e.message||String(e),true)}return;}
+    const consentReturned=sessionStorage.getItem('sbdrive-consent-request-v53')==='1';
+    if(!consentReturned&&!meta().enabled){
+      sessionStorage.setItem('sbdrive-consent-request-v53','1');
+      status('Redirection vers Google pour autoriser uniquement le dossier privé de l’application.');
+      try{await bridge().authorizeDrive()}catch(e){sessionStorage.removeItem('sbdrive-consent-request-v53');status(e.message||String(e),true)}
+      return;
+    }
+    if(!s.provider_token){
+      sessionStorage.removeItem('sbdrive-consent-request-v53');
+      status('Autorisation Drive absente ou expirée. Clique à nouveau pour relancer Google.',true);
+      return;
+    }
     await sync(true);
   }
   async function sync(explicit=false){
@@ -71,6 +82,7 @@
     busy=true;
     try{
       const {token,subject}=await getContext();
+      sessionStorage.removeItem('sbdrive-consent-request-v53');
       const local=bridge().snapshot();
       const localDigest=await digest(JSON.stringify(local));
       const file=await findFile(token);
