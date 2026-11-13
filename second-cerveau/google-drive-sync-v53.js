@@ -56,6 +56,7 @@
   }
   async function getContext(){
     const {token,user}=await access();
+    if(bridge()?.hasOtherAccountData?.())throw new Error('Sécurité : les données locales appartiennent à un autre compte Google. Ouvre un profil de navigateur distinct avant de synchroniser.');
     const subject=user.id;
     if(meta().subject&&meta().subject!==subject)throw new Error('Cet appareil est associé à un autre compte. Vérifie les sauvegardes locales avant de changer de compte.');
     return {token,subject};
