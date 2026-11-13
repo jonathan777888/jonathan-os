@@ -1,0 +1,25 @@
+name: Test Google Drive integration
+
+on:
+  pull_request:
+    paths:
+      - 'second-cerveau/**'
+      - '.github/workflows/pages-second-cerveau.yml'
+      - '.github/workflows/test-second-cerveau-drive.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test backup, restore, account changes and concurrent writers with fixtures
+        run: node --test second-cerveau/tests/*.test.cjs
+      - name: Build the complete Pages artifact and validate inline scripts
+        run: python3 second-cerveau/tests/check_build.py
