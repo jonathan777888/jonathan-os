@@ -6,11 +6,16 @@
   const UPLOAD='https://www.googleapis.com/upload/drive/v3/files';
   const NAME='second-cerveau-backup-v53.json';
   const META='sbdrive-sync-meta-v53';
-  let busy=false, timer=null, connectedAccount=null;
+  let busy=false, timer=null;
   const bridge=()=>window.SecondBrainCloudV52;
   const $=id=>document.getElementById(id);
   const meta=()=>{try{return JSON.parse(localStorage.getItem(META)||'{}')}catch{return{}}};
   const saveMeta=x=>localStorage.setItem(META,JSON.stringify({...meta(),...x}));
+  async function digest(value){
+    const bytes=new TextEncoder().encode(value);
+    const hash=await crypto.subtle.digest('SHA-256',bytes);
+    return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+  }
   const status=(message,warn=false)=>{const e=$('sbDriveStatusV53');if(e){e.textContent=message;e.style.color=warn?'#a44820':'inherit'}};
   async function session(){
     const data=await bridge()?.getSession?.();
@@ -25,9 +30,8 @@
   async function request(url,token,options={}){
     const r=await fetch(url,{...options,headers:{Authorization:'Bearer '+token,...(options.headers||{})}});
     if(!r.ok){
-      const detail=await r.text().catch(()=> '');
       if(r.status===401||r.status===403)throw new Error('Google Drive refuse cette autorisation. Reconnecte Google et autorise l’accès aux données de l’application. '+r.status);
-      throw new Error('Erreur Google Drive ('+r.status+') '+detail.slice(0,200));
+      throw new Error('Erreur Google Drive ('+r.status+'). Réessaie ou vérifie la configuration API Google Cloud.');
     }
     return r.status===204?null:r.json();
   }
@@ -61,20 +65,19 @@
     busy=true;
     try{
       const {token,subject}=await getContext();
-      connectedAccount=subject;
       const local=bridge().snapshot();
-      const localText=JSON.stringify(local);
+      const localDigest=await digest(JSON.stringify(local));
       const file=await findFile(token);
       const m=meta();
       if(!file){
         if(!explicit){status('Drive disponible. Clique sur « Activer la sauvegarde Drive » pour créer la première sauvegarde.');return}
         if(!confirm('Créer une sauvegarde des données de cet appareil dans le Drive privé de ce compte Google ?'))return;
         const created=await upload(token,null,local);
-        saveMeta({subject,fileId:created.id,remoteModifiedAt:created.modifiedTime,lastSnapshot:localText,enabled:true});
+        saveMeta({subject,fileId:created.id,remoteModifiedAt:created.modifiedTime,lastDigest:localDigest,enabled:true});
         status('Première sauvegarde créée dans ton Drive.');return;
       }
       const remote=await download(token,file);
-      const remoteText=JSON.stringify(remote.data);
+      const remoteDigest=await digest(JSON.stringify(remote.data));
       const newAccount=m.subject!==subject||!m.enabled;
       if(newAccount){
         status('Une sauvegarde existe déjà dans ce Drive. Choisis comment la récupérer ou la remplacer.');
@@ -83,10 +86,10 @@
         if(!wantRemote)return;
         if(!confirm('Confirmer la restauration ? Une copie de tes données actuelles sera conservée localement avant remplacement.'))return;
         bridge().restoreExternalSnapshot(remote.data);
-        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastSnapshot:remoteText,enabled:true});
+        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastDigest:remoteDigest,enabled:true});
         status('Sauvegarde Drive restaurée. Recharge la page pour afficher les données.');return;
       }
-      const localChanged=m.lastSnapshot!==localText;
+      const localChanged=m.lastDigest!==localDigest;
       const remoteChanged=m.remoteModifiedAt!==file.modifiedTime;
       if(remoteChanged&&localChanged){
         status('Conflit : cet appareil et Drive ont changé. Synchronisation arrêtée pour éviter toute perte. Utilise le bouton Drive pour choisir.',true);
@@ -95,19 +98,19 @@
         if(!restore)return;
         if(!confirm('Confirmer la restauration de Drive sur cet appareil ?'))return;
         bridge().restoreExternalSnapshot(remote.data);
-        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastSnapshot:remoteText,enabled:true});
+        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastDigest:remoteDigest,enabled:true});
         status('Version Drive restaurée. Recharge la page.');return;
       }
       if(remoteChanged){
         if(!explicit){status('Une version plus récente existe sur Drive. Clique sur « Synchroniser Drive » pour la récupérer.');return}
         if(!confirm('Restaurer la version Drive ? Les données actuelles seront sauvegardées localement avant remplacement.'))return;
         bridge().restoreExternalSnapshot(remote.data);
-        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastSnapshot:remoteText,enabled:true});
+        saveMeta({subject,fileId:file.id,remoteModifiedAt:file.modifiedTime,lastDigest:remoteDigest,enabled:true});
         status('Version Drive restaurée. Recharge la page.');return;
       }
       if(localChanged){
         const updated=await upload(token,file,local);
-        saveMeta({subject,fileId:file.id,remoteModifiedAt:updated.modifiedTime,lastSnapshot:localText,enabled:true});
+        saveMeta({subject,fileId:file.id,remoteModifiedAt:updated.modifiedTime,lastDigest:localDigest,enabled:true});
         status('Modifications enregistrées dans Google Drive.');
       }else status('Drive est à jour.');
     }catch(e){status(e.message||String(e),true)}
@@ -121,7 +124,7 @@
     panel.innerHTML='<h3>Google Drive personnel</h3><p>Sauvegarde privée dans l’espace de données de l’application. Aucun accès à tes autres fichiers Drive.</p><div class="actions"><button class="btn primary" type="button" id="sbDriveActionV53">Activer / synchroniser Google Drive</button></div><p id="sbDriveStatusV53" role="status">Connecte ton compte Google puis autorise Drive. Aucune sauvegarde Drive créée pour le moment.</p>';
     host.insertBefore(panel,host.firstChild);
     $('sbDriveActionV53').addEventListener('click',()=>sync(true));
-    window.addEventListener('secondbrain:auth-change',()=>{connectedAccount=null;status('Compte Google modifié. Vérifie le compte et autorise Drive avant de synchroniser.');});
+    window.addEventListener('secondbrain:auth-change',()=>{status('Compte Google modifié. Vérifie le compte et autorise Drive avant de synchroniser.');});
     timer=setInterval(()=>{if(!document.hidden&&meta().enabled)sync(false)},60000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
