@@ -44,9 +44,9 @@ function driveServer(){
   };
   return server;
 }
-async function harness({id='A',initial={},server=driveServer(),remote=null,loadDrive=true}={}){
+async function harness({id='A',initial={},server=driveServer(),remote=null,loadDrive=true,callbackQuery=''}={}){
   const elements=new Map(),events=new Map(),timers=new Map(),intervals=[],writes=[],oauth=[];
-  let clock=0,reloads=0,authChange,options,current=session(id),readHook=null,writeHook=null;
+  let clock=0,reloads=0,authChange,options,current=id===null?null:session(id),readHook=null,writeHook=null;
   const remoteRows=new Map();if(remote)remoteRows.set(id,clone(remote));
   class Store{
     constructor(data={}){this.data=new Map(Object.entries(data));this.fail=null}
@@ -80,7 +80,7 @@ async function harness({id='A',initial={},server=driveServer(),remote=null,loadD
       writes.push(clone(this.row));const value={...this.row,updated_at:new Date(1800000000000+(++clock)).toISOString()};remoteRows.set(id,value);return {data:{updated_at:value.updated_at},error:null};
     }
   });
-  const context={Storage:Store,localStorage,sessionStorage,document,navigator:{platform:'fixture'},location:{origin:'https://example.test',pathname:'/preview/',reload(){++reloads}},crypto:webcrypto,TextEncoder,URL,URLSearchParams,console,
+  const context={Storage:Store,localStorage,sessionStorage,document,navigator:{platform:'fixture'},location:{origin:'https://example.test',pathname:'/preview/',href:'https://example.test/preview/'+callbackQuery,reload(){++reloads}},crypto:webcrypto,TextEncoder,URL,URLSearchParams,console,
     Event:class{constructor(type){this.type=type}},
     confirm:()=>true,fetch:server.fetch,
     setTimeout(fn,ms){const n=++clock;timers.set(n,{fn,ms});return n},clearTimeout(n){timers.delete(n)},setInterval(fn){intervals.push(fn);return intervals.length},
@@ -92,6 +92,7 @@ async function harness({id='A',initial={},server=driveServer(),remote=null,loadD
       signOut:async()=>{current=null;authChange('SIGNED_OUT',null);return {error:null}}
     },from:query}}}
   };
+  context.history={state:null,replaceState(state,title,relative){context.location.href=new URL(relative,context.location.origin).href}};
   context.window=context;vm.createContext(context);vm.runInContext(cloud,context);if(loadDrive)vm.runInContext(drive,context);await tick();
   const h={ctx:context,bridge:context.SecondBrainCloudV52,drive:context.SecondBrainDriveV53,localStorage,sessionStorage,server,elements,writes,oauth,remoteRows,intervals,timers,
     get reloads(){return reloads},get authOptions(){return options},get current(){return current},
@@ -262,4 +263,10 @@ test('first Drive button click requests Drive consent even when normal Google si
 test('a pending Drive consent marker cannot be reused by another account',async()=>{
   const h=await harness();h.sessionStorage.setItem('sbdrive-consent-request-v53',JSON.stringify({subject:'B',at:Date.now()}));await h.drive.connect();
   assert.equal(h.oauth.length,1);assert.equal(h.server.calls.length,0);assert.equal(JSON.parse(h.sessionStorage.getItem('sbdrive-consent-request-v53')).subject,'A');
+});
+
+test('failed OAuth callbacks show a clear status and remove provider error descriptions from the URL',async()=>{
+  const h=await harness({id:null,initial:fixture(),callbackQuery:'?error=server_error&error_code=unexpected_failure&error_description=fixture-code-do-not-render&keep=1#anchor'});
+  assert.match(h.cloudStatus(),/connexion Google n’a pas abouti/);assert.doesNotMatch(h.cloudStatus(),/fixture-code/);
+  assert.equal(h.ctx.location.href,'https://example.test/preview/?keep=1#anchor');assert.equal(h.writes.length,0);assert.equal(h.localStorage.getItem(DATA),fixture()[DATA]);
 });

@@ -272,6 +272,17 @@
   let client=null,user=null,syncing=false,applying=false,restorePending=false,pushTimer=null,pendingRemote=null,bootedUserId=null,epoch=0;
   let driveCredential=null;
   const rejectedTokens=new Set();
+  let oauthFailed=false;
+  try{
+    const returnUrl=new URL(location.href);
+    if(returnUrl.searchParams.has('error')){
+      oauthFailed=true;
+      // Provider error descriptions may contain parts of an authorization code.
+      for(const key of ['error','error_code','error_description'])returnUrl.searchParams.delete(key);
+      history.replaceState(history.state,'',returnUrl.pathname+returnUrl.search+returnUrl.hash);
+    }
+  }catch{}
+  const oauthFailureMessage='La connexion Google n’a pas abouti. La validation du compte a échoué. Tes données locales restent disponibles.';
   const $=id=>document.getElementById(id);
   function isSyncableKey(key){
     key=String(key||'');
@@ -324,7 +335,7 @@
     $('cloudGoogleV52').hidden=!!user;$('cloudEmailV52').hidden=!user;$('cloudSyncNowV52').hidden=!user;$('cloudSignOutV52').hidden=!user;
     $('cloudEmailV52').textContent=user?.email||'';
     status(user?'Compte connecté. Vérification de la synchronisation…':'Connexion Google non activée sur cet appareil.');
-    refuseOtherAccountSync();
+    if(!refuseOtherAccountSync()&&oauthFailed)status(oauthFailureMessage,'warn');
   }
   async function loadLibrary(){
     if(window.supabase?.createClient)return;
@@ -492,7 +503,7 @@
       if(epoch===version&&!bootedUserId){user=r.data?.session?.user||null;rememberDrive(r.data?.session);renderAuth();window.dispatchEvent(new Event('secondbrain:auth-change'));if(user){bootedUserId=user.id;await reconcile()}}
       setInterval(()=>{if(!document.hidden&&!pendingRemote)reconcile()},60000);
       document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!pendingRemote)reconcile()});
-    }catch{status('Le module Google n’a pas pu démarrer. Tes données locales restent disponibles.','warn')}
+    }catch{status(oauthFailed?oauthFailureMessage:'Le module Google n’a pas pu démarrer. Tes données locales restent disponibles.','warn')}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
