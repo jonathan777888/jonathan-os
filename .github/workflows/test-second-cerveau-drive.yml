@@ -1,0 +1,62 @@
+name: Test Google Drive integration
+
+on:
+  pull_request:
+    paths:
+      - 'second-cerveau/google-drive-sync-v53.js'
+      - 'second-cerveau/source/part-06.txt'
+      - '.github/workflows/pages-second-cerveau.yml'
+      - '.github/workflows/test-second-cerveau-drive.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Drive module syntax
+        run: node --check second-cerveau/google-drive-sync-v53.js
+      - name: Check V52 inline JavaScript syntax and integration
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Reader(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.active=False
+                  self.blocks=[]
+                  self.buf=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=='script' and not a.get('src'):
+                      self.active=True
+                      self.buf=[]
+              def handle_data(self,data):
+                  if self.active:
+                      self.buf.append(data)
+              def handle_endtag(self,tag):
+                  if tag=='script' and self.active:
+                      self.blocks.append(''.join(self.buf))
+                      self.active=False
+          text=Path('second-cerveau/source/part-06.txt').read_text()
+          drive=Path('second-cerveau/google-drive-sync-v53.js').read_text()
+          deploy=Path('.github/workflows/pages-second-cerveau.yml').read_text()
+          assert 'authorizeDrive' in text and 'restoreExternalSnapshot' in text
+          assert 'drive.appdata' in text
+          assert 'signInWithOAuth({provider:\'google\',options:{redirectTo:REDIRECT_URL}})' in text
+          assert 'sbDrivePanelV53' in drive and 'appDataFolder' in drive
+          assert 'drive_code' in deploy and 'google-drive-sync-v53.js' in deploy
+          reader=Reader()
+          reader.feed(text)
+          assert reader.blocks
+          for i,code in enumerate(reader.blocks):
+              path=Path('/tmp')/f'sb-drive-{i}.js'
+              path.write_text(code)
+              subprocess.run(['node','--check',str(path)],check=True)
+          print(f'Validated {len(reader.blocks)} inline script blocks.')
+          PY
