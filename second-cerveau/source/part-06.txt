@@ -384,7 +384,7 @@
   async function signIn(){
     if(!client){status('Connexion Supabase indisponible. Vérifie ta connexion Internet.','warn');return}
     status('Ouverture de Google…');
-    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL}});
+    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL,scopes:'https://www.googleapis.com/auth/drive.appdata'}});
     if(result.error)status('Connexion Google impossible : '+result.error.message,'warn');
   }
   async function signOut(){
@@ -435,7 +435,13 @@
     try{
       const remote=await fetchRemote();
       const meta=readMeta();
-      if(!remote){await pushNow('Première sauvegarde cloud créée.');return}
+      if(!remote){
+        if(Object.keys(snapshot()).length&&(!meta.initialized||meta.userId!==user.id)){
+          status('Ce compte ne possède pas encore de sauvegarde. Clique sur « Synchroniser maintenant » pour autoriser explicitement le premier envoi des données de cet appareil.','warn');
+          return;
+        }
+        await pushNow('Première sauvegarde cloud créée.');return
+      }
       if(meta.userId!==user.id||!meta.initialized){
         showConflict(remote,'Ce compte possède déjà des données dans le cloud. Choisis la version à conserver avant la première synchronisation sur cet appareil.');
         return;
@@ -494,7 +500,30 @@
     return result;
   };
 
-  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync};
+  function restoreExternalSnapshot(payload){
+    if(!user)throw new Error('Connecte-toi avec Google avant de restaurer.');
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Sauvegarde externe invalide.');
+    const entries=Object.entries(payload);
+    if(entries.some(([k,v])=>!isSyncableKey(k)||typeof v!=='string'))throw new Error('La sauvegarde contient des données non autorisées.');
+    const before=snapshot();
+    // Conserver une copie locale avant toute restauration; ne jamais exporter de jeton OAuth.
+    nativeSet.call(localStorage,'sbdrive-before-restore-v53',JSON.stringify({savedAt:new Date().toISOString(),data:before}));
+    applying=true;
+    try{
+      Object.keys(before).forEach(k=>nativeRemove.call(localStorage,k));
+      entries.forEach(([k,v])=>nativeSet.call(localStorage,k,v));
+      // Demander une résolution explicite si la base Supabase possède une autre version.
+      writeMeta({userId:user.id,initialized:false,lastLocalChangeAt:new Date().toISOString(),lastSyncedAt:null,lastRemoteUpdatedAt:null});
+    }catch(e){
+      try{
+        const current=snapshot();
+        Object.keys(current).forEach(k=>nativeRemove.call(localStorage,k));
+        Object.entries(before).forEach(([k,v])=>nativeSet.call(localStorage,k,v));
+      }catch(rollbackError){}
+      throw e;
+    }finally{applying=false;}
+  }
+  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync,signIn,restoreExternalSnapshot,getSession:async()=>client?(await client.auth.getSession()).data?.session||null:null};
 
   async function start(){
     installUI();
@@ -504,10 +533,12 @@
       const sessionResult=await client.auth.getSession();
       user=sessionResult.data&&sessionResult.data.session?sessionResult.data.session.user:null;
       renderAuth();
+      window.dispatchEvent(new Event('secondbrain:auth-change'));
       if(user){bootedUserId=user.id;await initialSync()}
       client.auth.onAuthStateChange((event,session)=>{
         const next=session&&session.user?session.user:null;
         user=next;renderAuth();
+        window.dispatchEvent(new Event('secondbrain:auth-change'));
         if(user&&bootedUserId!==user.id){bootedUserId=user.id;setTimeout(()=>initialSync(),0)}
         if(!user)bootedUserId=null;
       });
