@@ -384,7 +384,7 @@
   async function signIn(){
     if(!client){status('Connexion Supabase indisponible. Vérifie ta connexion Internet.','warn');return}
     status('Ouverture de Google…');
-    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL,scopes:'https://www.googleapis.com/auth/drive.appdata'}});
+    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL}});
     if(result.error)status('Connexion Google impossible : '+result.error.message,'warn');
   }
   async function signOut(){
@@ -523,7 +523,12 @@
       throw e;
     }finally{applying=false;}
   }
-  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync,signIn,restoreExternalSnapshot,getSession:async()=>client?(await client.auth.getSession()).data?.session||null:null};
+  async function authorizeDrive(){
+    if(!client)throw new Error('Connexion Google indisponible.');
+    const result=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL,scopes:'https://www.googleapis.com/auth/drive.appdata'}});
+    if(result.error)throw result.error;
+  }
+  window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync,signIn,authorizeDrive,restoreExternalSnapshot,getSession:async()=>client?(await client.auth.getSession()).data?.session||null:null};
 
   async function start(){
     installUI();
