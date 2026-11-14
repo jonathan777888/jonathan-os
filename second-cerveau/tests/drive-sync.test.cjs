@@ -106,6 +106,47 @@ async function harness({id='A',initial={},server=driveServer(),remote=null,loadD
 }
 const fixture=()=>({[DATA]:JSON.stringify({topic:'Données de test'})});
 
+async function v13DriveRoundTrip(raw){
+  const key='second-brain-current';
+  const h=await harness({initial:{[key]:raw}});
+  await h.drive.sync(true);
+  const original=h.meta().fileId;
+  assert.ok(original,'first backup created');
+  h.localStorage.setItem(key,JSON.stringify({meta:{schemaVersion:13},fixture:'modified locally'}));
+  await h.drive.sync(true);
+  assert.equal(h.server.accounts.get('A').size,2,'both Drive versions retained');
+  h.elements.get('sbDriveVersionsV53').value=original;
+  await h.drive.restoreSelected();
+  assert.ok(h.localStorage.getItem(key)===raw,'V13 bytes restored without transformation');
+  assert.equal(h.reloads,1,'restored app reloads');
+  const recovery=[...h.localStorage.data.entries()].filter(([k])=>k.startsWith('sbdrive-before-restore-v53-'));
+  assert.equal(recovery.length,1,'pre-restore recovery copy exists');
+  assert.match(JSON.parse(recovery[0][1]).data[key],/modified locally/);
+}
+test('actual V53 Drive modules preserve a V13 fixture through backup and restore',async()=>{
+  await v13DriveRoundTrip(JSON.stringify({meta:{appVersion:'13.0.0',schemaVersion:13},tree:{id:'jesus',title:'Test fictif',x:3000,y:1900,children:[]},tasks:[],relations:[],memories:[],reviews:{},linkArchive:[]}));
+});
+test('private V13 backup round-trips through V53 modules with simulated Drive',{skip:!process.env.SECOND_BRAIN_V13_BACKUP},async()=>{
+  await v13DriveRoundTrip(fs.readFileSync(process.env.SECOND_BRAIN_V13_BACKUP,'utf8'));
+});
+
+test('a newer Supabase copy never restores personal data in the background',async()=>{
+  const initial={...fixture(),[CLOUD_META]:JSON.stringify({userId:'A',initialized:true,lastRemoteUpdatedAt:'r1'})};
+  const h=await harness({initial,remote:{payload:{[DATA]:'new remote data'},updated_at:'r2'}});
+  await h.intervalRun();
+  assert.equal(h.localStorage.getItem(DATA),initial[DATA]);
+  assert.equal(h.reloads,0);
+  assert.match(h.cloudStatus(),/confirme la restauration/);
+});
+
+test('OAuth error details are scrubbed from both query and fragment',async()=>{
+  const h=await harness({id:null,callbackQuery:'?error=server_error&error_description=PRIVATE_QUERY&keep=1#error=server_error&error_description=PRIVATE_FRAGMENT&sb='});
+  assert.ok(!h.ctx.location.href.includes('PRIVATE_'));
+  assert.ok(!h.ctx.location.href.includes('error'));
+  assert.ok(h.ctx.location.href.includes('keep=1'));
+  assert.match(h.cloudStatus(),/connexion Google n’a pas abouti/);
+});
+
 test('first sign-in, edits and background checks never authorize the first upload',async()=>{
   const h=await harness({initial:fixture()});assert.equal(h.writes.length,0);
   h.localStorage.setItem(DATA,'edited');await h.timersRun();await h.intervalRun();assert.equal(h.writes.length,0);

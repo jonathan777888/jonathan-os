@@ -275,10 +275,13 @@
   let oauthFailed=false;
   try{
     const returnUrl=new URL(location.href);
-    if(returnUrl.searchParams.has('error')){
+    const hashParams=new URLSearchParams(returnUrl.hash.slice(1));
+    const hashHasError=hashParams.has('error');
+    if(returnUrl.searchParams.has('error')||hashHasError){
       oauthFailed=true;
       // Provider error descriptions may contain parts of an authorization code.
-      for(const key of ['error','error_code','error_description'])returnUrl.searchParams.delete(key);
+      for(const key of ['error','error_code','error_description']){returnUrl.searchParams.delete(key);hashParams.delete(key)}
+      if(hashHasError)returnUrl.hash=hashParams.toString();
       history.replaceState(history.state,'',returnUrl.pathname+returnUrl.search+returnUrl.hash);
     }
   }catch{}
@@ -461,8 +464,7 @@
       if(!remote){await pushNow(null,explicit);return}
       if(m.userId!==user.id||!m.initialized){showConflict(remote,'Ce compte possède déjà une sauvegarde. Choisis la version à conserver.');return}
       if(remote.updated_at!==m.lastRemoteUpdatedAt){
-        if(localDirty(m)||explicit)showConflict(remote,'Le cloud contient une autre version. Choisis avant de continuer.');
-        else applyRemote(remote);
+        showConflict(remote,'Le cloud contient une autre version. Vérifie-la et confirme la restauration avant de remplacer les données de cet appareil.');
       }else if(localDirty(m))await pushNow();else status('Tout est à jour.','ok');
     }catch(e){status('Vérification du cloud interrompue : '+e.message,'warn')}
   }

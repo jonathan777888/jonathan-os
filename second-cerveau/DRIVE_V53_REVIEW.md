@@ -1,72 +1,79 @@
-# Vérification Google Drive — Second Cerveau V53
+# Google Drive V53 — revue du 14 novembre 2026
 
-Revue du 13 novembre 2026. Correctifs préparés uniquement dans la branche de la PR nº 9. **Décision : ne pas fusionner et ne pas déployer en production à ce stade.**
+**Décision : conserver la PR nº 9 en brouillon. Aucune fusion ni aucun déploiement en production.**
 
-## Résultats vérifiés
+## Vérifications effectuées
 
-| Élément | Résultat et preuve |
+| Élément | Résultat |
 | --- | --- |
-| Production | Le navigateur cloud affiche encore « Second Cerveau IA — V52 » sur le site public. Aucune authentification de production effectuée pendant cette revue. |
-| Supabase | Projet `wuhbalxjpcfemsxdnggp` actif. L’endpoint public Auth indique Google activé. |
-| Redirections OAuth | Callback Google vérifié dans la console : `https://wuhbalxjpcfemsxdnggp.supabase.co/auth/v1/callback`. Origine JavaScript : `https://jonathan777888.github.io`. Site URL et retour de production Supabase inchangés : `https://jonathan777888.github.io/jonathan-os/`. |
-| Projet et client OAuth | Google Cloud ouvert dans Edge connecté : `My First Project`, ID `model-sphere-450818-k3`, numéro `568542524006`. Le client Web « Second Cerveau » est `568542524006-9u3dll4f32evqspdrke6oe929us55kvm.apps.googleusercontent.com` ; il correspond au Client ID affiché dans Supabase. Aucun secret lu. |
-| API et scopes | Google Drive API est déjà activée dans ce projet. `https://www.googleapis.com/auth/drive.appdata` ajouté et enregistré comme seul scope déclaré ; aucun scope sensible ou restreint sélectionné. `email profile` restent les scopes de la connexion Google de base. |
-| Règles de la table de synchronisation | `public.second_brain_sync` a RLS activé et une clé primaire `user_id`. SELECT, INSERT, UPDATE et DELETE sont limités à `auth.uid() = user_id`. UPDATE a aussi un `WITH CHECK`. Vérification des définitions uniquement, sans lire les sauvegardes personnelles. |
-| Tests de comportement | 36 tests passent avec des données fictives et des réponses Supabase/Drive simulées. Ils ne constituent pas un test OAuth réel. |
-| Construction | Le même script construit la version de test et l’artefact Pages. Les 7 scripts intégrés passent `node --check`, ainsi que les contrôles de compatibilité Pages. Aucun déploiement exécuté. |
+| Version actuelle | Les onglets de l’application affichent V49. La branche principale reste inchangée. |
+| Client OAuth | Client Web « Second Cerveau » du projet `model-sphere-450818-k3`. Le Client ID Google correspond à celui de Supabase. |
+| Callback Google | `https://wuhbalxjpcfemsxdnggp.supabase.co/auth/v1/callback` présent. |
+| Origine autorisée | `https://jonathan777888.github.io` présente. |
+| Redirections Supabase | Site URL et retour de production : `https://jonathan777888.github.io/jonathan-os/`. Le retour exact du précédent essai isolé reste présent ; aucun wildcard ajouté. |
+| Autorisations Drive | `https://www.googleapis.com/auth/drive.appdata` est le seul scope Drive déclaré. Aucun scope sensible ou restreint déclaré. La connexion Google de base fournit aussi le profil et l’e-mail. |
+| Audience Google | Externe / Test, compte propriétaire présent parmi les testeurs. Publication désactivée tant que le branding reste incomplet. |
+| Google Drive API | Activée lors de la revue du 13 novembre. Nouvelle ouverture de sa console le 14, mais lecture interrompue par un délai du navigateur : activation non revérifiée pendant cette reprise. |
+| Sauvegarde V13 | JSON du 14 novembre retrouvé dans le dossier Drive de sauvegardes, lu sans modification. Copie de travail privée hors dépôt ; aucun contenu personnel ajouté à GitHub. |
+| Données Supabase | Définitions de la table et des politiques inspectées, sans lecture des contenus personnels. |
 
-## Correctifs de la PR
+## Blocage OAuth confirmé
 
-- Premier envoi Supabase soumis à une action et à une confirmation explicites. Les modifications locales et la vérification périodique ne peuvent plus contourner ce consentement.
-- Appartenance des données conservée lors d’un changement de compte. Un autre compte ne peut ni exporter, ni restaurer, ni modifier les données de l’ancien compte dans ce profil de navigateur. Les réponses devenues obsolètes après un changement de compte sont refusées.
-- Écritures Supabase conditionnées par `updated_at`, au lieu d’un upsert qui pouvait écraser une modification concurrente. Une insertion simultanée déclenche un conflit.
-- Sauvegardes Drive conservées sous forme de copies successives. Aucune requête PATCH ou DELETE utilisée par le module. Deux écritures simultanées conservent les deux copies et demandent une résolution explicite.
-- Historique Drive parcouru sur toutes les pages avec le paramètre v3 correct `pageSize`. Sélection d’une ancienne version ou d’une version concurrente avant restauration.
-- Validation du format, des clés autorisées, du propriétaire et de l’empreinte des sauvegardes. Les anciennes sauvegardes V53 sans propriétaire ni empreinte restent lisibles après confirmation explicite.
-- Copie locale distincte avant chaque restauration. En cas de manque d’espace ou d’échec de remplacement, restauration interrompue et retour aux données précédentes. Les métadonnées sont également rétablies si leur écriture échoue.
-- Synchronisation suspendue pendant une restauration ; rechargement immédiat après succès. Un onglet dont les données sont devenues obsolètes doit être rechargé avant de pouvoir réécrire le stockage local.
-- Bouton Drive demandant une autorisation Drive distincte de la simple connexion Google, même si celle-ci a fourni un jeton. Le retour OAuth est lié au compte et limité à dix minutes ; une vérification API réussie termine cette étape.
-- Jetons Google API conservés en mémoire uniquement et retirés des enregistrements de session persistants du client. Les jetons Supabase nécessaires à la session restent gérés par le SDK. Un jeton Google expiré ou refusé provoque une demande de reconnexion.
-- Retour OAuth en erreur signalé clairement dans l’interface, avec suppression des paramètres `error`, `error_code` et `error_description` de l’URL. Les détails du fournisseur ne sont pas affichés, car ils peuvent inclure des fragments de code d’autorisation.
-- SDK Supabase fixé à `2.119.0` ; disponibilité HTTP 200 du bundle vérifiée.
-- Constructeur local corrigé : insertion des modules avant la dernière fermeture HTML, à l’extérieur des chaînes d’export intégrées, et inclusion du module Drive.
-- Contrôle mobile corrigé pour utiliser Ubuntu 24.04 : le journal précédent montrait que Playwright 1.56.1 refusait l’image Ubuntu 26.04 de `ubuntu-latest`. Le scénario de première sauvegarde exige maintenant un consentement explicite.
+L’essai a utilisé la page isolée déjà créée le 13 novembre, avec un fichier et des données fictives distincts. Il a atteint le choix du compte et la confirmation du profil, puis est revenu sans session connectée.
 
-## Essai réel du 13 novembre 2026
+Les journaux Auth agrégés du **14 novembre, 22 h 28 à 22 h 35 UTC**, indiquent **1 `invalid_client` et 1 échec d’échange du code**. Aucun secret, code d’autorisation ni jeton n’est reproduit ici.
 
-Après autorisation de changer de navigateur, Google Cloud et Supabase sont accessibles dans Edge déjà connecté. Aucun mot de passe demandé ou saisi. L’application Google reste **Externe / Test** ; le compte propriétaire a été ajouté aux utilisateurs tests. Elle n’a pas été publiée et l’interface indique que sa présentation doit encore être complétée avant une publication publique.
+Google affiche deux secrets existants actifs et précise que leur valeur ne peut plus être affichée ni téléchargée. Le Client ID et le callback correspondant, le secret configuré dans Supabase doit être vérifié contre un secret actif conservé par le propriétaire. Aucun secret n’a été révélé, remplacé, régénéré, désactivé ou supprimé pendant cette reprise.
 
-Une page d’essai distincte a été préparée : `https://baseless-hole-3kbcs88.shipstatic.com/` (expiration automatique après trois jours). Elle reprend les modules V53 du commit `726399c`, utilise uniquement une donnée fictive et un fichier privé distinct, `second-cerveau-e2e-20261113-v53-726399c.json`. L’accès aux tables Supabase est bloqué par le harnais : aucun contenu personnel de `second_brain_sync` n’est chargé ou écrit. Son retour exact a été ajouté temporairement à la liste Supabase, sans wildcard ni changement du Site URL. À retirer quand les essais seront terminés.
+Le panneau Google de Supabase a été ouvert pour une saisie directe du propriétaire. S’il possède le secret actif, il doit le saisir dans **Client Secret (for OAuth)** et enregistrer, sans le transmettre dans la conversation. S’il a perdu les deux secrets, une rotation nécessite une préparation distincte pour préserver les autres consommateurs du client OAuth.
 
-L’essai a atteint le choix du compte Google et la confirmation des informations de profil. Le retour Supabase a ensuite échoué avec `server_error`. Une requête agrégée dans les journaux Auth entre 10 h 28 et 10 h 33 UTC confirme **1 `invalid_client` et 1 échec d’échange du code**, sans `invalid_grant` ni `redirect_uri_mismatch`. Aucun code d’autorisation, jeton ou secret n’a été inclus dans ce rapport.
+## Corrections supplémentaires préparées
 
-La documentation Google associe `invalid_client` à un secret client incorrect. Le Client ID affiché dans Supabase correspond au client Google vérifié. **Le réglage à corriger est donc le secret du fournisseur Google côté Supabase, en le faisant correspondre à un secret Google actif existant.** La consigne de ne pas modifier les secrets reste respectée : aucune valeur de secret n’a été lue, remplacée, régénérée ou supprimée. Le panneau Google de Supabase a été ouvert pour une intervention directe du propriétaire.
+- Une nouvelle version Supabase n’est plus restaurée automatiquement en arrière-plan, même si l’appareil semble ne pas avoir de modifications locales. L’utilisateur doit vérifier puis confirmer le remplacement.
+- Les détails d’erreur OAuth sont retirés de la requête **et** du fragment de l’URL. Une ancre sans erreur est conservée.
+- Le constructeur du harnais OAuth produit un identifiant propre à chaque essai et un fichier Drive réservé à cet essai. Il refuse les identifiants invalides.
+- Des tests de compatibilité V13 et un scénario de sauvegarde/restauration traversant les vrais modules V53 ont été ajoutés.
 
-## Blocages réels
+Les protections précédentes restent en place : premier envoi sur confirmation, sauvegardes Drive successives sans PATCH/DELETE, copie locale avant restauration, refus des changements de compte et des réponses obsolètes, détection de concurrence, validation des propriétaires et empreintes, jetons Google API en mémoire, SDK Supabase fixé à `2.119.0`.
 
-1. **Échange OAuth refusé (`invalid_client`).** La correction du secret côté Supabase exige de lever la consigne initiale ou une intervention directe du propriétaire dans l’interface sécurisée. Ne jamais transmettre ce secret dans la conversation.
-2. **Essais Drive authentifiés encore impossibles.** La connexion n’ayant pas abouti, aucune sauvegarde Drive réelle n’a été créée ; restauration, refus d’accès, expiration et concurrence sur deux profils/appareils restent à tester après correction.
-3. **Autres fonctions du projet Supabase à sécuriser avant un lancement multiutilisateur.** L’advisor et la lecture de leurs définitions montrent que `public.get_session7_dashboard()` et `public.get_course_load_summary()` sont `SECURITY DEFINER`, exécutables par `anon` et `authenticated`, et ne filtrent pas les données par `auth.uid()`. Le tableau de bord agrège notamment notes, tâches, documents et journal. Cela constitue une voie d’accès distincte des bonnes règles RLS de `second_brain_sync`. Ces fonctions n’ont pas été appelées et aucune donnée renvoyée par elles n’a été lue. Ne pas les laisser ainsi pour une utilisation personnelle par plusieurs comptes. La correction doit tenir compte des autres applications utilisant ce même projet ; aucune modification SQL de production effectuée.
+## Résultats des tests
 
-## Limites connues
+**43 tests locaux réussis**, avec la sauvegarde V13 privée explicitement fournie. Les tests qui touchent Drive utilisent un serveur simulé ; ils ne prouvent pas qu’un transfert Google réel a réussi.
 
-- Un même profil de navigateur conserve un propriétaire local : pour un autre compte Google, utiliser un profil distinct. Le mode local de l’application reste disponible sans connexion ; le stockage local ne fournit pas une confidentialité face à une personne ayant accès au même profil du navigateur.
-- Le journal `spiritual-ladder-local-v1` reste volontairement local, conformément à son interface existante. Les clés et codes d’accès sont exclus des sauvegardes.
-- Les anciennes copies Drive ne sont pas purgées automatiquement. L’historique consomme progressivement de l’espace. Le module arrête la synchronisation si la liste dépasse 10 000 fichiers ou s’il faudrait résoudre plus de 28 versions concurrentes.
-- Supabase ne renouvelle pas automatiquement le jeton Google API. Le choix de ne pas persister de jeton Google implique une nouvelle autorisation après rechargement de la page ou expiration ; la session de connexion Supabase peut rester active.
-- L’empreinte SHA-256 détecte une altération accidentelle ; elle ne chiffre pas les données. Les copies résident dans le dossier privé de l’application Drive.
+- Carte V13, branches, positions, relations, bilans, mémoires, tâches, liens archivés et date de contenu conservés par la migration du noyau V53.
+- Copie V13 de secours préservée ; initialisation répétée du canevas sans déplacement des branches.
+- Sauvegarde, modification et restauration V13 par les modules V53 avec serveur Drive simulé : contenu initial restitué exactement, deux versions conservées et copie de récupération avant restauration.
+- Refus d’accès, expiration, corruption, annulation, manque d’espace, changements de compte, réponses asynchrones et conflits couverts par les tests.
+- Construction complète Pages et syntaxe des **7 scripts intégrés** validées.
+- Nouveau harnais OAuth construit et vérifié syntaxiquement ; il n’a pas été déployé.
 
-## Validation à terminer avant toute fusion
+Le JSON V13 exporté contient l’état du noyau ; une sauvegarde Drive V53 contient une enveloppe et les chaînes du stockage local, dont `second-brain-current`. Ces fichiers ne sont pas interchangeables directement. La copie V13 visible dans Drive reste une sauvegarde indépendante : le scope `drive.appdata` ne donne pas à l’application l’accès aux fichiers ordinaires du Drive. Aucun import ni aucune restauration de données personnelles n’a été exécuté.
 
-1. Dans Supabase → Authentication → Sign In / Providers → Google, faire correspondre le Client Secret à un secret actif existant du client Google « Second Cerveau ». Le propriétaire doit saisir la valeur directement dans l’interface, sans la communiquer dans le chat. Ne pas régénérer ou supprimer les secrets Google existants sans accord distinct.
-2. Refaire la connexion sur la page d’essai isolée ; vérifier le retour sur l’origine temporaire et l’état connecté.
-3. Tester l’autorisation Drive, la première sauvegarde fictive, la modification, l’annulation d’une restauration et la restauration confirmée avec copie locale. Tester ensuite deux profils/appareils et leurs écritures concurrentes.
-4. Retirer le retour Supabase temporaire après la fin des essais. Conserver le Site URL et le retour de production.
-5. Sécuriser ou retirer les voies RPC publiques signalées, en tenant compte des autres applications de ce projet.
-6. Compléter la présentation Google et décider séparément de la publication OAuth pour les utilisateurs non testeurs. Cette publication n’a pas été effectuée.
-7. Vérifier les contrôles GitHub du commit final et conserver la PR en brouillon tant que les essais réels et la sécurité des comptes restent bloqués.
+## Sécurité du projet partagé
 
-## Commandes reproductibles
+`second_brain_sync` possède RLS, une clé primaire `user_id`, une référence à `auth.users` et les quatre politiques limitées à `auth.uid() = user_id`. UPDATE possède aussi `WITH CHECK`. Le déclencheur `updated_at` est présent.
+
+Le script facultatif `tests/rls-isolation.sql` prépare une vérification avec utilisateurs et lignes fictifs, suivie d’un rollback forcé. **Ce test n’a pas été exécuté : la confirmation demandée par le connecteur a expiré.** Il n’existe donc aucun résultat de test dynamique en base à revendiquer ; les vérifications ci-dessus portent sur les définitions.
+
+L’advisor confirme encore deux fonctions `SECURITY DEFINER`, exécutables par `anon` et `authenticated`, sans filtre propriétaire :
+
+- `public.get_session7_dashboard()` agrège notamment notes, tâches, documents et journal ;
+- `public.get_course_load_summary()` agrège les cours.
+
+Elles n’ont pas été appelées. Les tables Session7 n’ont pas de colonne propriétaire ni de politique d’accès utilisateur. Changer les fonctions en `SECURITY INVOKER` renverrait des résultats vides avec les politiques actuelles ; révoquer directement leurs accès peut interrompre Session7. L’absence d’appels observés dans la fenêtre de journaux ne prouve pas l’absence de consommateurs.
+
+**Traitement nécessaire avant lancement :** identifier les consommateurs Session7 et leur mode d’authentification ; déplacer les accès vers un backend autorisant explicitement le propriétaire ou ajouter une isolation par propriétaire aux données ; tester Session7 ; révoquer ensuite les accès non autorisés aux deux RPC. Une alerte `search_path` concerne aussi `public.set_updated_at()` ; sa correction doit être intégrée à cette revue partagée. Aucune fonction, politique, donnée ou clé d’une autre application n’a été modifiée.
+
+## Étapes restantes avant déploiement
+
+1. Corriger le secret Google dans l’interface sécurisée, sans le divulguer ni supprimer les secrets existants.
+2. Refaire OAuth, puis autoriser uniquement `drive.appdata` sur le harnais isolé.
+3. Vérifier réellement première sauvegarde fictive, ajout d’une version, annulation, restauration et copie locale de récupération ; vérifier aussi refus d’accès et concurrence entre deux contextes.
+4. Finaliser et tester la sécurité des RPC partagées sans interrompre Session7.
+5. Revérifier l’API Drive et l’audience requise. Retirer le retour temporaire une fois les essais terminés, en conservant les redirections des autres applications.
+6. Vérifier les contrôles GitHub du commit final ; déployer seulement après validation de ces points. Conserver un retour possible au commit principal actuel.
+
+## Reproduction locale
 
 ```sh
 node --test second-cerveau/tests/*.test.cjs
@@ -74,12 +81,11 @@ python3 second-cerveau/tests/check_build.py
 node second-cerveau/build_site.cjs /tmp/second-cerveau-v53
 ```
 
-## Documentation utilisée
+Les deux tests privés sont ignorés en CI. Pour les exécuter localement, définir `SECOND_BRAIN_V13_BACKUP` vers une copie privée du JSON, hors dépôt. Ne jamais versionner de sauvegarde personnelle.
 
-- [Google Drive : dossier privé et scope appdata](https://developers.google.com/workspace/drive/api/guides/appdata)
-- [Google Drive v3 : files.list et pagination](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list)
-- [Google Drive : limites des propriétés privées](https://developers.google.com/workspace/drive/api/guides/properties)
-- [Google : diagnostic invalid_client](https://developers.google.com/identity/protocols/oauth2/web-server#errors)
-- [Supabase : connexion Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
-- [Supabase : jetons des fournisseurs OAuth](https://supabase.com/docs/guides/auth/social-sign-in)
-- [Supabase : fonctions SECURITY DEFINER exposées à anon](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable)
+## Documentation
+
+- [Dossier privé Google Drive](https://developers.google.com/workspace/drive/api/guides/appdata)
+- [Google OAuth et erreurs](https://developers.google.com/identity/protocols/oauth2/web-server#errors)
+- [Connexion Google Supabase](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
+- [Fonctions SECURITY DEFINER exposées](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable)

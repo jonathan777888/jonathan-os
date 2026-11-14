@@ -3,8 +3,9 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
-const run='20261113-v53-726399c';
-const fixtureKey='second-brain-e2e-fixture-v53';
+const run=process.env.SECOND_BRAIN_E2E_RUN||new Date().toISOString().slice(0,10).replaceAll('-','')+'-v53-'+require('node:crypto').randomUUID().slice(0,8);
+if(!/^[a-zA-Z0-9-]{1,80}$/.test(run))throw Error('Invalid isolated test identifier');
+const fixtureKey='second-brain-e2e-'+run;
 const cloud=fs.readFileSync(path.join(root,'source/part-06.txt'),'utf8').match(/<script id="cloudSyncV52">([\s\S]*?)<\/script>/)[1];
 const drive=fs.readFileSync(path.join(root,'google-drive-sync-v53.js'),'utf8')
   .replace("NAME='second-cerveau-backup-v53.json'",`NAME='second-cerveau-e2e-${run}.json'`)
