@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'second-cerveau/source/**'
+      - 'second-cerveau/google-drive-sync-v53.js'
+      - 'second-cerveau/build_site.cjs'
       - '.github/workflows/mobile-v51-test.yml'
   pull_request:
     paths:
       - 'second-cerveau/source/**'
+      - 'second-cerveau/google-drive-sync-v53.js'
+      - 'second-cerveau/build_site.cjs'
       - '.github/workflows/mobile-v51-test.yml'
   workflow_dispatch:
 
@@ -17,7 +21,7 @@ permissions:
 
 jobs:
   mobile:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/second-cerveau-v51
-          cat second-cerveau/source/part-*.txt > /tmp/second-cerveau-v51/index.html
+          node second-cerveau/build_site.cjs /tmp/second-cerveau-v51
           grep -q 'mobileResponsiveV51' /tmp/second-cerveau-v51/index.html
           grep -q 'mobileNavigationV51' /tmp/second-cerveau-v51/index.html
           grep -q 'second-brain-current' /tmp/second-cerveau-v51/index.html
@@ -148,7 +152,7 @@ jobs:
                   select(){return this},
                   eq(){return this},
                   async maybeSingle(){return {data:remoteRow,error:null}},
-                  upsert(row){
+                  insert(row){
                     window.__mockUpserts.push(JSON.parse(JSON.stringify(row)));
                     return {
                       select(){return this},
@@ -164,8 +168,13 @@ jobs:
             try{
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
               await page.addInitScript(installMock,{remote:null});
+              page.on('dialog',dialog=>dialog.accept());
               await page.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded'});
               await page.locator('#secondBrainCloudV52').waitFor({state:'attached'});
+              await page.waitForTimeout(200);
+              assert.equal(await page.evaluate(()=>window.__mockUpserts.length),0,'First upload must require explicit consent');
+              await page.locator('[data-page="backup"]').click();
+              await page.locator('#cloudSyncNowV52').click();
               await page.waitForFunction(()=>window.__mockUpserts.length===1);
               const first=await page.evaluate(()=>({
                 row:window.__mockUpserts[0],
