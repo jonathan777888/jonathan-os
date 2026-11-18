@@ -274,6 +274,7 @@
   const SUPABASE_KEY='sb_publishable_mPFAK_h6L8JjUQRuVx5RVg_odLPQNRn';
   const REDIRECT_URL='https://jonathan777888.github.io/jonathan-os/';
   const TABLE='second_brain_sync';
+  const WORKSHOP_KEY='second-cerveau-genie-logiciel-v1';
   const META_KEY='second-brain-sync-meta-v52';
   const SENSITIVE=/(token|secret|password|passcode|api[-_]?key|access[-_]?code)/i;
   const nativeSet=Storage.prototype.setItem;
@@ -284,7 +285,20 @@
   function isSyncableKey(key){
     key=String(key||'');
     if(!key||key===META_KEY||SENSITIVE.test(key))return false;
-    return key.startsWith('second-brain-')||key.startsWith('jonathan-racines')||key.startsWith('carte-racines');
+    return key.startsWith('second-brain-')||key.startsWith('jonathan-racines')||key.startsWith('carte-racines')||key===WORKSHOP_KEY;
+  }
+  // The embedded workshop runs in a separate iframe JavaScript realm. Its localStorage
+  // key is synchronized, but its changes are signalled to the parent by storage events.
+  function workshopConflict(remote){
+    const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
+    const remoteValue=remote&&remote.payload&&remote.payload[WORKSHOP_KEY];
+    return typeof localValue==='string'&&typeof remoteValue==='string'&&localValue!==remoteValue;
+  }
+  function workshopNeedsUpload(remote){
+    const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
+    return typeof localValue==='string'&&!(
+      remote&&remote.payload&&typeof remote.payload[WORKSHOP_KEY]==='string'
+    );
   }
   function snapshot(){
     const out={};
@@ -403,6 +417,15 @@
     clearTimeout(pushTimer);
     syncing=true;status('Envoi des données vers le cloud…');
     try{
+      // Check before saving: never blindly overwrite another device's newer version.
+      const existing=await fetchRemote();
+      const meta=readMeta();
+      if(existing&&(!meta.initialized||meta.userId!==user.id||
+         time(existing.updated_at)>time(meta.lastRemoteUpdatedAt)+500||
+         workshopConflict(existing))){
+        showConflict(existing,'Le cloud contient des données différentes. Choisis la version à conserver avant toute écriture.');
+        return;
+      }
       const row={user_id:user.id,payload:snapshot(),device_label:(navigator.platform||'navigateur')+' · '+(navigator.userAgent||'').slice(0,120)};
       const result=await client.from(TABLE).upsert(row,{onConflict:'user_id'}).select('updated_at').single();
       if(result.error)throw result.error;
@@ -418,12 +441,14 @@
     applying=true;
     try{
       const payload=remote.payload||{};
+      // Do not erase workshop work that predates the first cloud upload.
+      const keepLocalWorkshop=workshopNeedsUpload(remote);
       const localKeys=[];
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(isSyncableKey(k))localKeys.push(k)}
-      localKeys.forEach(k=>{if(!Object.prototype.hasOwnProperty.call(payload,k))nativeRemove.call(localStorage,k)});
+      localKeys.forEach(k=>{if(!(k===WORKSHOP_KEY&&keepLocalWorkshop)&&!Object.prototype.hasOwnProperty.call(payload,k))nativeRemove.call(localStorage,k)});
       Object.entries(payload).forEach(([k,v])=>{if(isSyncableKey(k)&&typeof v==='string')nativeSet.call(localStorage,k,v)});
       const now=new Date().toISOString();
-      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:null});
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:keepLocalWorkshop?now:null});
       pendingRemote=null;hideConflict();status('Données du cloud récupérées. Rechargement…','ok');
       setTimeout(()=>location.reload(),250);
     }catch(e){
@@ -440,12 +465,16 @@
         showConflict(remote,'Ce compte possède déjà des données dans le cloud. Choisis la version à conserver avant la première synchronisation sur cet appareil.');
         return;
       }
+      if(workshopConflict(remote)){
+        showConflict(remote,'Les exercices de génie logiciel diffèrent entre le cloud et cet appareil. Aucune version ne sera écrasée automatiquement.');
+        return;
+      }
       if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
         if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
         else await applyRemote(remote);
         return;
       }
-      if(localDirty(meta))await pushNow();
+      if(localDirty(meta)||workshopNeedsUpload(remote))await pushNow();
       else status('Tout est à jour.','ok');
     }catch(e){
       status('Vérification du cloud impossible : '+(e&&e.message?e.message:String(e)),'warn');
@@ -457,6 +486,10 @@
     try{
       const remote=await fetchRemote(),meta=readMeta();
       if(!remote){await pushNow();return}
+      if(workshopConflict(remote)){
+        showConflict(remote,'Les exercices de génie logiciel diffèrent entre le cloud et cet appareil. Choisis la version à conserver.');
+        return;
+      }
       if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
         if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
         else await applyRemote(remote);
@@ -467,12 +500,16 @@
     if(!user||syncing||pendingRemote||document.hidden)return;
     try{
       const remote=await fetchRemote();
-      if(!remote)return;
+      if(!remote){if(localDirty())await pushNow();return}
       const meta=readMeta();
+      if(workshopConflict(remote)){
+        showConflict(remote,'Les exercices de génie logiciel ont changé sur un autre appareil. Choisis la version à conserver.');
+        return;
+      }
       if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
         if(localDirty(meta))showConflict(remote,'De nouvelles données existent dans le cloud et cet appareil contient aussi des changements.');
         else await applyRemote(remote);
-      }
+      }else if(localDirty(meta)||workshopNeedsUpload(remote))await pushNow();
     }catch(e){}
   }
   function markDirty(){
@@ -494,6 +531,11 @@
     return result;
   };
 
+  // localStorage events are emitted in the parent when the same-origin workshop iframe writes.
+  window.addEventListener('storage',e=>{
+    if(e.storageArea===localStorage&&e.key===WORKSHOP_KEY&&e.oldValue!==e.newValue&&!applying)markDirty();
+  });
+  window.addEventListener('online',()=>{if(user&&!pendingRemote&&!syncing)manualSync()});
   window.SecondBrainCloudV52={snapshot,isSyncableKey,manualSync};
 
   async function start(){
