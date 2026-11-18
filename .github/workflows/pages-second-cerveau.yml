@@ -7,6 +7,8 @@ on:
       - 'second-cerveau/source/**'
       - 'second-cerveau/challenge-40-days.js'
       - 'second-cerveau/spiritual-ladder.js'
+      - 'second-cerveau/atelier-genie-logiciel.html'
+      - 'second-cerveau/software-engineering-entry.js'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
@@ -41,6 +43,28 @@ jobs:
           text = head + '<script>\n' + code + '\n</script>\n' + '<script>\n' + ladder_code + '\n</script>\n' + closing + tail
           html.write_text(text)
           PY
+
+      - name: Add integrated software engineering workspace
+        run: |
+          cp second-cerveau/atelier-genie-logiciel.html public/atelier-genie-logiciel.html
+          cp second-cerveau/software-engineering-entry.js public/software-engineering-entry.js
+          python3 - <<'PY'
+          from pathlib import Path
+          homepage=Path('public/index.html')
+          html=homepage.read_text()
+          assert '</body></html>' in html
+          script='<script src="./software-engineering-entry.js" defer></script>'
+          assert script not in html
+          head, closing, tail=html.rpartition('</body></html>')
+          assert closing, 'Missing closing body tag'
+          html=head+script+closing+tail
+          homepage.write_text(html)
+          assert 'Génie logiciel' in Path('public/atelier-genie-logiciel.html').read_text()
+          PY
+          node --check public/software-engineering-entry.js
+          grep -Fq 'software-engineering-entry.js' public/index.html
+          grep -Fq 'Missions & exercices' public/atelier-genie-logiciel.html
+          grep -Fq 'Laboratoire DevOps' public/atelier-genie-logiciel.html
           grep -q 'Second Cerveau IA — V43' public/index.html
           grep -q 'Échelle de progression spirituelle et personnelle' public/index.html
           grep -q 'spiritual-ladder-local-v1' public/index.html

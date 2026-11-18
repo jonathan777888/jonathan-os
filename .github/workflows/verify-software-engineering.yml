@@ -1,0 +1,84 @@
+name: Verify Second Cerveau Software Engineering Workspace
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'second-cerveau/atelier-genie-logiciel.html'
+      - 'second-cerveau/software-engineering-entry.js'
+      - '.github/workflows/pages-second-cerveau.yml'
+      - '.github/workflows/verify-software-engineering.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build original site and verify additive workshop integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import subprocess
+          import tempfile
+
+          root=Path('second-cerveau')
+          fragments=sorted((root/'source').glob('part-*.txt'))
+          assert len(fragments)>20,'Original Second Cerveau source fragments missing'
+          original=''.join(p.read_text(encoding='utf-8') for p in fragments)
+          assert '</body></html>' in original
+          assert 'page-map' in original and 'page-backup' in original
+          assert 'cloudSyncV52' in original
+          assert 'atob(' not in original
+
+          workshop=(root/'atelier-genie-logiciel.html').read_text(encoding='utf-8')
+          entry=(root/'software-engineering-entry.js').read_text(encoding='utf-8')
+          assert '<html' in workshop and '</html>' in workshop
+          for marker in ('Missions & exercices','Laboratoire DevOps'):
+              assert marker in workshop,f'Workshop feature missing: {marker}'
+          for marker in ("dataset.page = PAGE", "tab.onclick", "document.createElement('iframe')", "allow-scripts allow-same-origin allow-downloads", "new URL('./atelier-genie-logiciel.html'"):
+              assert marker in entry,f'Entry integration missing: {marker}'
+          assert "localStorage" not in entry,'Entrypoint must not read or modify existing user data'
+          assert "second-brain-" not in workshop,'Do not reuse existing Second Cerveau storage keys'
+
+          # Recreate Pages build without mutating the source or injecting extra login.
+          head, closing, tail=original.rpartition('</body></html>')
+          assert closing, 'Missing closing body tag'
+          html=head+'<script src="./software-engineering-entry.js" defer></script>'+closing+tail
+          assert html.count('<script src="./software-engineering-entry.js" defer></script>')==1
+          assert 'page-map' in html and 'page-backup' in html and 'cloudSyncV52' in html
+          class Extractor(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.scripts=[]; self.in_script=False;self.chunks=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=='script' and not a.get('src') and a.get('type','') in ('','text/javascript','module'):
+                      self.in_script=True;self.chunks=[]
+              def handle_data(self,data):
+                  if self.in_script:self.chunks.append(data)
+              def handle_endtag(self,tag):
+                  if tag=='script' and self.in_script:
+                      self.scripts.append(''.join(self.chunks));self.in_script=False
+          with tempfile.TemporaryDirectory() as d:
+              for title,source in [('original site',html),('workshop',workshop)]:
+                  p=Extractor();p.feed(source)
+                  assert p.scripts,f'No scripts found in {title}'
+                  for i,code in enumerate(p.scripts):
+                      s=Path(d)/f"{title.replace(' ','_')}-{i}.js"
+                      s.write_text(code,encoding='utf-8')
+                      subprocess.run(['node','--check',str(s)],check=True)
+                  print(title+': '+str(len(p.scripts))+' inline scripts passed syntax check')
+          print('Additive integration checks passed; existing user data code unchanged')
+          PY
+          node --check second-cerveau/software-engineering-entry.js
+
+      - name: Confirm workflow serves both workshop files
+        run: |
+          grep -Fq 'cp second-cerveau/atelier-genie-logiciel.html public/atelier-genie-logiciel.html' .github/workflows/pages-second-cerveau.yml
+          grep -Fq 'cp second-cerveau/software-engineering-entry.js public/software-engineering-entry.js' .github/workflows/pages-second-cerveau.yml
+          grep -Fq 'software-engineering-entry.js' .github/workflows/pages-second-cerveau.yml
