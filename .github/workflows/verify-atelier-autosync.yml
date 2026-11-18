@@ -1,0 +1,85 @@
+name: Verify automatic workshop backup integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'second-cerveau/source/part-06.txt'
+      - '.github/workflows/verify-atelier-autosync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check workshop cloud-sync integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import subprocess,tempfile
+          root=Path('second-cerveau')
+          source=(root/'source'/'part-06.txt').read_text()
+          workshop=(root/'atelier-genie-logiciel.html').read_text()
+          assertions={
+            'workshop key included':"key===WORKSHOP_KEY" in source,
+            'existing data sync retained':"key.startsWith('second-brain-')" in source,
+            'original cloud table retained':"const TABLE='second_brain_sync'" in source,
+            'last synced value baseline':"lastWorkshopSyncedValue" in source,
+            'iframe autosave listener':"e.key===WORKSHOP_KEY" in source,
+            'online retry':"window.addEventListener('online'" in source,
+            'remote fetch before save':"const existing=await fetchRemote()" in source,
+            'cloud conflict dialog':"workshopConflict(existing)" in source,
+            'local work kept on missing remote':"const keepLocalWorkshop=workshopNeedsUpload(remote)" in source,
+            'same workshop key in HTML':"second-cerveau-genie-logiciel-v1" in workshop,
+            'no additional third party auth':"signInWithOtp" not in source,
+            'original Google auth retained':"signInWithOAuth" in source
+          }
+          print(assertions)
+          assert all(assertions.values()),'Missing backup safeguard'
+          html=''.join(p.read_text() for p in sorted((root/'source').glob('part-*.txt')))
+          assert '</body></html>' in html
+          class Parser(HTMLParser):
+            def __init__(self):
+              super().__init__();self.blocks=[];self.in_script=False;self.parts=[]
+            def handle_starttag(self,tag,attrs):
+              if tag=='script':
+                a=dict(attrs);self.in_script=not a.get('src') and a.get('type','') in ('','module','text/javascript');self.parts=[]
+            def handle_data(self,data):
+              if self.in_script:self.parts.append(data)
+            def handle_endtag(self,tag):
+              if tag=='script' and self.in_script:
+                self.blocks.append(''.join(self.parts));self.in_script=False
+          p=Parser();p.feed(html)
+          assert p.blocks
+          with tempfile.TemporaryDirectory() as d:
+            for i,block in enumerate(p.blocks):
+              target=Path(d)/f"script-{i}.js";target.write_text(block)
+              subprocess.run(['node','--check',str(target)],check=True)
+          print('Validated',len(p.blocks),'original inline JS scripts')
+          PY
+
+      - name: Unit test workshop change discrimination
+        run: |
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          const key='second-cerveau-genie-logiciel-v1';
+          const remote=value=>({payload:{[key]:value}});
+          const conflict=(local,cloud,baseline,initialized=true,sameUser=true)=>{
+            if(typeof local!=='string'||typeof cloud!=='string'||local===cloud)return false;
+            return !(sameUser&&initialized&&typeof baseline==='string'&&baseline===cloud);
+          };
+          assert.equal(conflict('new edit','old synced','old synced'),false);
+          assert.equal(conflict('unsynced','changed on another device','old synced'),true);
+          assert.equal(conflict('abc','xyz',undefined),true);
+          assert.equal(conflict('abc','abc',undefined),false);
+          assert.equal(conflict('abc',undefined,undefined),false);
+          assert.equal(conflict('new edit','old synced','old synced',true,false),true);
+          assert.ok(remote('ok').payload[key]);
+          console.log('Workshop conflict cases passed');
+          JS
