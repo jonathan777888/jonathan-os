@@ -26,7 +26,7 @@ jobs:
           chunks=sorted((base/'source').glob('part-*.txt'))
           assert len(chunks)>=35,'Original source is incomplete'
           full=''.join(p.read_text(encoding='utf-8') for p in chunks)
-          assert full.endswith('</body></html>'),'Site has no closing document'
+          assert full.rstrip().endswith('</body></html>'),'Site has no closing document'
           cloud=(base/'source'/'part-06.txt').read_text(encoding='utf-8')
           for marker in [
             "key.startsWith('second-brain-')",
