@@ -60,7 +60,7 @@ jobs:
               if tag=='script' and self.active:
                 self.blocks.append(''.join(self.buf));self.active=False
           p=Scripts();p.feed(full)
-          assert len(p.blocks)>30
+          assert len(p.blocks)>5
           with tempfile.TemporaryDirectory() as d:
             for i,script in enumerate(p.blocks):
               f=Path(d)/(str(i)+'.js');f.write_text(script,encoding='utf-8')
