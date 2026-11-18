@@ -45,8 +45,8 @@ function driveServer(){
   return server;
 }
 async function harness({id='A',initial={},server=driveServer(),remote=null,loadDrive=true,callbackQuery=''}={}){
-  const elements=new Map(),events=new Map(),timers=new Map(),intervals=[],writes=[],oauth=[];
-  let clock=0,reloads=0,authChange,options,current=id===null?null:session(id),readHook=null,writeHook=null;
+  const elements=new Map(),events=new Map(),timers=new Map(),intervals=[],writes=[],oauth=[],otpRequests=[],otpVerifications=[];
+  let clock=0,reloads=0,authChange,options,current=id===null?null:session(id),readHook=null,writeHook=null,otpUserId=id||'A';
   const remoteRows=new Map();if(remote)remoteRows.set(id,clone(remote));
   class Store{
     constructor(data={}){this.data=new Map(Object.entries(data));this.fail=null}
@@ -89,12 +89,15 @@ async function harness({id='A',initial={},server=driveServer(),remote=null,loadD
       getSession:async()=>({data:{session:clone(current)},error:null}),
       onAuthStateChange(fn){authChange=fn;return {data:{subscription:{unsubscribe(){}}}}},
       signInWithOAuth:async x=>{oauth.push(clone(x));return {error:null}},
+      signInWithOtp:async x=>{otpRequests.push(clone(x));return {error:null}},
+      verifyOtp:async x=>{otpVerifications.push(clone(x));current={user:{id:otpUserId,email:x.email}};authChange('SIGNED_IN',current);return {data:{user:current.user,session:clone(current)},error:null}},
       signOut:async()=>{current=null;authChange('SIGNED_OUT',null);return {error:null}}
     },from:query}}}
   };
   context.history={state:null,replaceState(state,title,relative){context.location.href=new URL(relative,context.location.origin).href}};
   context.window=context;vm.createContext(context);vm.runInContext(cloud,context);if(loadDrive)vm.runInContext(drive,context);await tick();
-  const h={ctx:context,bridge:context.SecondBrainCloudV52,drive:context.SecondBrainDriveV53,localStorage,sessionStorage,server,elements,writes,oauth,remoteRows,intervals,timers,
+  const h={ctx:context,bridge:context.SecondBrainCloudV52,drive:context.SecondBrainDriveV53,localStorage,sessionStorage,server,elements,writes,oauth,otpRequests,otpVerifications,remoteRows,intervals,timers,
+     setOtpUserId(value){otpUserId=value},
     get reloads(){return reloads},get authOptions(){return options},get current(){return current},
     emit(next,event='SIGNED_IN'){current=clone(next);authChange(event,current)},
     readHook(fn){readHook=fn},writeHook(fn){writeHook=fn},
@@ -123,6 +126,50 @@ async function v13DriveRoundTrip(raw){
   assert.equal(recovery.length,1,'pre-restore recovery copy exists');
   assert.match(JSON.parse(recovery[0][1]).data[key],/modified locally/);
 }
+
+test('OTP login for existing account never creates another Supabase user and keeps data intact',async()=>{
+  const initial={...fixture(),[CLOUD_META]:JSON.stringify({userId:'A',initialized:true,lastRemoteUpdatedAt:'r1'})};
+  const h=await harness({id:null,initial});
+  h.elements.get('cloudLoginEmailV53').value=' Owner@Example.Test ';
+  await h.bridge.requestEmailOtp();
+  assert.equal(h.otpRequests.length,1);
+  assert.equal(h.otpRequests[0].email,'owner@example.test');
+  assert.equal(h.otpRequests[0].options.shouldCreateUser,false);
+  assert.equal(h.otpRequests[0].options.emailRedirectTo,'https://example.test/preview/');
+  assert.equal(h.writes.length,0);
+  h.elements.get('cloudOtpCodeV53').value='123456';
+  await h.bridge.verifyEmailOtp();
+  assert.equal(h.otpVerifications.length,1);
+  assert.deepEqual(h.otpVerifications[0],{email:'owner@example.test',token:'123456',type:'email'});
+  assert.equal(h.bridge.getAccountId(),'A');
+  assert.equal(h.localStorage.getItem(DATA),initial[DATA]);
+  assert.equal(h.writes.length,0,'OTP verification must not cause initial cloud upload');
+});
+test('OTP rejects invalid email and invalid code before calling auth',async()=>{
+  const h=await harness({id:null});
+  h.elements.get('cloudLoginEmailV53').value='not-an-email';
+  await h.bridge.requestEmailOtp();
+  assert.equal(h.otpRequests.length,0);
+  h.elements.get('cloudLoginEmailV53').value='owner@example.test';
+  await h.bridge.requestEmailOtp();
+  h.elements.get('cloudOtpCodeV53').value='bad-code';
+  await h.bridge.verifyEmailOtp();
+  assert.equal(h.otpVerifications.length,0);
+  assert.equal(h.writes.length,0);
+});
+test('OTP login refuses a different Supabase user ID and does not overwrite original V13 data',async()=>{
+  const initial={...fixture(),[CLOUD_META]:JSON.stringify({userId:'original-account',initialized:true})};
+  const h=await harness({id:null,initial});
+  h.setOtpUserId('different-account');
+  h.elements.get('cloudLoginEmailV53').value='owner@example.test';
+  await h.bridge.requestEmailOtp();
+  h.elements.get('cloudOtpCodeV53').value='234567';
+  await h.bridge.verifyEmailOtp();
+  assert.equal(h.bridge.getAccountId(),null);
+  assert.equal(h.localStorage.getItem(DATA),initial[DATA]);
+  assert.equal(h.writes.length,0);
+  assert.match(h.cloudStatus(),/autre identifiant Supabase/);
+});
 test('actual V53 Drive modules preserve a V13 fixture through backup and restore',async()=>{
   await v13DriveRoundTrip(JSON.stringify({meta:{appVersion:'13.0.0',schemaVersion:13},tree:{id:'jesus',title:'Test fictif',x:3000,y:1900,children:[]},tasks:[],relations:[],memories:[],reviews:{},linkArchive:[]}));
 });
