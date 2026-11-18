@@ -47,8 +47,9 @@ jobs:
           assert "second-brain-" not in workshop,'Do not reuse existing Second Cerveau storage keys'
 
           # Recreate Pages build without mutating the source or injecting extra login.
-          html=original.replace('</body></html>',
-              '<script src="./software-engineering-entry.js" defer></script></body></html>',1)
+          head, closing, tail=original.rpartition('</body></html>')
+          assert closing, 'Missing closing body tag'
+          html=head+'<script src="./software-engineering-entry.js" defer></script>'+closing+tail
           assert html.count('<script src="./software-engineering-entry.js" defer></script>')==1
           assert 'page-map' in html and 'page-backup' in html and 'cloudSyncV52' in html
           class Extractor(HTMLParser):
