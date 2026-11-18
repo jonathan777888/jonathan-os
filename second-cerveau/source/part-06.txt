@@ -285,26 +285,78 @@
   function isSyncableKey(key){
     key=String(key||'');
     if(!key||key===META_KEY||SENSITIVE.test(key))return false;
-    return key.startsWith('second-brain-')||key.startsWith('jonathan-racines')||key.startsWith('carte-racines')||key===WORKSHOP_KEY;
+    return key.startsWith('second-brain-')||key.startsWith('jonathan-racines')||key.startsWith('carte-racines')||key===WORKSHOP_KEY||key==='spiritual-ladder-local-v1';
   }
-  // The embedded workshop runs in a separate iframe JavaScript realm. Its localStorage
-  // key is synchronized, but its changes are signalled to the parent by storage events.
-  function workshopConflict(remote){
-    const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
-    const remoteValue=remote&&remote.payload&&remote.payload[WORKSHOP_KEY];
-    if(typeof localValue!=='string'||typeof remoteValue!=='string'||localValue===remoteValue)return false;
+  // Include all functional persisted state from the source audit, not auth secrets.
+  // A compact per-key digest tracks the last synced version without duplicating
+  // the user's potentially large notes inside sync metadata.
+  function digest(v){
+    if(typeof v!=='string')return null;
+    let h=2166136261;
+    for(let i=0;i<v.length;i++){h^=v.charCodeAt(i);h=Math.imul(h,16777619)}
+    return v.length+':'+(h>>>0).toString(16);
+  }
+  function digests(payload){
+    const out={};
+    for(const [k,v] of Object.entries(payload||{})){
+      if(isSyncableKey(k)&&typeof v==='string')out[k]=digest(v);
+    }
+    return out;
+  }
+  function safePayload(payload){
+    const out={};
+    for(const [k,v] of Object.entries(payload||{})){
+      if(isSyncableKey(k)&&typeof v==='string')out[k]=v;
+    }
+    return out;
+  }
+  function reconcile(local,remote,mode){
+    // Base fingerprints distinguish changes made locally from edits on another device.
     const meta=readMeta();
-    // If the cloud still has the exact workshop last synced here, the new local
-    // progress is safe to upload. Otherwise ask the user to resolve divergence.
-    return !(meta.userId===user?.id&&meta.initialized&&
-      typeof meta.lastWorkshopSyncedValue==='string'&&
-      meta.lastWorkshopSyncedValue===remoteValue);
+    const base=meta.userId===user?.id&&meta.initialized&&meta.lastSyncedKeyDigests||null;
+    const merged={},conflicts=[],keys=new Set([...Object.keys(local),...Object.keys(remote)]);
+    for(const key of keys){
+      const lv=local[key],rv=remote[key],b=base&&base[key];
+      if(lv===rv){if(typeof lv==='string')merged[key]=lv;continue}
+      if(typeof lv!=='string'){if(typeof rv==='string')merged[key]=rv;continue}
+      if(typeof rv!=='string'){merged[key]=lv;continue}
+      if(mode==='device'){merged[key]=lv;continue}
+      if(b&&b===digest(rv)){merged[key]=lv;continue}
+      if(b&&b===digest(lv)){merged[key]=rv;continue}
+      // Historical snapshots have no per-key baselines. Never guess which one wins.
+      conflicts.push(key);
+    }
+    return {merged,conflicts};
   }
-  function workshopNeedsUpload(remote){
-    const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
-    return typeof localValue==='string'&&!(
-      remote&&remote.payload&&typeof remote.payload[WORKSHOP_KEY]==='string'
-    );
+  function archiveCurrent(reason){
+    try{
+      const key='sb-recovery-copy-'+Date.now();
+      nativeSet.call(localStorage,key,JSON.stringify({reason,createdAt:new Date().toISOString(),payload:snapshot()}));
+      const all=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith('sb-recovery-copy-'))all.push(k);
+      }
+      all.sort().slice(0,Math.max(0,all.length-4)).forEach(k=>nativeRemove.call(localStorage,k));
+    }catch(e){status('La copie de sécurité locale est indisponible : vérifie ton espace de stockage.','warn');}
+  }
+  function commitLocal(payload,baseline){
+    const prior=snapshot();
+    let changed=false;
+    applying=true;
+    try{
+      Object.entries(payload).forEach(([k,v])=>{
+        if(!isSyncableKey(k)||typeof v!=='string'||prior[k]===v)return;
+        // Never replace a note edited while the network request was running.
+        if(baseline&&prior[k]!==baseline[k])return;
+        nativeSet.call(localStorage,k,v);changed=true;
+      });
+    }finally{applying=false}
+    return changed;
+  }
+  function equalPayload(a,b){
+    const ka=Object.keys(a||{}),kb=Object.keys(b||{});
+    return ka.length===kb.length&&ka.every(k=>b[k]===a[k]);
   }
   function snapshot(){
     const out={};
@@ -343,7 +395,7 @@
     box.className='panel';
     box.innerHTML=
       '<div class="cloud-head-v52">'+
-        '<div><h3>Compte Google & synchronisation</h3><p>Connecte ton compte Google pour retrouver les mêmes données du Second Cerveau sur ordinateur, téléphone et tablette. Les codes d’accès, jetons et secrets restent uniquement sur cet appareil.</p></div>'+
+        '<div><h3>Compte & sauvegarde automatique</h3><p>Connecte-toi avec ton compte Second Cerveau pour sauvegarder les cartes, prières, projets, exercices et les autres données locales. Les mots de passe, jetons et secrets ne sont pas synchronisés.</p></div>'+
         '<span class="cloud-badge-v52" id="cloudBadgeV52">Non connecté</span>'+
       '</div>'+
       '<div class="cloud-user-v52">'+
@@ -363,7 +415,7 @@
     document.getElementById('cloudSyncNowV52').onclick=manualSync;
     document.getElementById('cloudSignOutV52').onclick=signOut;
     document.getElementById('cloudUseCloudV52').onclick=()=>pendingRemote&&applyRemote(pendingRemote);
-    document.getElementById('cloudUseDeviceV52').onclick=async()=>{pendingRemote=null;hideConflict();await pushNow('Version de cet appareil envoyée au cloud.');};
+    document.getElementById('cloudUseDeviceV52').onclick=async()=>{pendingRemote=null;hideConflict();await pushNow('Modifications de cet appareil sauvegardées.','device');};
   }
   function renderAuth(){
     const login=document.getElementById('cloudGoogleV52');
@@ -373,11 +425,11 @@
     if(!login)return;
     if(user){
       login.hidden=true;email.hidden=false;sync.hidden=false;out.hidden=false;
-      email.textContent=user.email||'Compte Google connecté';
+      email.textContent=user.email||'Compte connecté';
       status('Compte connecté. Vérification de la synchronisation…');
     }else{
       login.hidden=false;email.hidden=true;sync.hidden=true;out.hidden=true;
-      hideConflict();status('Connexion Google non activée sur cet appareil.');
+      hideConflict();status('Connecte-toi via « Mon compte » ou Google pour activer la copie cloud.');
     }
   }
   function hideConflict(){
@@ -418,105 +470,85 @@
     if(result.error)throw result.error;
     return result.data||null;
   }
-  async function pushNow(message){
+  async function pushNow(message,mode){
     if(!client||!user||syncing||pendingRemote)return;
     clearTimeout(pushTimer);
-    syncing=true;status('Envoi des données vers le cloud…');
+    syncing=true;status('Synchronisation des données…');
     try{
-      // Check before saving: never blindly overwrite another device's newer version.
       const existing=await fetchRemote();
-      const meta=readMeta();
-      if(existing&&(!meta.initialized||meta.userId!==user.id||
-         time(existing.updated_at)>time(meta.lastRemoteUpdatedAt)+500||
-         workshopConflict(existing))){
-        showConflict(existing,'Le cloud contient des données différentes. Choisis la version à conserver avant toute écriture.');
+      const local=snapshot(),remote=safePayload(existing&&existing.payload);
+      const {merged,conflicts}=reconcile(local,remote,mode);
+      if(conflicts.length){
+        showConflict(existing,'Plusieurs versions existent pour '+conflicts.length+' élément(s). Choisis la version à conserver.');
         return;
       }
-      const row={user_id:user.id,payload:snapshot(),device_label:(navigator.platform||'navigateur')+' · '+(navigator.userAgent||'').slice(0,120)};
-      const result=await client.from(TABLE).upsert(row,{onConflict:'user_id'}).select('updated_at').single();
-      if(result.error)throw result.error;
+      const meta=readMeta();
+      if(existing && meta.userId!==user.id && !mode && Object.keys(local).length && Object.keys(remote).length){
+        showConflict(existing,'Ce compte contient déjà des données. Choisis la version avant la première synchronisation.');
+        return;
+      }
+      const row={user_id:user.id,payload:merged,device_label:(navigator.platform||'navigateur')+' · '+(navigator.userAgent||'').slice(0,120)};
+      let updatedAt=existing&&existing.updated_at;
+      if(!equalPayload(remote,merged)||!existing){
+        // A conditional UPDATE prevents a competing device from silently
+        // overwriting a version saved after our read.
+        const query=existing
+          ?client.from(TABLE).update({payload:merged,device_label:row.device_label})
+             .eq('user_id',user.id).eq('updated_at',existing.updated_at).select('updated_at').maybeSingle()
+          :client.from(TABLE).insert(row).select('updated_at').maybeSingle();
+        const result=await query;
+        if(result.error)throw result.error;
+        if(!result.data){
+          showConflict(await fetchRemote(),'Une autre sauvegarde a été enregistrée entre-temps. Aucune donnée n’a été remplacée.');
+          return;
+        }
+        updatedAt=result.data.updated_at;
+      }
+      const changed=commitLocal(merged,local);
+      const after=snapshot(),newChanges=!equalPayload(after,merged);
       const now=new Date().toISOString();
-      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:result.data.updated_at,lastSyncedAt:now,lastWorkshopSyncedValue:row.payload[WORKSHOP_KEY]??null});
-      status(message||'Données synchronisées avec le cloud.','ok');
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:updatedAt,lastSyncedAt:now,
+        lastLocalChangeAt:newChanges?now:null,lastSyncedKeyDigests:digests(merged),
+        lastWorkshopSyncedValue:merged[WORKSHOP_KEY]??null});
+      pendingRemote=null;hideConflict();
+      status(message||'Sauvegarde automatique à jour ('+Object.keys(merged).length+' éléments).','ok');
+      if(changed&&!newChanges)setTimeout(()=>location.reload(),350);
+      else if(newChanges)setTimeout(()=>pushNow(),1600);
     }catch(e){
       status('Synchronisation impossible : '+(e&&e.message?e.message:String(e)),'warn');
     }finally{syncing=false}
   }
   async function applyRemote(remote){
     if(!remote||!remote.payload||!user)return;
-    applying=true;
-    try{
-      const payload=remote.payload||{};
-      // Do not erase workshop work that predates the first cloud upload.
-      const keepLocalWorkshop=workshopNeedsUpload(remote);
-      const localKeys=[];
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(isSyncableKey(k))localKeys.push(k)}
-      localKeys.forEach(k=>{if(!(k===WORKSHOP_KEY&&keepLocalWorkshop)&&!Object.prototype.hasOwnProperty.call(payload,k))nativeRemove.call(localStorage,k)});
-      Object.entries(payload).forEach(([k,v])=>{if(isSyncableKey(k)&&typeof v==='string')nativeSet.call(localStorage,k,v)});
-      const now=new Date().toISOString();
-      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:keepLocalWorkshop?now:null,lastWorkshopSyncedValue:typeof payload[WORKSHOP_KEY]==='string'?payload[WORKSHOP_KEY]:null});
-      pendingRemote=null;hideConflict();status('Données du cloud récupérées. Rechargement…','ok');
-      setTimeout(()=>location.reload(),250);
-    }catch(e){
-      status('Impossible de restaurer les données du cloud : '+(e&&e.message?e.message:String(e)),'warn');
-    }finally{applying=false}
+    if(syncing)return;
+    // Explicitly selected cloud version; preserve a local recovery copy first.
+    archiveCurrent('Avant restauration du cloud');
+    const local=snapshot(),cloud=safePayload(remote.payload);
+    // Keep data that has never existed in the remote snapshot.
+    const merged={...local,...cloud};
+    const changed=commitLocal(merged);
+    const now=new Date().toISOString();
+    const needsUpload=Object.keys(local).some(k=>!(k in cloud));
+    writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,
+      lastSyncedAt:now,lastLocalChangeAt:needsUpload?now:null,
+      lastSyncedKeyDigests:digests(cloud),lastWorkshopSyncedValue:cloud[WORKSHOP_KEY]??null});
+    pendingRemote=null;hideConflict();
+    status('Restauration effectuée. Les données locales absentes du cloud sont conservées.','ok');
+    if(changed)setTimeout(()=>location.reload(),350);
+    else if(needsUpload)setTimeout(()=>pushNow(),300);
   }
   async function initialSync(){
     if(!user)return;
-    try{
-      const remote=await fetchRemote();
-      const meta=readMeta();
-      if(!remote){await pushNow('Première sauvegarde cloud créée.');return}
-      if(meta.userId!==user.id||!meta.initialized){
-        showConflict(remote,'Ce compte possède déjà des données dans le cloud. Choisis la version à conserver avant la première synchronisation sur cet appareil.');
-        return;
-      }
-      if(workshopConflict(remote)){
-        showConflict(remote,'Les exercices de génie logiciel diffèrent entre le cloud et cet appareil. Aucune version ne sera écrasée automatiquement.');
-        return;
-      }
-      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
-        if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
-        else await applyRemote(remote);
-        return;
-      }
-      if(localDirty(meta)||workshopNeedsUpload(remote))await pushNow();
-      else status('Tout est à jour.','ok');
-    }catch(e){
-      status('Vérification du cloud impossible : '+(e&&e.message?e.message:String(e)),'warn');
-    }
+    await pushNow();
   }
   async function manualSync(){
-    if(!user){await signIn();return}
-    if(pendingRemote){status('Choisis d’abord quelle version tu veux conserver.','warn');return}
-    try{
-      const remote=await fetchRemote(),meta=readMeta();
-      if(!remote){await pushNow();return}
-      if(workshopConflict(remote)){
-        showConflict(remote,'Les exercices de génie logiciel diffèrent entre le cloud et cet appareil. Choisis la version à conserver.');
-        return;
-      }
-      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
-        if(localDirty(meta))showConflict(remote,'Le cloud et cet appareil ont tous les deux été modifiés.');
-        else await applyRemote(remote);
-      }else await pushNow();
-    }catch(e){status('Synchronisation impossible : '+(e&&e.message?e.message:String(e)),'warn')}
+    if(!user){status('Connecte-toi avec « Mon compte » pour activer la sauvegarde.','warn');return}
+    if(pendingRemote){status('Choisis d’abord la version à conserver.','warn');return}
+    await pushNow();
   }
   async function checkRemote(){
     if(!user||syncing||pendingRemote||document.hidden)return;
-    try{
-      const remote=await fetchRemote();
-      if(!remote){if(localDirty())await pushNow();return}
-      const meta=readMeta();
-      if(workshopConflict(remote)){
-        showConflict(remote,'Les exercices de génie logiciel ont changé sur un autre appareil. Choisis la version à conserver.');
-        return;
-      }
-      if(time(remote.updated_at)>time(meta.lastRemoteUpdatedAt)+500){
-        if(localDirty(meta))showConflict(remote,'De nouvelles données existent dans le cloud et cet appareil contient aussi des changements.');
-        else await applyRemote(remote);
-      }else if(localDirty(meta)||workshopNeedsUpload(remote))await pushNow();
-    }catch(e){}
+    await pushNow();
   }
   function markDirty(){
     writeMeta({userId:user?user.id:readMeta().userId||null,lastLocalChangeAt:new Date().toISOString()});

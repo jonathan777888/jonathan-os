@@ -34,8 +34,8 @@ jobs:
             'iframe autosave listener':"e.key===WORKSHOP_KEY" in source,
             'online retry':"window.addEventListener('online'" in source,
             'remote fetch before save':"const existing=await fetchRemote()" in source,
-            'cloud conflict dialog':"workshopConflict(existing)" in source,
-            'local work kept on missing remote':"const keepLocalWorkshop=workshopNeedsUpload(remote)" in source,
+            'cloud conflict dialog':"showConflict(existing" in source,
+            'local work kept on missing remote':"const merged={...local,...cloud}" in source,
             'same workshop key in HTML':"second-cerveau-genie-logiciel-v1" in workshop,
             'no additional third party auth':"signInWithOtp" not in source,
             'original Google auth retained':"signInWithOAuth" in source
