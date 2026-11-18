@@ -6,7 +6,7 @@
   const ROOT = 'https://jonathan777888.github.io/jonathan-os/';
   const API_URL = 'https://wuhbalxjpcfemsxdnggp.supabase.co';
   const API_KEY = 'sb_publishable_mPFAK_h6L8JjUQRuVx5RVg_odLPQNRn';
-  const CALLBACK = new URL('./compte.html', ROOT).href;
+  const CALLBACK = ROOT; // Use the already configured Second Cerveau Site URL.
   let client = null, busy = false, currentEmail = '', subscription = null;
   const el = id => document.getElementById(id);
   const escapeText = str => String(str || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
