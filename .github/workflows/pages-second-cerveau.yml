@@ -59,7 +59,7 @@ jobs:
           assert closing, 'Missing closing body tag'
           html=head+script+closing+tail
           homepage.write_text(html)
-          assert 'Génie logiciel' in Path('public/atelier-genie-logiciel.html').read_text()
+          assert 'Missions & exercices' in Path('public/atelier-genie-logiciel.html').read_text()
           PY
           node --check public/software-engineering-entry.js
           grep -Fq 'software-engineering-entry.js' public/index.html
