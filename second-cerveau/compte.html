@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Connexion par e-mail avec lien magique à Second Cerveau OS.">
+<title>Mon compte · Second Cerveau OS</title>
+<link rel="stylesheet" href="./email-auth.css">
+<script src="./email-auth.js" defer></script>
+</head>
+<body class="sb-email-standalone">
+<div class="sb-email-page-container">
+<main class="sb-email-shell" id="sbEmailAccount">
+  <header class="sb-email-hero">
+    <div>
+      <div class="sb-email-logo">SECOND CERVEAU OS</div>
+      <h1>Mon compte</h1>
+      <p>Un espace pour retrouver tes projets et conserver progressivement tes progrès. La connexion est facultative : tes notes locales restent disponibles.</p>
+    </div>
+  </header>
+  <div class="sb-email-content">
+    <div id="sbEmailStatus" role="status" aria-live="polite" class="sb-email-status">Vérification de ta session…</div>
+    <section id="sbEmailGuest">
+      <h3>Se connecter avec mon e-mail</h3>
+      <p>Entre ton adresse. Nous t’enverrons un lien sécurisé, sans mot de passe. Si c’est ta première connexion, Supabase pourra créer ton compte après confirmation.</p>
+      <form id="sbEmailForm" class="sb-email-form">
+        <div>
+          <label for="sbEmailInput">Adresse e-mail</label>
+          <input id="sbEmailInput" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="ton.adresse@exemple.com">
+        </div>
+        <div class="sb-email-actions"><button id="sbEmailSend" type="submit" class="sb-email-button" disabled>Recevoir mon lien de connexion</button></div>
+      </form>
+      <div class="sb-email-otp" id="sbEmailOtp" hidden>
+        <p>Si ton e-mail contient un code numérique plutôt qu’un lien, saisis-le ici.</p>
+        <form id="sbEmailOtpForm">
+          <label for="sbEmailCode">Code de connexion</label>
+          <input id="sbEmailCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" maxlength="8" placeholder="123456">
+          <button id="sbEmailVerify" type="submit" class="sb-email-button secondary" disabled>Vérifier le code</button>
+        </form>
+      </div>
+    </section>
+    <section id="sbEmailLogged" hidden>
+      <div class="sb-email-signedin">
+        <span class="sb-email-connected">✓ Connecté</span>
+        <strong class="sb-email-account" id="sbEmailIdentity"></strong>
+        <button class="sb-email-button secondary" id="sbEmailSignOut" type="button" disabled>Se déconnecter de cet appareil</button>
+      </div>
+      <p>Ton compte est actif. Les sauvegardes cloud de Second Cerveau restent soumises à leur propre configuration et à ta confirmation.</p>
+    </section>
+    <div class="sb-email-warning">
+      <strong>Pour protéger tes notes :</strong> utilise la même adresse e-mail sur tes appareils et exporte une sauvegarde JSON avant ta première connexion. Une nouvelle identité Supabase peut avoir un espace cloud distinct de ton ancien compte Google. La connexion ne doit pas remplacer automatiquement tes données locales.
+    </div>
+    <div class="sb-email-path">
+      <a href="./">← Revenir à Second Cerveau</a>
+      <a href="./atelier-genie-logiciel.html">Atelier Génie logiciel & DevOps</a>
+    </div>
+  </div>
+</main>
+</div>
+</body>
+</html>

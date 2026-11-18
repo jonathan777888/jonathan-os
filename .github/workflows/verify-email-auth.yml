@@ -1,0 +1,68 @@
+name: Verify Second Cerveau Email Magic Link
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'second-cerveau/compte.html'
+      - 'second-cerveau/email-auth.css'
+      - 'second-cerveau/email-auth.js'
+      - 'second-cerveau/email-auth-entry.js'
+      - '.github/workflows/pages-second-cerveau.yml'
+      - '.github/workflows/verify-email-auth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate email auth scripts and login page
+        run: |
+          set -eu
+          node --check second-cerveau/email-auth.js
+          node --check second-cerveau/email-auth-entry.js
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          root=Path('second-cerveau')
+          html=(root/'compte.html').read_text()
+          module=(root/'email-auth.js').read_text()
+          tab=(root/'email-auth-entry.js').read_text()
+          workflow=Path('.github/workflows/pages-second-cerveau.yml').read_text()
+          class Check(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=set();self.scripts=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if 'id' in a:self.ids.add(a['id'])
+                  if tag=='script': self.scripts.append(a)
+          p=Check();p.feed(html)
+          needed={'sbEmailForm','sbEmailInput','sbEmailSend','sbEmailStatus','sbEmailOtp','sbEmailCode','sbEmailVerify','sbEmailSignOut','sbEmailGuest','sbEmailLogged'}
+          assert needed<=p.ids,needed-p.ids
+          assert 'email-auth.js' in html and 'email-auth.css' in html
+          assert 'signInWithOtp' in module and 'shouldCreateUser: true' in module
+          assert 'emailRedirectTo: CALLBACK' in module
+          assert "const CALLBACK = ROOT;" in module
+          assert "auth.signOut({scope:'local'})" in module
+          assert 'service_role' not in module and 'sb_secret_' not in module
+          assert 'localStorage.setItem' not in module
+          assert "getElementById('page-email-account')" in tab
+          assert "page-email-account" in tab
+          assert "allow-top-navigation-by-user-activation" in tab
+          assert 'cloudSyncV52' in ''.join(p.read_text() for p in sorted((root/'source').glob('part-*.txt')))
+          for filename in ('email-auth.js','email-auth.css','email-auth-entry.js','compte.html'):
+              assert ("cp second-cerveau/"+filename+" public/"+filename) in workflow,filename
+          assert 'email-auth-entry.js' in workflow
+          print('Email auth add-on validation passed: existing application and storage code remain untouched')
+          PY
+
+      - name: Check build references
+        run: |
+          grep -Fq 'script=' .github/workflows/pages-second-cerveau.yml
+          grep -Fq 'email-auth-entry.js' .github/workflows/pages-second-cerveau.yml
+          grep -Fq 'node --check public/email-auth.js' .github/workflows/pages-second-cerveau.yml
