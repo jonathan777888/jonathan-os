@@ -55,7 +55,9 @@ jobs:
           assert '</body></html>' in html
           script='<script src="./software-engineering-entry.js" defer></script>'
           assert script not in html
-          html=html.replace('</body></html>',script+'</body></html>',1)
+          head, closing, tail=html.rpartition('</body></html>')
+          assert closing, 'Missing closing body tag'
+          html=head+script+closing+tail
           homepage.write_text(html)
           assert 'Génie logiciel' in Path('public/atelier-genie-logiciel.html').read_text()
           PY
