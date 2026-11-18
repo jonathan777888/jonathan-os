@@ -292,7 +292,13 @@
   function workshopConflict(remote){
     const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
     const remoteValue=remote&&remote.payload&&remote.payload[WORKSHOP_KEY];
-    return typeof localValue==='string'&&typeof remoteValue==='string'&&localValue!==remoteValue;
+    if(typeof localValue!=='string'||typeof remoteValue!=='string'||localValue===remoteValue)return false;
+    const meta=readMeta();
+    // If the cloud still has the exact workshop last synced here, the new local
+    // progress is safe to upload. Otherwise ask the user to resolve divergence.
+    return !(meta.userId===user?.id&&meta.initialized&&
+      typeof meta.lastWorkshopSyncedValue==='string'&&
+      meta.lastWorkshopSyncedValue===remoteValue);
   }
   function workshopNeedsUpload(remote){
     const localValue=nativeGet.call(localStorage,WORKSHOP_KEY);
@@ -430,7 +436,7 @@
       const result=await client.from(TABLE).upsert(row,{onConflict:'user_id'}).select('updated_at').single();
       if(result.error)throw result.error;
       const now=new Date().toISOString();
-      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:result.data.updated_at,lastSyncedAt:now});
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:result.data.updated_at,lastSyncedAt:now,lastWorkshopSyncedValue:row.payload[WORKSHOP_KEY]??null});
       status(message||'Données synchronisées avec le cloud.','ok');
     }catch(e){
       status('Synchronisation impossible : '+(e&&e.message?e.message:String(e)),'warn');
@@ -448,7 +454,7 @@
       localKeys.forEach(k=>{if(!(k===WORKSHOP_KEY&&keepLocalWorkshop)&&!Object.prototype.hasOwnProperty.call(payload,k))nativeRemove.call(localStorage,k)});
       Object.entries(payload).forEach(([k,v])=>{if(isSyncableKey(k)&&typeof v==='string')nativeSet.call(localStorage,k,v)});
       const now=new Date().toISOString();
-      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:keepLocalWorkshop?now:null});
+      writeMeta({userId:user.id,initialized:true,lastRemoteUpdatedAt:remote.updated_at,lastSyncedAt:now,lastLocalChangeAt:keepLocalWorkshop?now:null,lastWorkshopSyncedValue:typeof payload[WORKSHOP_KEY]==='string'?payload[WORKSHOP_KEY]:null});
       pendingRemote=null;hideConflict();status('Données du cloud récupérées. Rechargement…','ok');
       setTimeout(()=>location.reload(),250);
     }catch(e){
