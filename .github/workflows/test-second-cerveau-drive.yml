@@ -23,3 +23,11 @@ jobs:
         run: node --test second-cerveau/tests/*.test.cjs
       - name: Build the complete Pages artifact and validate inline scripts
         run: python3 second-cerveau/tests/check_build.py
+      - name: Build staging preview bundle
+        run: node second-cerveau/build_site.cjs /tmp/second-cerveau-v53-staging
+      - name: Upload preview bundle for protected staging
+        uses: actions/upload-artifact@v4
+        with:
+          name: second-cerveau-v53-otp-staging
+          path: /tmp/second-cerveau-v53-staging/
+          retention-days: 3
