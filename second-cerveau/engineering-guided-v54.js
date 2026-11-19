@@ -109,6 +109,13 @@ const css=document.createElement('style');css.textContent=`
   #sg-v54 .sg-eli-stage{width:124px;height:124px;flex:0 0 124px}
   #sg-v54 .sg-face{width:124px!important;height:124px!important}
 }
+
+#sg-v54 .sg-legacy-recovery{margin-top:22px;padding:16px;border-radius:15px;border:1px solid #cda981;background:rgba(253,242,225,.95);color:#4d3829}
+#sg-v54 .sg-legacy-recovery h2{font-size:18px;margin:0 0 7px;color:#5c4130}
+#sg-v54 .sg-legacy-recovery p{font-size:13px;line-height:1.6;margin:4px 0 12px}
+#sg-v54 .sg-legacy-recovery button{display:inline-flex;margin:5px 7px 5px 0;font-size:12px}
+#sg-v54 .sg-legacy-names{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+#sg-v54 .sg-legacy-name{font-size:12px;padding:3px 8px;border:1px solid #d7bfa5;background:#fff9ef;border-radius:99px}
 `;document.head.append(css);
 const overlay=document.createElement('div');overlay.id='sg-v54';overlay.innerHTML='<div class="sg-wrap"><div class="sg-head"><div><strong>Second Cerveau · Génie logiciel & DevOps</strong><div class="sg-sub">Un projet · Une étape visible à la fois</div></div><button type="button" id="sg-old">Atelier avancé ↗</button></div><div id="sg-content"></div><div class="sg-sub" style="margin-top:18px">Les données de ton ancien atelier restent intactes. Parcours sauvegardé localement et inclus dans la synchronisation Second Cerveau lorsque celle-ci fonctionne.</div></div>';
 document.body.append(overlay);
@@ -165,6 +172,61 @@ function animateEli(time){
   window.requestAnimationFrame(animateEli);
 }
 window.requestAnimationFrame(animateEli);
+
+// L'atelier historique utilise une clé différente : ne jamais écraser son contenu.
+const LEGACY_KEY='second-cerveau-genie-logiciel-v1';
+function legacyRead(){
+  let source;try{source=localStorage.getItem(LEGACY_KEY)}catch{return {error:'Le stockage local est inaccessible.'}}
+  if(!source)return null;
+  try{
+    const val=JSON.parse(source);
+    if(!val||typeof val!=='object'||!Array.isArray(val.projects))return {error:'La sauvegarde de l’ancien atelier ne peut pas être affichée automatiquement.'};
+    return {
+      projectCount:val.projects.length,
+      noteCount:Array.isArray(val.notes)?val.notes.length:0,
+      taskCount:Array.isArray(val.tasks)?val.tasks.length:0,
+      names:val.projects.slice(0,12).map(p=>String(p?.name||'Projet sans nom').slice(0,120))
+    };
+  }catch{return {error:'La sauvegarde locale de l’ancien atelier est illisible. Ne la supprime pas.'}}
+}
+function exportEngineeringData(){
+  const bundle={kind:'second-cerveau-engineering-safety-export',exportedAt:new Date().toISOString(),origin:location.origin,keys:{}};
+  for(const key of [KEY,LEGACY_KEY]){
+    try{bundle.keys[key]=localStorage.getItem(key)}catch{bundle.keys[key]=null}
+  }
+  try{
+    const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='second-cerveau-sauvegarde-genie-logiciel-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.append(a);a.click();a.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }catch{alert('Export impossible sur cet appareil. Essaie depuis ton PC.')}
+}
+function appendLegacyRecovery(card){
+  const legacy=legacyRead();
+  const pane=el('div',null,'sg-legacy-recovery');
+  const heading=el('h2',null);
+  heading.textContent=legacy?'Retrouver mes anciens travaux':'Où sont mes anciens projets ?';
+  pane.append(heading);
+  if(legacy&&!legacy.error){
+    pane.append(el('p','Un ancien atelier est enregistré dans ce navigateur : '+legacy.projectCount+' projet(s), '+legacy.noteCount+' note(s) et '+legacy.taskCount+' tâche(s). Ces données ne sont pas remplacées.'));
+    const names=el('div',null,'sg-legacy-names');
+    for(const name of legacy.names)names.append(el('span',name,'sg-legacy-name'));
+    pane.append(names);
+    pane.append(btn('Ouvrir mes anciens projets',()=>{
+      show(false);
+      const projectsBtn=document.querySelector('#sideNav [data-nav="projects"]');
+      if(projectsBtn)projectsBtn.click();
+    },'sg-main'));
+  }else{
+    pane.append(el('p',legacy?.error||'Ce navigateur ne contient pas de sauvegarde de l’ancien atelier. Si tu as écrit sur un autre appareil, retrouve le navigateur et le site d’origine.'));
+    pane.append(btn('Ouvrir l’ancien atelier',()=>show(false)));
+  }
+  pane.append(btn('Exporter une copie de sécurité des deux espaces',exportEngineeringData));
+  card.append(pane);
+}
 const fresh=()=>({version:1,projects:[],activeId:null});
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&Array.isArray(x.projects)?x:fresh()}catch{return fresh()}}
 const state=load();
@@ -179,6 +241,7 @@ card.append(el('label','Nom du projet'));const input=el('input');input.maxLength
 card.append(el('label','Catégorie'));const type=el('select');['Application web','API / serveur','Automatisation DevOps','Autre logiciel'].forEach(t=>{const o=el('option',t);o.value=t;type.append(o)});card.append(type);
 const action=el('div',null,'sg-actions');action.append(btn('Commencer →',()=>{const name=input.value.trim();if(!name){input.focus();return}const p={id:'project-'+Date.now(),name:name.slice(0,150),type:type.value,index:0,steps:{},createdAt:new Date().toISOString()};state.projects.push(p);state.activeId=p.id;if(!save())return alert('Sauvegarde impossible : vérifie le stockage local.');render()},'sg-main'));card.append(action);
 if(state.projects.length){card.append(el('h2','Projets existants'));state.projects.slice().reverse().forEach(p=>{const row=el('div',null,'sg-project');row.append(el('span',p.name),btn('Reprendre',()=>{state.activeId=p.id;save();render()}));card.append(row)})}
+appendLegacyRecovery(card);
 root.append(card);
 }
 function render(){
