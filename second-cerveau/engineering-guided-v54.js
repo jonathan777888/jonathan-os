@@ -98,6 +98,17 @@ const css=document.createElement('style');css.textContent=`
 @media(prefers-reduced-motion:reduce){
   #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card{animation:none!important} #sg-v54 .sg-face{animation:eli-full-motion 2.4s ease-in-out infinite!important}
 }
+
+/* Strong independent animation: JS transforms the entire Eli stage. */
+#sg-v54 .sg-eli{overflow:visible;min-height:200px}
+#sg-v54 .sg-eli-stage{display:block;position:relative;width:180px;height:180px;flex:0 0 180px;transform-origin:50% 85%;will-change:transform;pointer-events:none}
+#sg-v54 .sg-face{width:180px!important;height:180px!important;max-width:none!important;display:block;object-fit:contain;border-radius:16px;animation:none!important;transform:none!important;filter:drop-shadow(0 8px 6px rgba(120,84,51,.2))}
+#sg-v54 .sg-eli:hover .sg-face{animation:none!important;transform:none!important}
+@media(max-width:600px){
+  #sg-v54 .sg-eli{min-height:150px}
+  #sg-v54 .sg-eli-stage{width:124px;height:124px;flex:0 0 124px}
+  #sg-v54 .sg-face{width:124px!important;height:124px!important}
+}
 `;document.head.append(css);
 const overlay=document.createElement('div');overlay.id='sg-v54';overlay.innerHTML='<div class="sg-wrap"><div class="sg-head"><div><strong>Second Cerveau · Génie logiciel & DevOps</strong><div class="sg-sub">Un projet · Une étape visible à la fois</div></div><button type="button" id="sg-old">Atelier avancé ↗</button></div><div id="sg-content"></div><div class="sg-sub" style="margin-top:18px">Les données de ton ancien atelier restent intactes. Parcours sauvegardé localement et inclus dans la synchronisation Second Cerveau lorsque celle-ci fonctionne.</div></div>';
 document.body.append(overlay);
@@ -116,22 +127,44 @@ const root=overlay.querySelector('#sg-content');
 const el=(tag,text,cls)=>{const a=document.createElement(tag);if(text!==null)a.textContent=text;if(cls)a.className=cls;return a};
 const btn=(label,fn,cls)=>{const a=el('button',label,cls);a.type='button';a.onclick=fn;return a};
 // Real animated character: separate authentic expressions, switched by JavaScript.
+
 const ELI_STILLS=['./eli-neutre-v3.svg','./eli-sourire-v3.svg'];
-ELI_STILLS.forEach(src=>{const image=new Image();image.src=src});
-function eliPortrait(){const img=el('img',null,'sg-face');img.src=ELI_STILLS[0];img.alt='Eli, personnage anime qui bouge et sourit';img.loading='eager';img.width=118;img.height=118;return img}
-let eliTick=0;
-// The character changes expression even if browser-displayed SVG animation is disabled.
-window.setInterval(()=>{
- if(overlay.hidden||document.hidden)return;
- eliTick=(eliTick+1)%16;
- const expression=(eliTick>=9&&eliTick<=12)?1:0;
- for(const image of overlay.querySelectorAll('img.sg-face')){
-   if(image.dataset.expression!==String(expression)){
-     image.dataset.expression=String(expression);
-     image.src=ELI_STILLS[expression];
-   }
- }
-},340);
+ELI_STILLS.forEach(src=>{const preload=new Image();preload.src=src});
+function eliPortrait(){
+  const stage=el('span',null,'sg-eli-stage');
+  const image=el('img',null,'sg-face');
+  image.src=ELI_STILLS[0];
+  image.dataset.expression='0';
+  image.alt='Eli, mascotte animée aux expressions changeantes';
+  image.width=180;
+  image.height=180;
+  image.loading='eager';
+  stage.append(image);
+  return stage;
+}
+// Move the CHARACTER, not the scenery. JS updates a separate stage,
+// avoiding browser differences for animations inside SVG <img>.
+function animateEli(time){
+  if(!overlay.hidden){
+    const seconds=time/1000;
+    const expression=(seconds%6.4>3.8&&seconds%6.4<5.5)?1:0;
+    for(const stage of overlay.querySelectorAll('.sg-eli-stage')){
+      const img=stage.querySelector('img.sg-face');
+      if(!img)continue;
+      const x=Math.sin(seconds*1.4)*16;
+      const y=-22*Math.abs(Math.sin(seconds*1.75));
+      const turn=Math.sin(seconds*1.2)*8;
+      const zoom=1+0.055*Math.abs(Math.sin(seconds*1.75));
+      stage.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) rotate('+turn.toFixed(1)+'deg) scale('+zoom.toFixed(3)+')';
+      if(img.dataset.expression!==String(expression)){
+        img.dataset.expression=String(expression);
+        img.src=ELI_STILLS[expression];
+      }
+    }
+  }
+  window.requestAnimationFrame(animateEli);
+}
+window.requestAnimationFrame(animateEli);
 const fresh=()=>({version:1,projects:[],activeId:null});
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&Array.isArray(x.projects)?x:fresh()}catch{return fresh()}}
 const state=load();
