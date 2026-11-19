@@ -54,6 +54,11 @@ jobs:
           grep -Fq 'Colossiens 3:23' public/engineering-guided-v54.js
           grep -Fq 'Pour t’encourager' public/engineering-guided-v54.js
           grep -Fq 'engineering-guided-v54.js' public/atelier-genie-logiciel.html
+          test -s public/eli-coding-coach-v55.js
+          node --check public/eli-coding-coach-v55.js
+          grep -Fq 'eli-coding-coach-v55.js' public/atelier-genie-logiciel.html
+          grep -Fq 'Coder avec Eli' public/eli-coding-coach-v55.js
+          grep -Fq 'Tester ma mission' public/eli-coding-coach-v55.js
           grep -Fq 'second-brain-engineering-guided-v54' public/engineering-guided-v54.js
           grep -Fq 'Retrouver mes anciens travaux' public/engineering-guided-v54.js
           grep -Fq 'second-cerveau-genie-logiciel-v1' public/engineering-guided-v54.js
