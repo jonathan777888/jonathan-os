@@ -59,6 +59,9 @@ jobs:
           test -s public/software-engineering-entry.js
           grep -Fq 'software-engineering-entry.js' public/index.html
           grep -Fq 'Génie logiciel & DevOps' public/software-engineering-entry.js
+          grep -Fq 'Atelier animé' public/software-engineering-entry.js
+          grep -Fq 'openFromHash' public/software-engineering-entry.js
+          grep -Fq 'sb-lab-frame' public/software-engineering-entry.js
           grep -Fq 'Second Cerveau OS · Atelier actif Software Engineering & DevOps' public/atelier-genie-logiciel.html
           grep -q 'Second Cerveau IA — V43' public/index.html
           grep -q 'sbDrivePanelV53' public/index.html
