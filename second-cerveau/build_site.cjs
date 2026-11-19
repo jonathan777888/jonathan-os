@@ -47,6 +47,6 @@ const atelierPath=path.join(out,'atelier-genie-logiciel.html');
 let atelierHtml=fs.readFileSync(atelierPath,'utf8');
 const atelierClose=atelierHtml.lastIndexOf('</body>');
 if(atelierClose<0)throw Error('Engineering atelier lacks closing body');
-atelierHtml=atelierHtml.slice(0,atelierClose)+'<script src="./engineering-guided-v54.js" defer></script>'+atelierHtml.slice(atelierClose);
+atelierHtml=atelierHtml.slice(0,atelierClose)+'<script src="./engineering-guided-v54.js?v=eli-motion-20261119" defer></script>'+atelierHtml.slice(atelierClose);
 fs.writeFileSync(atelierPath,atelierHtml);
 console.log('Built Second Cerveau V53:',parts.length,'parts,',html.length,'bytes');
