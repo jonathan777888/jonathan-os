@@ -12,6 +12,9 @@ const phases=[
 ['Déploiement (CD)','Publie ton logiciel et vérifie la version déployée.','Où ton application est-elle publiée et comment l’as-tu testée ?','J’ai vérifié la version déployée.'],
 ['Maintenance et amélioration','Surveille les erreurs et définis la prochaine itération.','Comment détecteras-tu les incidents et quelle amélioration réaliseras-tu ?','Je dispose d’un plan d’amélioration.']
 ];
+const encouragements = [["Jacques 1:5","Quand tu as besoin de sagesse, tu peux la demander à Dieu."],["Proverbes 16:3","Confie ton travail à Jéhovah tout en faisant ta part avec soin."],["Luc 14:28","Avant de construire, prends le temps de prévoir ce qui sera nécessaire."],["Psaume 121:2","Ton secours vient de Jéhovah, le Créateur du ciel et de la terre."],["Philippiens 4:13","Tu peux trouver de la force grâce à celui qui te fortifie."],["Proverbes 24:16","Une difficulté ou une chute n’oblige pas à abandonner : relève-toi."],["1 Corinthiens 14:40","L’ordre et une bonne méthode t’aident à avancer avec clarté."],["Galates 6:9","Ne te lasse pas de faire ce qui est bien, même quand le progrès est lent."],["Colossiens 3:23","Travaille de tout cœur pour Jéhovah, et non pour rechercher la gloire des hommes."]];
+// Courtes reformulations du sens des versets, et non des citations d'une traduction particulière.
+function verse(ref,thought){const aside=document.createElement('aside');aside.className='sg-verse';aside.setAttribute('aria-label','Encouragement biblique');const label=document.createElement('strong');label.textContent='Pour t’encourager · '+ref;const p=document.createElement('p');p.textContent=thought;aside.append(label,p);return aside}
 const css=document.createElement('style');css.textContent=`
 #sg-v54{position:fixed;inset:0;z-index:100000;background:#0a1222;color:#eff4ff;font:15px/1.55 system-ui,sans-serif;overflow:auto}
 #sg-v54[hidden]{display:none!important}#sg-v54 *{box-sizing:border-box}
@@ -27,6 +30,7 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 label{display:block;font-weight:700;margin:18px 0 6px}
 #sg-v54 input,#sg-v54 textarea,#sg-v54 select{width:100%;background:#0d1a30;color:#fff;border:1px solid #4c6081;border-radius:10px;padding:11px;font:14px system-ui}
 #sg-v54 textarea{min-height:145px;resize:vertical}
+#sg-v54 .sg-verse{margin:16px 0;padding:13px 16px;border-left:3px solid #bdb9f0;border-radius:10px;background:#17243d;color:#dce8fa}.sg-verse strong{display:block;font-size:12px;color:#c7c5fa;font-weight:800}.sg-verse p{font-size:14px;line-height:1.5;margin:6px 0 0}
 #sg-v54 .sg-eli{padding:14px;margin:18px 0;background:#1d3855;border:1px solid #537d9c;border-radius:13px;display:flex;gap:12px}
 #sg-v54 .sg-face{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:#4a668a;display:grid;place-items:center;font-weight:850}
 #sg-v54 .sg-progress{height:8px;background:#273751;border-radius:20px;overflow:hidden;margin:9px 0 17px}
@@ -53,7 +57,7 @@ function show(on){overlay.hidden=!on;toggle.hidden=on}
 function start(){
 root.replaceChildren();
 const card=el('section',null,'sg-card');card.append(el('div','NOUVEAU PROJET','sg-sub'),el('h1','Quel projet souhaites-tu réaliser ?'));
-const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli);
+const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli,verse('Proverbes 3:5-6','Fais confiance à Jéhovah et recherche sa direction pendant que tu prépares ton projet.'));
 card.append(el('label','Nom du projet'));const input=el('input');input.maxLength=150;input.placeholder='Ex. Gestionnaire de parcelles';card.append(input);
 card.append(el('label','Catégorie'));const type=el('select');['Application web','API / serveur','Automatisation DevOps','Autre logiciel'].forEach(t=>{const o=el('option',t);o.value=t;type.append(o)});card.append(type);
 const action=el('div',null,'sg-actions');action.append(btn('Commencer →',()=>{const name=input.value.trim();if(!name){input.focus();return}const p={id:'project-'+Date.now(),name:name.slice(0,150),type:type.value,index:0,steps:{},createdAt:new Date().toISOString()};state.projects.push(p);state.activeId=p.id;if(!save())return alert('Sauvegarde impossible : vérifie le stockage local.');render()},'sg-main'));card.append(action);
@@ -67,7 +71,7 @@ const head=el('div',null,'sg-switch');head.append(el('span',p.name,'sg-sub'),btn
 root.append(el('div','Étape '+(i+1)+'/9 — '+phase[0],'sg-sub'));
 const progress=el('div',null,'sg-progress'),fill=el('div');fill.style.width=(100*i/9)+'%';progress.append(fill);root.append(progress);
 const card=el('section',null,'sg-card');card.append(el('h1',phase[0]));
-const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · '+phase[1]));card.append(eli);
+const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · '+phase[1]));card.append(eli,verse(encouragements[i][0],encouragements[i][1]));
 card.append(el('label',phase[2]));const txt=el('textarea');txt.value=record.answer||'';txt.placeholder='Décris les actions effectuées et leurs résultats…';card.append(txt);
 const check=el('label',null,'sg-confirm'),cb=el('input');cb.type='checkbox';cb.checked=!!record.checked;check.append(cb,el('span',phase[3]));card.append(check);
 const status=el('div','Sauvegarde automatique locale.','sg-save');card.append(status);
@@ -77,7 +81,7 @@ next.disabled=!record.answer.trim()||!record.checked;actions.append(next);card.a
 function store(){record.answer=txt.value.slice(0,15000);record.checked=cb.checked;p.updatedAt=new Date().toISOString();const ok=save();status.textContent=ok?'Réponse enregistrée sur cet appareil.':'Erreur de sauvegarde : exporte tes données avant de continuer.';next.disabled=!record.answer.trim()||!record.checked;}
 txt.oninput=store;cb.onchange=store;root.append(card);
 }
-function finish(p){root.replaceChildren();const card=el('section',null,'sg-card');card.append(el('h1','Projet terminé !'),el('p','Tu as documenté les 9 étapes pour « '+p.name+' ». Vérifie que les livrables et les tests existent réellement.'));card.append(btn('Revoir les étapes',()=>{p.index=0;save();render()},'sg-main'));root.append(card)}
+function finish(p){root.replaceChildren();const card=el('section',null,'sg-card');card.append(el('h1','Projet terminé !'),el('p','Tu as documenté les 9 étapes pour « '+p.name+' ». Vérifie que les livrables et les tests existent réellement.'));card.append(verse('Psaume 37:5','Continue de confier ta voie à Jéhovah, avec confiance, pour la suite du projet.'));card.append(btn('Revoir les étapes',()=>{p.index=0;save();render()},'sg-main'));root.append(card)}
 overlay.querySelector('#sg-old').onclick=()=>show(false);
 toggle.onclick=()=>{show(true);render()};
 show(true);render();
