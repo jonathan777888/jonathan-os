@@ -55,6 +55,8 @@ jobs:
           grep -Fq 'Pour t’encourager' public/engineering-guided-v54.js
           grep -Fq 'engineering-guided-v54.js' public/atelier-genie-logiciel.html
           grep -Fq 'second-brain-engineering-guided-v54' public/engineering-guided-v54.js
+          grep -Fq 'Retrouver mes anciens travaux' public/engineering-guided-v54.js
+          grep -Fq 'second-cerveau-genie-logiciel-v1' public/engineering-guided-v54.js
           test -s public/atelier-genie-logiciel.html
           test -s public/software-engineering-entry.js
           grep -Fq 'software-engineering-entry.js' public/index.html
