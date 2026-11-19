@@ -32,6 +32,11 @@ jobs:
       - name: Build Second Cerveau V48 and check compatibility
         run: |
           node second-cerveau/build_site.cjs public
+          test -s public/atelier-genie-logiciel.html
+          test -s public/software-engineering-entry.js
+          grep -Fq 'software-engineering-entry.js' public/index.html
+          grep -Fq 'Génie logiciel & DevOps' public/software-engineering-entry.js
+          grep -Fq 'Second Cerveau OS · Atelier actif Software Engineering & DevOps' public/atelier-genie-logiciel.html
           grep -q 'Second Cerveau IA — V43' public/index.html
           grep -q 'sbDrivePanelV53' public/index.html
           grep -q 'drive.appdata' public/index.html
