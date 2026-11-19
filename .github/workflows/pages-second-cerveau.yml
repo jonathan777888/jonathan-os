@@ -58,6 +58,9 @@ jobs:
           test -s public/atelier-genie-logiciel.html
           test -s public/software-engineering-entry.js
           grep -Fq 'software-engineering-entry.js' public/index.html
+          grep -Fq 'Mon atelier Génie logiciel & DevOps' public/software-engineering-entry.js
+          grep -Fq 'eli-manga-integre-20261119' public/software-engineering-entry.js
+          grep -Fq 'page-software-engineering' public/software-engineering-entry.js
           grep -Fq 'Génie logiciel & DevOps' public/software-engineering-entry.js
           grep -Fq 'Atelier animé' public/software-engineering-entry.js
           grep -Fq 'openFromHash' public/software-engineering-entry.js
