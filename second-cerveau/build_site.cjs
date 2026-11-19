@@ -32,6 +32,9 @@ for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js'
   }
 }
 
+const mascotPath=path.join(root,'eli-mascotte.svg');
+if(!fs.existsSync(mascotPath))throw Error('Missing original Eli mascot image');
+fs.copyFileSync(mascotPath,path.join(out,'eli-mascotte.svg'));
 const guidedPath=path.join(root,'engineering-guided-v54.js');
 if(!fs.existsSync(guidedPath))throw Error('Required guided engineering module missing');
 fs.copyFileSync(guidedPath,path.join(out,'engineering-guided-v54.js'));
