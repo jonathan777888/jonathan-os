@@ -19,9 +19,10 @@ for(const file of ['index.html','app.html','local.html'])fs.writeFileSync(path.j
 fs.copyFileSync(path.join(root,'transfer.html'),path.join(out,'transfer.html'));
 // Preserve the existing software engineering workspace from V52.
 for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js']){
-  if(fs.existsSync(path.join(root,file))) fs.copyFileSync(path.join(root,file),path.join(out,file));
+  if(!fs.existsSync(path.join(root,file))) throw Error('Required software engineering module missing: '+file);
+  fs.copyFileSync(path.join(root,file),path.join(out,file));
 }
-if(fs.existsSync(path.join(root,'software-engineering-entry.js'))){
+{
   for(const file of ['index.html','app.html','local.html']){
     const target=path.join(out,file);
     const page=fs.readFileSync(target,'utf8');
