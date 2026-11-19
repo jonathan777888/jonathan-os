@@ -32,6 +32,11 @@ for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js'
   }
 }
 
+for(const frame of ['eli-neutre-v3.svg','eli-sourire-v3.svg']){
+  const source=path.join(root,frame);
+  if(!fs.existsSync(source))throw Error('Missing Eli animation frame: '+frame);
+  fs.copyFileSync(source,path.join(out,frame));
+}
 const mascotPath=path.join(root,'eli-mascotte.svg');
 if(!fs.existsSync(mascotPath))throw Error('Missing original Eli mascot image');
 fs.copyFileSync(mascotPath,path.join(out,'eli-mascotte.svg'));
