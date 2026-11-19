@@ -38,7 +38,8 @@ jobs:
           grep -Fq 'eli-full-motion' public/engineering-guided-v54.js
           grep -Fq 'ELI_STILLS' public/engineering-guided-v54.js
           test -s public/eli-mascotte.svg
-          grep -Fq 'eli-mascotte.svg' public/engineering-guided-v54.js
+          grep -Fq 'eli-neutre-v3.svg' public/engineering-guided-v54.js
+          grep -Fq 'eli-sourire-v3.svg' public/engineering-guided-v54.js
           grep -Fq 'sg-wave-scene' public/engineering-guided-v54.js
           grep -Fq 'sg-v54-surf' public/engineering-guided-v54.js
           grep -Fq 'sg-v54-eli-live' public/engineering-guided-v54.js
