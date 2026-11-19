@@ -26,7 +26,9 @@ for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js'
   for(const file of ['index.html','app.html','local.html']){
     const target=path.join(out,file);
     const page=fs.readFileSync(target,'utf8');
-    fs.writeFileSync(target,page.replace('</body></html>','<script src="./software-engineering-entry.js" defer></script></body></html>'));
+    const closingTag=page.lastIndexOf('</body></html>');
+    if(closingTag<0)throw Error('Missing final HTML closing tag: '+file);
+    fs.writeFileSync(target,page.slice(0,closingTag)+'<script src="./software-engineering-entry.js" defer></script>'+page.slice(closingTag));
   }
 }
 console.log('Built Second Cerveau V53:',parts.length,'parts,',html.length,'bytes');
