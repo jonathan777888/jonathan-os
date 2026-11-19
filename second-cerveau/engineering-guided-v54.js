@@ -42,6 +42,9 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 .sg-save{font-size:12px;color:#a4d9c9;margin-top:9px}
 #sg-v54-toggle{position:fixed;bottom:15px;right:15px;z-index:100001;background:#8d83ff;color:#10142f;border:0;border-radius:22px;padding:11px 16px;font:700 13px system-ui;cursor:pointer}
 
+/* Eli is silent and clearly animated, while the beige background has moving waves. */
+#sg-v54 .sg-face{width:118px;height:118px;flex:0 0 118px;display:block;object-fit:contain;object-position:center;transform-origin:center 80%;animation:eli-full-motion 2.4s ease-in-out infinite!important;transition:none!important;filter:drop-shadow(0 7px 6px rgba(93,59,33,.2));border-radius:17px}
+@keyframes eli-full-motion{0%,100%{transform:translate3d(0,2px,0) rotate(-5deg) scale(1)}25%{transform:translate3d(6px,-12px,0) rotate(4deg) scale(1.07)}50%{transform:translate3d(0,-2px,0) rotate(-2deg) scale(.98)}75%{transform:translate3d(-6px,-13px,0) rotate(5deg) scale(1.08)}}
 /* Decor manga sable / vagues vivantes, personnage Eli immobile et silencieux. */
 #sg-v54{
   color:#392b24;
@@ -93,7 +96,7 @@ const css=document.createElement('style');css.textContent=`
   #sg-v54 .sg-wave-front{bottom:-7%}
 }
 @media(prefers-reduced-motion:reduce){
-  #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card,#sg-v54 .sg-face{animation:none!important}
+  #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card{animation:none!important} #sg-v54 .sg-face{animation:eli-full-motion 2.4s ease-in-out infinite!important}
 }
 `;document.head.append(css);
 const overlay=document.createElement('div');overlay.id='sg-v54';overlay.innerHTML='<div class="sg-wrap"><div class="sg-head"><div><strong>Second Cerveau · Génie logiciel & DevOps</strong><div class="sg-sub">Un projet · Une étape visible à la fois</div></div><button type="button" id="sg-old">Atelier avancé ↗</button></div><div id="sg-content"></div><div class="sg-sub" style="margin-top:18px">Les données de ton ancien atelier restent intactes. Parcours sauvegardé localement et inclus dans la synchronisation Second Cerveau lorsque celle-ci fonctionne.</div></div>';
@@ -112,6 +115,23 @@ const toggle=document.createElement('button');toggle.id='sg-v54-toggle';toggle.t
 const root=overlay.querySelector('#sg-content');
 const el=(tag,text,cls)=>{const a=document.createElement(tag);if(text!==null)a.textContent=text;if(cls)a.className=cls;return a};
 const btn=(label,fn,cls)=>{const a=el('button',label,cls);a.type='button';a.onclick=fn;return a};
+// Real animated character: separate authentic expressions, switched by JavaScript.
+const ELI_STILLS=['./eli-neutre-v3.svg','./eli-sourire-v3.svg'];
+ELI_STILLS.forEach(src=>{const image=new Image();image.src=src});
+function eliPortrait(){const img=el('img',null,'sg-face');img.src=ELI_STILLS[0];img.alt='Eli, personnage anime qui bouge et sourit';img.loading='eager';img.width=118;img.height=118;return img}
+let eliTick=0;
+// The character changes expression even if browser-displayed SVG animation is disabled.
+window.setInterval(()=>{
+ if(overlay.hidden||document.hidden)return;
+ eliTick=(eliTick+1)%16;
+ const expression=(eliTick>=9&&eliTick<=12)?1:0;
+ for(const image of overlay.querySelectorAll('img.sg-face')){
+   if(image.dataset.expression!==String(expression)){
+     image.dataset.expression=String(expression);
+     image.src=ELI_STILLS[expression];
+   }
+ }
+},340);
 const fresh=()=>({version:1,projects:[],activeId:null});
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&Array.isArray(x.projects)?x:fresh()}catch{return fresh()}}
 const state=load();
@@ -121,7 +141,7 @@ function show(on){overlay.hidden=!on;toggle.hidden=on}
 function start(){
 root.replaceChildren();
 const card=el('section',null,'sg-card');card.append(el('div','NOUVEAU PROJET','sg-sub'),el('h1','Quel projet souhaites-tu réaliser ?'));
-const eli=el('div',null,'sg-eli');eli.append((()=>{const a=el('img',null,'sg-face');a.src='./eli-mascotte.svg';a.alt='Eli, mascotte originale';a.loading='eager';return a})(),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli,verse('Proverbes 3:5-6','Fais confiance à Jéhovah et recherche sa direction pendant que tu prépares ton projet.'));
+const eli=el('div',null,'sg-eli');eli.append(eliPortrait(),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli,verse('Proverbes 3:5-6','Fais confiance à Jéhovah et recherche sa direction pendant que tu prépares ton projet.'));
 card.append(el('label','Nom du projet'));const input=el('input');input.maxLength=150;input.placeholder='Ex. Gestionnaire de parcelles';card.append(input);
 card.append(el('label','Catégorie'));const type=el('select');['Application web','API / serveur','Automatisation DevOps','Autre logiciel'].forEach(t=>{const o=el('option',t);o.value=t;type.append(o)});card.append(type);
 const action=el('div',null,'sg-actions');action.append(btn('Commencer →',()=>{const name=input.value.trim();if(!name){input.focus();return}const p={id:'project-'+Date.now(),name:name.slice(0,150),type:type.value,index:0,steps:{},createdAt:new Date().toISOString()};state.projects.push(p);state.activeId=p.id;if(!save())return alert('Sauvegarde impossible : vérifie le stockage local.');render()},'sg-main'));card.append(action);
@@ -135,7 +155,7 @@ const head=el('div',null,'sg-switch');head.append(el('span',p.name,'sg-sub'),btn
 root.append(el('div','Étape '+(i+1)+'/9 — '+phase[0],'sg-sub'));
 const progress=el('div',null,'sg-progress'),fill=el('div');fill.style.width=(100*i/9)+'%';progress.append(fill);root.append(progress);
 const card=el('section',null,'sg-card');card.append(el('h1',phase[0]));
-const eli=el('div',null,'sg-eli');eli.append((()=>{const a=el('img',null,'sg-face');a.src='./eli-mascotte.svg';a.alt='Eli, mascotte originale';a.loading='eager';return a})(),el('div','Eli · '+phase[1]));card.append(eli,verse(encouragements[i][0],encouragements[i][1]));
+const eli=el('div',null,'sg-eli');eli.append(eliPortrait(),el('div','Eli · '+phase[1]));card.append(eli,verse(encouragements[i][0],encouragements[i][1]));
 card.append(el('label',phase[2]));const txt=el('textarea');txt.value=record.answer||'';txt.placeholder='Décris les actions effectuées et leurs résultats…';card.append(txt);
 const check=el('label',null,'sg-confirm'),cb=el('input');cb.type='checkbox';cb.checked=!!record.checked;check.append(cb,el('span',phase[3]));card.append(check);
 const status=el('div','Sauvegarde automatique locale.','sg-save');card.append(status);
