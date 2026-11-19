@@ -32,7 +32,7 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 textarea{min-height:145px;resize:vertical}
 #sg-v54 .sg-verse{margin:16px 0;padding:13px 16px;border-left:3px solid #bdb9f0;border-radius:10px;background:#17243d;color:#dce8fa}#sg-v54 .sg-verse strong{display:block;font-size:12px;color:#c7c5fa;font-weight:800}#sg-v54 .sg-verse p{font-size:14px;line-height:1.5;margin:6px 0 0}
 #sg-v54 .sg-eli{padding:14px;margin:18px 0;background:#1d3855;border:1px solid #537d9c;border-radius:13px;display:flex;gap:12px}
-#sg-v54 .sg-face{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:#4a668a;display:grid;place-items:center;font-weight:850}
+#sg-v54 .sg-face{width:86px;height:86px;flex:0 0 86px;border-radius:14px;background:#f3ecdc;object-fit:cover;object-position:center;display:block}
 #sg-v54 .sg-progress{height:8px;background:#273751;border-radius:20px;overflow:hidden;margin:9px 0 17px}
 #sg-v54 .sg-progress div{height:100%;background:#73cfbd}
 #sg-v54 .sg-actions{margin-top:20px}
@@ -57,7 +57,7 @@ function show(on){overlay.hidden=!on;toggle.hidden=on}
 function start(){
 root.replaceChildren();
 const card=el('section',null,'sg-card');card.append(el('div','NOUVEAU PROJET','sg-sub'),el('h1','Quel projet souhaites-tu réaliser ?'));
-const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli,verse('Proverbes 3:5-6','Fais confiance à Jéhovah et recherche sa direction pendant que tu prépares ton projet.'));
+const eli=el('div',null,'sg-eli');eli.append((()=>{const a=el('img',null,'sg-face');a.src='./eli-mascotte.svg';a.alt='Eli, mascotte originale';a.loading='eager';return a})(),el('div','Eli · Je te guiderai à travers un projet réel, une étape à la fois.'));card.append(eli,verse('Proverbes 3:5-6','Fais confiance à Jéhovah et recherche sa direction pendant que tu prépares ton projet.'));
 card.append(el('label','Nom du projet'));const input=el('input');input.maxLength=150;input.placeholder='Ex. Gestionnaire de parcelles';card.append(input);
 card.append(el('label','Catégorie'));const type=el('select');['Application web','API / serveur','Automatisation DevOps','Autre logiciel'].forEach(t=>{const o=el('option',t);o.value=t;type.append(o)});card.append(type);
 const action=el('div',null,'sg-actions');action.append(btn('Commencer →',()=>{const name=input.value.trim();if(!name){input.focus();return}const p={id:'project-'+Date.now(),name:name.slice(0,150),type:type.value,index:0,steps:{},createdAt:new Date().toISOString()};state.projects.push(p);state.activeId=p.id;if(!save())return alert('Sauvegarde impossible : vérifie le stockage local.');render()},'sg-main'));card.append(action);
@@ -71,7 +71,7 @@ const head=el('div',null,'sg-switch');head.append(el('span',p.name,'sg-sub'),btn
 root.append(el('div','Étape '+(i+1)+'/9 — '+phase[0],'sg-sub'));
 const progress=el('div',null,'sg-progress'),fill=el('div');fill.style.width=(100*i/9)+'%';progress.append(fill);root.append(progress);
 const card=el('section',null,'sg-card');card.append(el('h1',phase[0]));
-const eli=el('div',null,'sg-eli');eli.append(el('div','E','sg-face'),el('div','Eli · '+phase[1]));card.append(eli,verse(encouragements[i][0],encouragements[i][1]));
+const eli=el('div',null,'sg-eli');eli.append((()=>{const a=el('img',null,'sg-face');a.src='./eli-mascotte.svg';a.alt='Eli, mascotte originale';a.loading='eager';return a})(),el('div','Eli · '+phase[1]));card.append(eli,verse(encouragements[i][0],encouragements[i][1]));
 card.append(el('label',phase[2]));const txt=el('textarea');txt.value=record.answer||'';txt.placeholder='Décris les actions effectuées et leurs résultats…';card.append(txt);
 const check=el('label',null,'sg-confirm'),cb=el('input');cb.type='checkbox';cb.checked=!!record.checked;check.append(cb,el('span',phase[3]));card.append(check);
 const status=el('div','Sauvegarde automatique locale.','sg-save');card.append(status);
