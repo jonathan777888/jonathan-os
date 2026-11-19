@@ -41,9 +41,68 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 .sg-project{border:1px solid #405578;border-radius:10px;padding:10px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:12px}
 #sg-v54 .sg-save{font-size:12px;color:#a4d9c9;margin-top:9px}
 #sg-v54-toggle{position:fixed;bottom:15px;right:15px;z-index:100001;background:#8d83ff;color:#10142f;border:0;border-radius:22px;padding:11px 16px;font:700 13px system-ui;cursor:pointer}
+
+/* Decor manga sable / vagues vivantes, personnage Eli immobile et silencieux. */
+#sg-v54{
+  color:#392b24;
+  background:radial-gradient(ellipse at 15% 18%,#fff8ec 0%,transparent 48%),
+             radial-gradient(ellipse at 91% 38%,#edcfad 0%,transparent 48%),
+             linear-gradient(155deg,#fbf1df 0%,#eee0cb 55%,#e4cba9 100%);
+}
+#sg-v54 .sg-wave-scene{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+#sg-v54 .sg-wave{position:absolute;left:-35%;width:170%;pointer-events:none;transform-origin:center}
+#sg-v54 .sg-wave svg{width:100%;height:100%;display:block}
+#sg-v54 .sg-wave-back{height:38vh;bottom:19%;opacity:.34;animation:sg-v54-surf 21s ease-in-out infinite alternate}
+#sg-v54 .sg-wave-mid{height:37vh;bottom:6%;opacity:.44;animation:sg-v54-surf-reverse 16s ease-in-out infinite alternate}
+#sg-v54 .sg-wave-front{height:41vh;bottom:-13%;opacity:.57;animation:sg-v54-surf 13s ease-in-out infinite alternate}
+#sg-v54 .sg-ambient{position:absolute;border-radius:50%;filter:blur(24px);opacity:.28;background:#fff4d9;pointer-events:none}
+#sg-v54 .sg-ambient-a{width:360px;height:360px;top:3%;left:-13%;animation:sg-v54-breathe 20s ease-in-out infinite alternate}
+#sg-v54 .sg-ambient-b{width:320px;height:320px;top:47%;right:-12%;background:#f3d4ac;animation:sg-v54-breathe 17s ease-in-out infinite alternate-reverse}
+#sg-v54 .sg-wrap{position:relative;z-index:2}
+#sg-v54 .sg-head strong{color:#604536}
+#sg-v54 .sg-sub{color:#856e5d}
+#sg-v54 .sg-card{position:relative;overflow:hidden;color:#322922;background:rgba(255,252,245,.95);border:1px solid #d4b99d;box-shadow:0 16px 46px rgba(105,77,45,.13);animation:sg-v54-reveal .45s ease-out both}
+#sg-v54 .sg-card:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#aa8062,#eed5b3,#aa8062)}
+#sg-v54 h1,#sg-v54 h2{color:#3e2f29}
+#sg-v54 button{background:#fff8ec;color:#543a2e;border-color:#c6aa8c;box-shadow:0 2px 0 rgba(107,72,38,.07)}
+#sg-v54 button.sg-main{color:#fffaf0;background:#815641;border-color:#815641}
+#sg-v54 button:focus-visible,#sg-v54 input:focus-visible,#sg-v54 textarea:focus-visible,#sg-v54 select:focus-visible{outline:3px solid #ba9275;outline-offset:3px}
+#sg-v54 input,#sg-v54 textarea,#sg-v54 select{color:#352a23;background:#fffcf6;border-color:#cab092}
+#sg-v54 .sg-verse{background:#f6ead6;color:#59442f;border-left:3px solid #bd8953}
+#sg-v54 .sg-verse strong{color:#8a562b}
+#sg-v54 .sg-eli{background:#f8ead5;color:#453329;border:1px solid #d2ae84;align-items:center}
+#sg-v54 .sg-face{animation:none!important;transform:none!important;transition:none!important;filter:none!important}
+#sg-v54 .sg-project{color:#4c382c;border-color:#ceb093}
+#sg-v54 .sg-save{color:#6a6b4c}
+#sg-v54 .sg-progress{background:#e1d0bc}
+#sg-v54 .sg-progress div{background:linear-gradient(90deg,#997454,#bc956d)}
+#sg-v54-toggle{color:#fff7eb;background:#76503e}
+@keyframes sg-v54-surf{0%{transform:translate3d(-4%,0,0) rotate(-1deg)}100%{transform:translate3d(5%,12px,0) rotate(1deg)}}
+@keyframes sg-v54-surf-reverse{0%{transform:translate3d(5%,8px,0) rotate(1deg)}100%{transform:translate3d(-5%,-8px,0) rotate(-1deg)}}
+@keyframes sg-v54-breathe{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(65px,-24px,0) scale(1.18)}}
+@keyframes sg-v54-reveal{from{opacity:.75;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:560px){
+  #sg-v54 .sg-card{padding:18px}
+  #sg-v54 .sg-wave{width:210%;left:-65%}
+  #sg-v54 .sg-wave-back{bottom:28%}
+  #sg-v54 .sg-wave-front{bottom:-7%}
+}
+@media(prefers-reduced-motion:reduce){
+  #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card{animation:none!important}
+}
 `;document.head.append(css);
 const overlay=document.createElement('div');overlay.id='sg-v54';overlay.innerHTML='<div class="sg-wrap"><div class="sg-head"><div><strong>Second Cerveau · Génie logiciel & DevOps</strong><div class="sg-sub">Un projet · Une étape visible à la fois</div></div><button type="button" id="sg-old">Atelier avancé ↗</button></div><div id="sg-content"></div><div class="sg-sub" style="margin-top:18px">Les données de ton ancien atelier restent intactes. Parcours sauvegardé localement et inclus dans la synchronisation Second Cerveau lorsque celle-ci fonctionne.</div></div>';
 document.body.append(overlay);
+
+const waves=document.createElement('div');
+waves.className='sg-wave-scene';
+waves.setAttribute('aria-hidden','true');
+waves.innerHTML='<div class="sg-ambient sg-ambient-a"></div><div class="sg-ambient sg-ambient-b"></div>'+
+'<div class="sg-wave sg-wave-back"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="none"><path fill="#d6ae83" d="M0,118 C150,16 330,212 500,113 S830,22 1020,121 S1150,172 1200,123 L1200,300 L0,300 Z"/></svg></div>'+
+'<div class="sg-wave sg-wave-mid"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="none"><path fill="#d9ba98" d="M0,130 C160,238 270,27 440,122 S720,217 900,125 S1090,33 1200,134 L1200,300 L0,300 Z"/></svg></div>'+
+'<div class="sg-wave sg-wave-front"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="none"><path fill="#be9169" d="M0,118 C150,7 280,217 455,111 S735,13 917,110 S1100,205 1200,118 L1200,300 L0,300 Z"/></svg></div>';
+overlay.prepend(waves);
+
 const toggle=document.createElement('button');toggle.id='sg-v54-toggle';toggle.textContent='Parcours guidé';document.body.append(toggle);
 const root=overlay.querySelector('#sg-content');
 const el=(tag,text,cls)=>{const a=document.createElement(tag);if(text!==null)a.textContent=text;if(cls)a.className=cls;return a};
