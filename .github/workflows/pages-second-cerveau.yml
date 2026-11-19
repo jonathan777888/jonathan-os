@@ -32,6 +32,8 @@ jobs:
       - name: Build Second Cerveau V48 and check compatibility
         run: |
           node second-cerveau/build_site.cjs public
+          test -s public/eli-mascotte.svg
+          grep -Fq 'eli-mascotte.svg' public/engineering-guided-v54.js
           test -s public/engineering-guided-v54.js
           node --check public/engineering-guided-v54.js
           grep -Fq 'Jacques 1:5' public/engineering-guided-v54.js
