@@ -36,6 +36,9 @@ jobs:
           grep -Fq 'eli-mascotte.svg' public/engineering-guided-v54.js
           grep -Fq 'sg-wave-scene' public/engineering-guided-v54.js
           grep -Fq 'sg-v54-surf' public/engineering-guided-v54.js
+          grep -Fq 'sg-v54-eli-live' public/engineering-guided-v54.js
+          grep -Fq 'eli-blink' public/eli-mascotte.svg
+          grep -Fq 'class="smile"' public/eli-mascotte.svg
           grep -Fq 'animation:none!important' public/engineering-guided-v54.js
           test -s public/engineering-guided-v54.js
           node --check public/engineering-guided-v54.js
