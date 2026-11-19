@@ -30,7 +30,7 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 label{display:block;font-weight:700;margin:18px 0 6px}
 #sg-v54 input,#sg-v54 textarea,#sg-v54 select{width:100%;background:#0d1a30;color:#fff;border:1px solid #4c6081;border-radius:10px;padding:11px;font:14px system-ui}
 #sg-v54 textarea{min-height:145px;resize:vertical}
-#sg-v54 .sg-verse{margin:16px 0;padding:13px 16px;border-left:3px solid #bdb9f0;border-radius:10px;background:#17243d;color:#dce8fa}.sg-verse strong{display:block;font-size:12px;color:#c7c5fa;font-weight:800}.sg-verse p{font-size:14px;line-height:1.5;margin:6px 0 0}
+#sg-v54 .sg-verse{margin:16px 0;padding:13px 16px;border-left:3px solid #bdb9f0;border-radius:10px;background:#17243d;color:#dce8fa}#sg-v54 .sg-verse strong{display:block;font-size:12px;color:#c7c5fa;font-weight:800}#sg-v54 .sg-verse p{font-size:14px;line-height:1.5;margin:6px 0 0}
 #sg-v54 .sg-eli{padding:14px;margin:18px 0;background:#1d3855;border:1px solid #537d9c;border-radius:13px;display:flex;gap:12px}
 #sg-v54 .sg-face{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:#4a668a;display:grid;place-items:center;font-weight:850}
 #sg-v54 .sg-progress{height:8px;background:#273751;border-radius:20px;overflow:hidden;margin:9px 0 17px}
