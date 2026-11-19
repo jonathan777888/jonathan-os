@@ -71,7 +71,12 @@ const css=document.createElement('style');css.textContent=`
 #sg-v54 .sg-verse{background:#f6ead6;color:#59442f;border-left:3px solid #bd8953}
 #sg-v54 .sg-verse strong{color:#8a562b}
 #sg-v54 .sg-eli{background:#f8ead5;color:#453329;border:1px solid #d2ae84;align-items:center}
-#sg-v54 .sg-face{animation:none!important;transform:none!important;transition:none!important;filter:none!important}
+/* Eli is animated separately from the beige wave landscape. */
+#sg-v54 .sg-face{animation:sg-v54-eli-enter .85s cubic-bezier(.2,1.3,.4,1) both,sg-v54-eli-live 3.1s 1s ease-in-out infinite;transform-origin:50% 85%;will-change:transform}
+#sg-v54 .sg-eli:hover .sg-face{animation-play-state:paused;transform:translateY(-6px) rotate(-4deg) scale(1.04)}
+@keyframes sg-v54-eli-enter{0%{opacity:0;transform:translateY(18px) scale(.82) rotate(-8deg)}70%{opacity:1;transform:translateY(-4px) scale(1.04) rotate(3deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+@keyframes sg-v54-eli-live{0%,100%{transform:translateY(0) rotate(-2deg) scale(1)}25%{transform:translateY(-5px) rotate(1.7deg) scale(1.02)}50%{transform:translateY(-2px) rotate(0) scale(.99,1.02)}75%{transform:translateY(-6px) rotate(2deg) scale(1.02)}}
+
 #sg-v54 .sg-project{color:#4c382c;border-color:#ceb093}
 #sg-v54 .sg-save{color:#6a6b4c}
 #sg-v54 .sg-progress{background:#e1d0bc}
@@ -88,7 +93,7 @@ const css=document.createElement('style');css.textContent=`
   #sg-v54 .sg-wave-front{bottom:-7%}
 }
 @media(prefers-reduced-motion:reduce){
-  #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card{animation:none!important}
+  #sg-v54 .sg-wave,#sg-v54 .sg-ambient,#sg-v54 .sg-card,#sg-v54 .sg-face{animation:none!important}
 }
 `;document.head.append(css);
 const overlay=document.createElement('div');overlay.id='sg-v54';overlay.innerHTML='<div class="sg-wrap"><div class="sg-head"><div><strong>Second Cerveau · Génie logiciel & DevOps</strong><div class="sg-sub">Un projet · Une étape visible à la fois</div></div><button type="button" id="sg-old">Atelier avancé ↗</button></div><div id="sg-content"></div><div class="sg-sub" style="margin-top:18px">Les données de ton ancien atelier restent intactes. Parcours sauvegardé localement et inclus dans la synchronisation Second Cerveau lorsque celle-ci fonctionne.</div></div>';
