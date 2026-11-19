@@ -33,6 +33,10 @@ jobs:
         run: |
           node second-cerveau/build_site.cjs public
           test -s public/engineering-guided-v54.js
+          node --check public/engineering-guided-v54.js
+          grep -Fq 'Jacques 1:5' public/engineering-guided-v54.js
+          grep -Fq 'Colossiens 3:23' public/engineering-guided-v54.js
+          grep -Fq 'Pour t’encourager' public/engineering-guided-v54.js
           grep -Fq 'engineering-guided-v54.js' public/atelier-genie-logiciel.html
           grep -Fq 'second-brain-engineering-guided-v54' public/engineering-guided-v54.js
           test -s public/atelier-genie-logiciel.html
