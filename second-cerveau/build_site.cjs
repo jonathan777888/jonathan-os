@@ -17,4 +17,15 @@ const closing=html.lastIndexOf('</body></html>');
 html=html.slice(0,closing)+modules+html.slice(closing);
 for(const file of ['index.html','app.html','local.html'])fs.writeFileSync(path.join(out,file),html);
 fs.copyFileSync(path.join(root,'transfer.html'),path.join(out,'transfer.html'));
+// Preserve the existing software engineering workspace from V52.
+for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js']){
+  if(fs.existsSync(path.join(root,file))) fs.copyFileSync(path.join(root,file),path.join(out,file));
+}
+if(fs.existsSync(path.join(root,'software-engineering-entry.js'))){
+  for(const file of ['index.html','app.html','local.html']){
+    const target=path.join(out,file);
+    const page=fs.readFileSync(target,'utf8');
+    fs.writeFileSync(target,page.replace('</body></html>','<script src="./software-engineering-entry.js" defer></script></body></html>'));
+  }
+}
 console.log('Built Second Cerveau V53:',parts.length,'parts,',html.length,'bytes');

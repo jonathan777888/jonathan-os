@@ -260,6 +260,15 @@
   #secondBrainCloudV52 .cloud-user-v52 .btn,#secondBrainCloudV52 .google-btn-v52{width:100%}
 }
 </style>
+<style>
+#cloudOtpLoginV53{display:grid;gap:10px;max-width:560px;padding:12px 0}
+#cloudOtpLoginV53[hidden],#cloudOtpVerifyV53[hidden]{display:none!important}
+#cloudOtpLoginV53 label{display:grid;gap:5px;font-size:13px}
+#cloudOtpLoginV53 input{width:100%;box-sizing:border-box;min-height:42px;border:1px solid #adb6c2;border-radius:9px;padding:9px 12px;color:inherit;background:transparent;font:inherit}
+#cloudOtpLoginV53 .btn{justify-self:start}
+#cloudOtpVerifyV53{display:grid;gap:10px}
+#cloudOtpLoginV53 .cloud-otp-help-v53{font-size:12px;line-height:1.5;color:inherit;opacity:.8}
+</style>
 <script id="cloudSyncV52">
 (() => {
   'use strict';
@@ -271,6 +280,7 @@
   const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem, nativeGet=Storage.prototype.getItem;
   let client=null,user=null,syncing=false,applying=false,restorePending=false,pushTimer=null,pendingRemote=null,bootedUserId=null,epoch=0;
   let driveCredential=null;
+  let pendingOtpEmail=null,otpBusy=false,lastOtpRequestAt=0;
   const rejectedTokens=new Set();
   let oauthFailed=false;
   try{
@@ -313,7 +323,7 @@
   }
   function refuseOtherAccountSync(){
     if(!hasOtherAccountData())return false;
-    status('Cet appareil contient les données d’un autre compte. Utilise un profil de navigateur séparé pour ce compte Google. Aucun envoi ni restauration autorisé.','warn');return true;
+    status('Cet appareil contient les données d’un autre compte. Utilise un profil de navigateur séparé pour ce compte. Aucun envoi ni restauration autorisé.','warn');return true;
   }
   function status(text,tone){
     if($('cloudStatusV52'))$('cloudStatusV52').textContent=text;
@@ -325,19 +335,25 @@
   function installUI(){
     const page=$('page-backup');if(!page||$('secondBrainCloudV52'))return;
     const box=document.createElement('div');box.id='secondBrainCloudV52';box.className='panel';
-    box.innerHTML='<div class="cloud-head-v52"><div><h3>Compte Google & synchronisation</h3><p>Retrouve tes données sur tes appareils. Le premier envoi demande ton accord. Les codes et clés d’accès restent sur cet appareil.</p></div><span class="cloud-badge-v52" id="cloudBadgeV52">Non connecté</span></div>'+
-      '<div class="cloud-user-v52"><button type="button" class="google-btn-v52" id="cloudGoogleV52">Continuer avec Google</button><span class="cloud-email-v52" id="cloudEmailV52" hidden></span><button type="button" class="btn primary" id="cloudSyncNowV52" hidden>Synchroniser maintenant</button><button type="button" class="btn" id="cloudSignOutV52" hidden>Se déconnecter</button></div>'+
-      '<div class="cloud-conflict-v52" id="cloudConflictV52" hidden><strong>Deux versions de tes données ont été détectées</strong><p>Choisis celle que tu veux garder. Une copie locale sera conservée avant une restauration.</p><div class="actions"><button type="button" class="btn primary" id="cloudUseCloudV52">Utiliser les données du cloud</button><button type="button" class="btn" id="cloudUseDeviceV52">Utiliser les données de cet appareil</button></div></div><div class="cloud-status-v52" id="cloudStatusV52">Connexion Google non activée sur cet appareil.</div>';
+    box.innerHTML='<div class="cloud-head-v52"><div><h3>Compte e-mail & synchronisation Supabase</h3><p>Connecte-toi avec le compte existant. Le premier envoi exige ton accord. Aucun compte supplémentaire ne sera créé automatiquement.</p></div><span class="cloud-badge-v52" id="cloudBadgeV52">Non connecté</span></div>'+
+      '<div id="cloudOtpLoginV53"><label for="cloudLoginEmailV53">Ton adresse e-mail<input type="email" autocomplete="email" id="cloudLoginEmailV53" placeholder="adresse@gmail.com" maxlength="254"></label><button class="btn primary" type="button" id="cloudSendCodeV53">Recevoir un code</button><div id="cloudOtpVerifyV53" hidden><label for="cloudOtpCodeV53">Code reçu par e-mail<input type="text" inputmode="numeric" autocomplete="one-time-code" id="cloudOtpCodeV53" placeholder="Code à 6 chiffres" maxlength="8"></label><button class="btn primary" type="button" id="cloudVerifyCodeV53">Vérifier le code</button></div><p class="cloud-otp-help-v53">Le courriel doit contenir un code à usage unique. Vérifie le modèle e-mail Supabase si tu reçois uniquement un lien. La sauvegarde Drive est facultative.</p></div>'+
+      '<div class="cloud-user-v52"><span class="cloud-email-v52" id="cloudEmailV52" hidden></span><button type="button" class="btn primary" id="cloudSyncNowV52" hidden>Synchroniser maintenant</button><button type="button" class="btn" id="cloudSignOutV52" hidden>Se déconnecter</button></div>'+
+      '<div class="cloud-conflict-v52" id="cloudConflictV52" hidden><strong>Deux versions de tes données ont été détectées</strong><p>Choisis celle que tu veux garder. Une copie locale sera conservée avant une restauration.</p><div class="actions"><button type="button" class="btn primary" id="cloudUseCloudV52">Utiliser les données du cloud</button><button type="button" class="btn" id="cloudUseDeviceV52">Utiliser les données de cet appareil</button></div></div><div class="cloud-status-v52" id="cloudStatusV52" role="status">Entre ton adresse e-mail pour recevoir un code de connexion.</div>';
     page.insertBefore(box,page.firstChild);
-    $('cloudGoogleV52').onclick=signIn;$('cloudSyncNowV52').onclick=manualSync;$('cloudSignOutV52').onclick=signOut;
+    $('cloudSendCodeV53').onclick=requestEmailOtp;$('cloudVerifyCodeV53').onclick=verifyEmailOtp;
+    $('cloudOtpCodeV53').addEventListener('keydown',e=>{if(e.key==='Enter')verifyEmailOtp()});
+    $('cloudLoginEmailV53').addEventListener('keydown',e=>{if(e.key==='Enter')requestEmailOtp()});
+    $('cloudSyncNowV52').onclick=manualSync;$('cloudSignOutV52').onclick=signOut;
     $('cloudUseCloudV52').onclick=()=>{if(pendingRemote&&confirm('Restaurer la version du cloud ? Une copie locale sera conservée avant remplacement.'))applyRemote(pendingRemote)};
     $('cloudUseDeviceV52').onclick=()=>{if(pendingRemote&&confirm('Remplacer la version du cloud par les données de cet appareil ?'))pushNow('Version de cet appareil envoyée au cloud.',true,pendingRemote.updated_at)};
   }
   function renderAuth(){
-    if(!$('cloudGoogleV52'))return;
-    $('cloudGoogleV52').hidden=!!user;$('cloudEmailV52').hidden=!user;$('cloudSyncNowV52').hidden=!user;$('cloudSignOutV52').hidden=!user;
+    if(!$('cloudOtpLoginV53'))return;
+    $('cloudOtpLoginV53').hidden=!!user;
+    $('cloudEmailV52').hidden=!user;$('cloudSyncNowV52').hidden=!user;$('cloudSignOutV52').hidden=!user;
     $('cloudEmailV52').textContent=user?.email||'';
-    status(user?'Compte connecté. Vérification de la synchronisation…':'Connexion Google non activée sur cet appareil.');
+    if(user){pendingOtpEmail=null;$('cloudOtpCodeV53').value='';$('cloudOtpVerifyV53').hidden=true}
+    status(user?'Compte connecté. Vérification de la synchronisation Supabase…':'Entre ton adresse e-mail pour recevoir un code de connexion.');
     if(!refuseOtherAccountSync()&&oauthFailed)status(oauthFailureMessage,'warn');
   }
   async function loadLibrary(){
@@ -376,12 +392,60 @@
     const s=data?.session;if(!s||s.user?.id!==id)return null;
     return {...s,provider_refresh_token:undefined,provider_token:driveCredential?.subject===id&&driveCredential.until>Date.now()?driveCredential.token:null};
   }
-  async function signIn(){
-    if(!client){status('Connexion Google indisponible. Vérifie ta connexion Internet.','warn');return}
-    try{const r=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL}});if(r.error)throw r.error}catch(e){status('Connexion Google impossible : '+e.message,'warn')}
+  function signIn(){
+    status('Entre ton adresse e-mail pour recevoir un code de connexion.');
+    $('cloudLoginEmailV53')?.focus?.();
+  }
+  function setOtpBusy(busy){
+    otpBusy=busy;
+    for(const id of ['cloudSendCodeV53','cloudVerifyCodeV53','cloudLoginEmailV53','cloudOtpCodeV53']){
+      const el=$(id);if(el)el.disabled=busy;
+    }
+  }
+  async function requestEmailOtp(){
+    if(otpBusy||user)return;
+    if(!client){status('Le service de connexion Supabase est indisponible. Réessaie plus tard.','warn');return}
+    const email=String($('cloudLoginEmailV53')?.value||'').trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254){status('Entre une adresse e-mail valide.','warn');return}
+    if(lastOtpRequestAt&&Date.now()-lastOtpRequestAt<60000){status('Attends une minute avant de demander un nouveau code.','warn');return}
+    setOtpBusy(true);
+    try{
+      // Do not create a second Supabase account: the existing Google account must be reused.
+      const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:REDIRECT_URL}});
+      if(error)throw error;
+      pendingOtpEmail=email;lastOtpRequestAt=Date.now();
+      $('cloudOtpVerifyV53').hidden=false;
+      status('Si cette adresse possède un compte, un code vient de lui être envoyé. Saisis ce code ici.');
+    }catch(e){
+      status('Envoi du code impossible. Vérifie la configuration e-mail Supabase et réessaie.','warn');
+    }finally{setOtpBusy(false)}
+  }
+  async function verifyEmailOtp(){
+    if(otpBusy||user)return;
+    if(!client||!pendingOtpEmail){status('Demande un code avec ton adresse e-mail avant de le vérifier.','warn');return}
+    const token=String($('cloudOtpCodeV53')?.value||'').replace(/[\s-]/g,'');
+    if(!/^\d{6,8}$/.test(token)){status('Entre le code numérique reçu par e-mail.','warn');return}
+    setOtpBusy(true);
+    try{
+      const {data,error}=await client.auth.verifyOtp({email:pendingOtpEmail,token,type:'email'});
+      if(error)throw error;
+      const confirmed=data?.user||data?.session?.user||user;
+      if(!confirmed?.id)throw new Error('Session absente après vérification.');
+      // A different UID must not inherit V13 local data or overwrite an existing remote account.
+      const existingOwner=readMeta().userId;
+      if(existingOwner&&existingOwner!==confirmed.id){
+        await client.auth.signOut({scope:'local'});
+        status('Le code a ouvert un autre identifiant Supabase. Aucune donnée transférée. Retrouve le compte original avant de synchroniser.','warn');
+        return;
+      }
+      pendingOtpEmail=null;$('cloudOtpCodeV53').value='';
+      status('Code confirmé. Vérifie le compte puis autorise la première sauvegarde Supabase.');
+    }catch(e){
+      status('Code invalide, expiré ou session indisponible. Demande un nouveau code si nécessaire.','warn');
+    }finally{setOtpBusy(false)}
   }
   async function authorizeDrive(){
-    if(!client||!user||refuseOtherAccountSync())throw new Error('Vérifie le compte Google avant d’autoriser Drive.');
+    if(!client||!user||refuseOtherAccountSync())throw new Error('Vérifie le compte connecté avant d’autoriser Drive.');
     const r=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:REDIRECT_URL,scopes:'https://www.googleapis.com/auth/drive.appdata'}});
     if(r.error)throw r.error;
   }
@@ -404,7 +468,7 @@
     const before=readMeta();
     if(!before.initialized||before.userId!==user.id){
       if(!explicit){status('Clique sur « Synchroniser maintenant » pour autoriser le premier envoi.','warn');return}
-      if(!confirm('Envoyer les données de cet appareil vers le compte Google affiché ?'))return;
+      if(!confirm('Envoyer les données de cet appareil vers le compte Supabase connecté ? Vérifie son adresse e-mail avant de confirmer.'))return;
       claimLocalData(user.id);
     }
     const id=user.id,version=epoch,revision=readMeta().localRevision||null,payload=snapshot();
@@ -487,10 +551,10 @@
       ++epoch;clearTimeout(pushTimer);restorePending=true;status('Les données ont changé dans un autre onglet. Recharge cette page avant de synchroniser.','warn');
     }
   });
-  window.SecondBrainCloudV52={snapshot,isSyncableKey,validateSnapshot,manualSync,signIn,authorizeDrive,restoreExternalSnapshot,hasOtherAccountData,getSession,clearDriveToken,claimLocalData,getAccountId:()=>user?.id||null,reloadAfterRestore:()=>location.reload(),isRestorePending:()=>restorePending};
+  window.SecondBrainCloudV52={snapshot,isSyncableKey,validateSnapshot,manualSync,signIn,requestEmailOtp,verifyEmailOtp,authorizeDrive,restoreExternalSnapshot,hasOtherAccountData,getSession,clearDriveToken,claimLocalData,getAccountId:()=>user?.id||null,reloadAfterRestore:()=>location.reload(),isRestorePending:()=>restorePending};
   async function start(){
     document.title='Second Cerveau IA — V53';const pill=document.querySelector('.pill');if(pill)pill.textContent='Second Cerveau IA — V53';
-    if($('versionStatus'))$('versionStatus').textContent='V53 · Google personnel et sauvegardes privées Drive.';
+    if($('versionStatus'))$('versionStatus').textContent='V53 · Code e-mail et synchronisation Supabase (Drive facultatif).';
     installUI();
     try{
       await loadLibrary();
@@ -505,7 +569,7 @@
       if(epoch===version&&!bootedUserId){user=r.data?.session?.user||null;rememberDrive(r.data?.session);renderAuth();window.dispatchEvent(new Event('secondbrain:auth-change'));if(user){bootedUserId=user.id;await reconcile()}}
       setInterval(()=>{if(!document.hidden&&!pendingRemote)reconcile()},60000);
       document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!pendingRemote)reconcile()});
-    }catch{status(oauthFailed?oauthFailureMessage:'Le module Google n’a pas pu démarrer. Tes données locales restent disponibles.','warn')}
+    }catch{status(oauthFailed?oauthFailureMessage:'Le module Supabase n’a pas pu démarrer. Tes données locales restent disponibles.','warn')}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
