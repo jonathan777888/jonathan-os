@@ -40,6 +40,9 @@ for(const frame of ['eli-neutre-v3.svg','eli-sourire-v3.svg']){
 const mascotPath=path.join(root,'eli-mascotte.svg');
 if(!fs.existsSync(mascotPath))throw Error('Missing original Eli mascot image');
 fs.copyFileSync(mascotPath,path.join(out,'eli-mascotte.svg'));
+const eliCoachPath=path.join(root,'eli-coding-coach-v55.js');
+if(!fs.existsSync(eliCoachPath))throw Error('Missing Eli coding coach');
+fs.copyFileSync(eliCoachPath,path.join(out,'eli-coding-coach-v55.js'));
 const guidedPath=path.join(root,'engineering-guided-v54.js');
 if(!fs.existsSync(guidedPath))throw Error('Required guided engineering module missing');
 fs.copyFileSync(guidedPath,path.join(out,'engineering-guided-v54.js'));
@@ -47,6 +50,6 @@ const atelierPath=path.join(out,'atelier-genie-logiciel.html');
 let atelierHtml=fs.readFileSync(atelierPath,'utf8');
 const atelierClose=atelierHtml.lastIndexOf('</body>');
 if(atelierClose<0)throw Error('Engineering atelier lacks closing body');
-atelierHtml=atelierHtml.slice(0,atelierClose)+'<script src="./engineering-guided-v54.js?v=eli-motion-20261119" defer></script>'+atelierHtml.slice(atelierClose);
+atelierHtml=atelierHtml.slice(0,atelierClose)+'<script src="./engineering-guided-v54.js?v=eli-motion-20261119" defer></script><script src="./eli-coding-coach-v55.js" defer></script>'+atelierHtml.slice(atelierClose);
 fs.writeFileSync(atelierPath,atelierHtml);
 console.log('Built Second Cerveau V53:',parts.length,'parts,',html.length,'bytes');
