@@ -1,12 +1,13 @@
 /*
- * Second Cerveau OS · Espace Génie logiciel / DevOps
- * Adds an isolated workspace to the existing tab navigation without changing
- * the main knowledge map, OAuth, backup or cloud sync handlers.
+ * Second Cerveau OS — atelier intégré Génie logiciel & DevOps.
+ * Ne modifie ni les données ni la navigation des autres espaces.
  */
 (() => {
   'use strict';
   const PAGE = 'software-engineering';
-  const MODULE_URL = new URL('./atelier-genie-logiciel.html', document.baseURI).href;
+  const MODULE_URL = new URL('./atelier-genie-logiciel.html', document.baseURI);
+  MODULE_URL.searchParams.set('v', 'eli-manga-integre-20261119');
+  const HASH = '#genie-logiciel';
 
   function install() {
     const nav = document.querySelector('nav.tabs');
@@ -16,35 +17,61 @@
     const style = document.createElement('style');
     style.id = 'sb-software-engineering-styles';
     style.textContent = `
-      #page-software-engineering { width: 100%; }
+      #page-software-engineering {
+        width: 100%;
+        min-width: 0;
+        background: linear-gradient(145deg, #faf2e4 0%, #e8cfaf 100%);
+        border: 1px solid #dec5a7;
+        border-radius: 20px;
+        padding: 12px;
+        box-shadow: 0 12px 40px rgba(95,65,36,.09);
+      }
       #page-software-engineering .sb-lab-intro {
-        display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;
-        gap:15px;padding:20px 22px;margin-bottom:14px;
-        background:linear-gradient(120deg,#172b48,#24375b);color:#f5f7ff;
-        border:1px solid #465a81;border-radius:18px;
+        background: rgba(255,250,239,.9);
+        border: 1px solid #e1c9a7;
+        border-radius: 14px;
+        margin-bottom: 10px;
+        padding: 12px 17px;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:8px;
+        color:#463325;
       }
       #page-software-engineering .sb-lab-intro h2 {
-        margin:0 0 7px;font-size:clamp(22px,3vw,28px);color:#fff;
+        margin:0;
+        font-size:clamp(17px,2.5vw,22px);
+        color:#463325;
       }
       #page-software-engineering .sb-lab-intro p {
-        margin:0;color:#d4def2;max-width:650px;font-size:13px;line-height:1.6;
-      }
-      #page-software-engineering .sb-lab-link {
-        display:inline-flex;align-items:center;justify-content:center;
-        min-height:42px;padding:10px 14px;border-radius:11px;text-decoration:none;
-        background:#e4ebff;color:#182543;font-size:13px;font-weight:800;
-      }
-      #page-software-engineering .sb-lab-note {
-        margin:0 0 13px;color:var(--muted,#68747e);font-size:12px;line-height:1.5;
+        margin:4px 0 0;
+        font-size:13px;
+        line-height:1.45;
+        color:#70533d;
       }
       #page-software-engineering .sb-lab-frame {
-        width:100%;height:max(730px,calc(100dvh - 135px));display:block;
-        border:1px solid #354760;border-radius:17px;background:#0b1221;
+        display:block;
+        width:100%;
+        height:max(740px,calc(100dvh - 190px));
+        min-height:740px;
+        border:1px solid #d2b595;
+        border-radius:15px;
+        background:#f6eddf;
+      }
+      #page-software-engineering .sb-lab-privacy {
+        margin:9px 4px 2px;
+        font-size:11px;
+        color:#786756;
       }
       @media(max-width:760px) {
-        #page-software-engineering .sb-lab-intro {padding:17px 15px;}
-        #page-software-engineering .sb-lab-link {width:100%;}
-        #page-software-engineering .sb-lab-frame {height:max(720px,calc(100dvh - 155px));border-radius:12px;}
+        #page-software-engineering{padding:6px;border-radius:14px}
+        #page-software-engineering .sb-lab-intro{padding:10px 11px;margin-bottom:5px}
+        #page-software-engineering .sb-lab-frame{
+          height:max(710px,calc(100dvh - 145px));
+          min-height:710px;
+          border-radius:11px;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -55,63 +82,61 @@
     tab.dataset.page = PAGE;
     tab.textContent = 'Génie logiciel & DevOps';
     tab.setAttribute('aria-controls', 'page-' + PAGE);
-    const anchor = nav.querySelector('.tab[data-page="learning"]')
-      || nav.querySelector('.tab[data-page="agent-ia"]');
+    tab.title = 'Atelier animé avec Eli : un projet, une mission à la fois';
+    const anchor = nav.querySelector('.tab[data-page="learning"]') ||
+                   nav.querySelector('.tab[data-page="agent-ia"]');
     if (anchor) anchor.insertAdjacentElement('afterend', tab);
     else nav.appendChild(tab);
 
     const section = document.createElement('section');
     section.className = 'page';
     section.id = 'page-' + PAGE;
-    section.setAttribute('aria-label', 'Atelier de génie logiciel et DevOps');
+    section.setAttribute('aria-label', 'Atelier animé de génie logiciel et DevOps');
 
     const intro = document.createElement('div');
     intro.className = 'sb-lab-intro';
-    const titleAndText = document.createElement('div');
-    const heading = document.createElement('h2');
-    heading.textContent = 'Atelier de génie logiciel & DevOps';
+    const headingGroup = document.createElement('div');
+    const title = document.createElement('h2');
+    title.textContent = 'Mon atelier Génie logiciel & DevOps';
     const description = document.createElement('p');
-    description.textContent =
-      'Réalise des missions, programme, teste, corrige les erreurs et organise tes vrais projets. Apprentissage actif : faire, tester, corriger, livrer.';
-    titleAndText.append(heading, description);
-
-    const openLink = document.createElement('a');
-    openLink.className = 'sb-lab-link';
-    openLink.href = MODULE_URL;
-    openLink.target = '_blank';
-    openLink.rel = 'noopener noreferrer';
-    openLink.textContent = 'Ouvrir en plein écran ↗';
-    intro.append(titleAndText, openLink);
-
-    const note = document.createElement('p');
-    note.className = 'sb-lab-note';
-    note.textContent =
-      'Les missions et projets sont enregistrés localement dans un espace distinct. Exporte une sauvegarde JSON depuis l’atelier ; ils ne sont pas encore synchronisés avec Google Drive.';
+    description.textContent = 'Eli, les vagues beige animées, des encouragements bibliques et une seule mission à la fois.';
+    headingGroup.append(title, description);
+    intro.append(headingGroup);
 
     const frame = document.createElement('iframe');
     frame.className = 'sb-lab-frame';
-    frame.title = 'Second Cerveau — Atelier pratique Software Engineering et DevOps';
-    frame.loading = 'lazy';
-    frame.src = MODULE_URL;
+    frame.title = 'Atelier animé : Eli et parcours de réalisation de projets';
+    frame.loading = 'eager';
+    frame.src = MODULE_URL.href;
     frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-downloads');
+    frame.setAttribute('referrerpolicy', 'same-origin');
 
-    section.append(intro, note, frame);
+    const note = document.createElement('p');
+    note.className = 'sb-lab-privacy';
+    note.textContent = 'Les projets de cet atelier utilisent leur stockage local distinct. Garde une sauvegarde de tes travaux.';
+
+    section.append(intro, frame, note);
     app.appendChild(section);
 
-    tab.onclick = () => {
+    tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(button => {
         button.classList.toggle('active', button === tab);
       });
-      document.querySelectorAll('.page').forEach(page => {
-        page.classList.remove('active');
-      });
+      document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
       section.classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+
+    // Permet d'ouvrir directement cet onglet depuis le lien principal Second Cerveau.
+    const openFromHash = () => {
+      if (window.location.hash === HASH) tab.click();
     };
+    window.addEventListener('hashchange', openFromHash);
+    openFromHash();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', install, { once: true });
+    document.addEventListener('DOMContentLoaded', install, { once:true });
   } else {
     install();
   }
