@@ -120,7 +120,7 @@ jobs:
                 const synTab=page.locator('.tab[data-page="synapse"]');
                 assert.equal(await synTab.count(),1,'Synapse tab missing from Second Cerveau');
                 if(mobile){
-                  await page.locator('#mobilePagesV51 option[value="synapse"]').waitFor();
+                  await page.locator('#mobilePagesV51 option[value="synapse"]').waitFor({state:'attached'});
                   await page.locator('#mobilePagesV51').selectOption('synapse');
                 }else{
                   await synTab.click();
