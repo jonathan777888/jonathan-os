@@ -1,0 +1,45 @@
+// V50 - Protocole de publication dans Apprentissage (aucune publication automatique).
+(() => {
+  'use strict';
+  const page = document.getElementById('page-learning');
+  if (!page || document.getElementById('publishProtocolV50')) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #publishProtocolV50{margin:18px 0 22px;padding:clamp(16px,3vw,26px);border-radius:20px;border:1px solid #cddbd1;background:#fff;color:#193b35;box-shadow:0 7px 26px rgba(35,75,55,.05);font-family:system-ui,sans-serif}
+    #publishProtocolV50 *{box-sizing:border-box}
+    #publishProtocolV50 .pp-v50-eyebrow{font-size:11px;letter-spacing:.10em;text-transform:uppercase;color:#45755f;font-weight:800}
+    #publishProtocolV50 h2{font-size:clamp(21px,2.5vw,28px);line-height:1.2;margin:8px 0}
+    #publishProtocolV50 .pp-v50-subtitle{margin:0 0 17px;color:#52635b;font-size:14px;line-height:1.5}
+    #publishProtocolV50 .pp-v50-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;list-style:none;padding:0;margin:0}
+    #publishProtocolV50 .pp-v50-steps li{border:1px solid #dce7de;border-radius:13px;padding:13px;background:#f7faf6;min-width:0}
+    #publishProtocolV50 .pp-v50-number{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:9px;background:#e1eee4;color:#255d49;font-size:12px;font-weight:800}
+    #publishProtocolV50 .pp-v50-steps strong{display:block;margin:10px 0 6px;font-size:13px;line-height:1.25}
+    #publishProtocolV50 .pp-v50-steps p{margin:0;color:#59675f;font-size:12px;line-height:1.45}
+    #publishProtocolV50 .pp-v50-rule{border-top:1px solid #dbe6dc;margin:16px 0 0;padding-top:14px;font-size:13px;line-height:1.6}
+    @media(max-width:900px){#publishProtocolV50 .pp-v50-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){#publishProtocolV50 .pp-v50-steps{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  const panel = document.createElement('section');
+  panel.id = 'publishProtocolV50';
+  panel.setAttribute('aria-labelledby', 'publishProtocolTitleV50');
+  panel.innerHTML = `
+    <div class="pp-v50-eyebrow">Apprentissage par projet / Qualité</div>
+    <h2 id="publishProtocolTitleV50">Mon protocole avant toute publication</h2>
+    <p class="pp-v50-subtitle">Un nouveau site, une application, une vidéo ou une création doit passer par plusieurs essais et versions de travail avant sa mise en ligne.</p>
+    <ol class="pp-v50-steps">
+      <li><span class="pp-v50-number">1</span><strong>Créer une version de travail</strong><p>Préparer une première version sans la publier.</p></li>
+      <li><span class="pp-v50-number">2</span><strong>Tester plusieurs fois</strong><p>Vérifier les fonctions, repérer les bugs et recommencer les essais.</p></li>
+      <li><span class="pp-v50-number">3</span><strong>Montrer les versions gratuitement</strong><p>Partager des préversions à essayer, sans demander de paiement.</p></li>
+      <li><span class="pp-v50-number">4</span><strong>Corriger et retester</strong><p>Tenir compte des retours et revérifier chaque modification.</p></li>
+      <li><span class="pp-v50-number">5</span><strong>Publier seulement après accord</strong><p>Attendre la validation explicite avant toute mise en ligne.</p></li>
+    </ol>
+    <p class="pp-v50-rule"><strong>Règle :</strong> aucune publication automatique. Montrer et faire valider les versions gratuitement ne signifie pas autoriser leur publication.</p>
+  `;
+
+  const atelier = document.getElementById('atelierV44');
+  if (atelier && atelier.parentElement === page) page.insertBefore(panel, atelier);
+  else page.appendChild(panel);
+})();
