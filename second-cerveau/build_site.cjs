@@ -17,7 +17,7 @@ const closing=html.lastIndexOf('</body></html>');
 html=html.slice(0,closing)+modules+html.slice(closing);
 for(const file of ['index.html','app.html','local.html'])fs.writeFileSync(path.join(out,file),html);
 fs.copyFileSync(path.join(root,'transfer.html'),path.join(out,'transfer.html'));
-// Preserve the existing software engineering workspace from V52.
+// Preserve the software engineering workspace, and add Synapse as an independent view.
 for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js','synapse-entry.js']){
   if(!fs.existsSync(path.join(root,file))) throw Error('Required software engineering module missing: '+file);
   fs.copyFileSync(path.join(root,file),path.join(out,file));
