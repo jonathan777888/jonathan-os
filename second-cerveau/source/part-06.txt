@@ -546,8 +546,21 @@
   Storage.prototype.setItem=function(key,value){assertLocalWrite(this,key);const r=nativeSet.call(this,key,value);if(this===localStorage&&isSyncableKey(key)&&!applying)markDirty();return r};
   Storage.prototype.removeItem=function(key){assertLocalWrite(this,key);const r=nativeRemove.call(this,key);if(this===localStorage&&isSyncableKey(key)&&!applying)markDirty();return r};
   // Another tab can change ownership or restore a snapshot while this page retains old in-memory state.
+  // Same-origin embedded Eli atelier shares this Storage, but is part of THIS page.
+  // Its autosave is a local change to sync, not a concurrent-tab restore conflict.
+  // All other storage events retain the strict cross-tab protection below.
   window.addEventListener('storage',e=>{
-    if(e.storageArea===localStorage&&(e.key===META_KEY||isSyncableKey(e.key)||e.key===null)){
+    if(e.storageArea!==localStorage)return;
+    let fromEmbeddedEli=false;
+    if(e.key==='second-brain-eli-coding-v55'&&e.url){
+      try{
+        const sourceUrl=new URL(e.url,location.href);
+        fromEmbeddedEli=sourceUrl.origin===location.origin&&
+          Array.from(document.querySelectorAll('iframe')).some(frame=>frame.src===sourceUrl.href);
+      }catch{}
+    }
+    if(fromEmbeddedEli){markDirty();return}
+    if(e.key===META_KEY||isSyncableKey(e.key)||e.key===null){
       ++epoch;clearTimeout(pushTimer);restorePending=true;status('Les données ont changé dans un autre onglet. Recharge cette page avant de synchroniser.','warn');
     }
   });

@@ -116,6 +116,32 @@ jobs:
                   assert.ok(!(await page.locator('#mobileSelectV51').isVisible()),'Mobile select visible on desktop');
                   assert.notEqual(await nav.evaluate(el=>getComputedStyle(el).position),'fixed','Desktop tabs incorrectly fixed');
                 }
+                // Synapse is integrated, not a standalone file: test both navigation modes.
+                const synTab=page.locator('.tab[data-page="synapse"]');
+                assert.equal(await synTab.count(),1,'Synapse tab missing from Second Cerveau');
+                if(mobile){
+                  await page.locator('#mobilePagesV51 option[value="synapse"]').waitFor({state:'attached'});
+                  await page.locator('#mobilePagesV51').selectOption('synapse');
+                }else{
+                  await synTab.click();
+                }
+                await page.locator('#page-synapse').waitFor({state:'visible'});
+                await page.waitForFunction(()=>Number(document.querySelector('#page-synapse [data-count]')?.textContent)>0,null,{timeout:10000});
+                const synapse=await page.evaluate(()=>({
+                  ideas:Number(document.querySelector('#page-synapse [data-count]')?.textContent),
+                  links:Number(document.querySelector('#page-synapse [data-links]')?.textContent),
+                  marble:!!document.querySelector('#page-synapse [data-marble]'),
+                  nodeCount:document.querySelectorAll('#page-synapse [data-node]').length,
+                  pageVisible:getComputedStyle(document.querySelector('#page-synapse')).display!=='none'
+                }));
+                assert.ok(synapse.pageVisible,'Synapse view did not open');
+                assert.ok(synapse.ideas>0,'Second Cerveau tree was not loaded in Synapse');
+                assert.equal(synapse.links,synapse.ideas,'Synapse must use only parent/child links');
+                assert.equal(synapse.nodeCount,synapse.ideas+1,'Synapse must have Jéhovah at its center');
+                assert.ok(synapse.marble,'The Moi marble must travel on an existing link');
+                if(mobile)await page.locator('#mobilePagesV51').selectOption('map');
+                else await page.locator('.tab[data-page="map"]').click();
+                assert.ok(await page.locator('#page-map').isVisible(),'Original map must remain accessible');
                 if(width===390||width===1280){
                   await page.screenshot({path:'/tmp/second-v51-shot-'+width+'.png',fullPage:true,animations:'disabled'});
                 }
@@ -139,6 +165,10 @@ jobs:
             localStorage.setItem('second-brain-verify-token-v43','SECRET-NE-DOIT-PAS-ETRE-SYNCHRONISE');
             localStorage.setItem('second-brain-private-api-key','SECRET-API');
             window.__mockUpserts=[];
+            window.__mockStorageEvents=[];
+            window.addEventListener('storage',e=>{
+              window.__mockStorageEvents.push({key:e.key,url:e.url,oldSize:e.oldValue?.length||0,newSize:e.newValue?.length||0});
+            });
             const remoteRow=remote;
             window.supabase={
               createClient:()=>({
@@ -175,7 +205,23 @@ jobs:
               assert.equal(await page.evaluate(()=>window.__mockUpserts.length),0,'First upload must require explicit consent');
               await page.locator('[data-page="backup"]').click();
               await page.locator('#cloudSyncNowV52').click();
-              await page.waitForFunction(()=>window.__mockUpserts.length===1);
+              try {
+                await page.waitForFunction(()=>window.__mockUpserts.length===1,{timeout:10000});
+              } catch(err) {
+                const diag=await page.evaluate(()=>({
+                  visible:!document.getElementById('cloudSyncNowV52')?.hidden,
+                  email:document.getElementById('cloudEmailV52')?.textContent,
+                  status:document.getElementById('cloudStatusV52')?.textContent,
+                  badge:document.getElementById('cloudBadgeV52')?.textContent,
+                  mockCount:window.__mockUpserts?.length,
+                  ownerSet:!!JSON.parse(localStorage.getItem('second-brain-cloud-meta-v52')||'null')?.userId,
+                  cloudService:!!window.SecondBrainCloudV52,
+                  storageEvents:(window.__mockStorageEvents||[]).slice(-15),
+                  iframes:Array.from(document.querySelectorAll('iframe')).map(f=>f.src)
+                }));
+                console.log('CLOUD-TEST-DIAGNOSTIC '+JSON.stringify(diag));
+                throw err;
+              }
               const first=await page.evaluate(()=>({
                 row:window.__mockUpserts[0],
                 email:document.getElementById('cloudEmailV52')?.textContent||'',
