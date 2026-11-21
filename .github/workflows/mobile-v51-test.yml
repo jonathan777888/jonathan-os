@@ -116,6 +116,31 @@ jobs:
                   assert.ok(!(await page.locator('#mobileSelectV51').isVisible()),'Mobile select visible on desktop');
                   assert.notEqual(await nav.evaluate(el=>getComputedStyle(el).position),'fixed','Desktop tabs incorrectly fixed');
                 }
+                // Synapse is integrated, not a standalone file: test both navigation modes.
+                const synTab=page.locator('.tab[data-page="synapse"]');
+                assert.equal(await synTab.count(),1,'Synapse tab missing from Second Cerveau');
+                if(mobile){
+                  await page.locator('#mobilePagesV51 option[value="synapse"]').waitFor();
+                  await page.locator('#mobilePagesV51').selectOption('synapse');
+                }else{
+                  await synTab.click();
+                }
+                await page.locator('#page-synapse').waitFor({state:'visible'});
+                const synapse=await page.evaluate(()=>({
+                  ideas:Number(document.querySelector('#page-synapse [data-count]')?.textContent),
+                  links:Number(document.querySelector('#page-synapse [data-links]')?.textContent),
+                  marble:!!document.querySelector('#page-synapse [data-marble]'),
+                  nodeCount:document.querySelectorAll('#page-synapse [data-node]').length,
+                  pageVisible:getComputedStyle(document.querySelector('#page-synapse')).display!=='none'
+                }));
+                assert.ok(synapse.pageVisible,'Synapse view did not open');
+                assert.ok(synapse.ideas>0,'Second Cerveau tree was not loaded in Synapse');
+                assert.equal(synapse.links,synapse.ideas,'Synapse must use only parent/child links');
+                assert.equal(synapse.nodeCount,synapse.ideas+1,'Synapse must have Jéhovah at its center');
+                assert.ok(synapse.marble,'The Moi marble must travel on an existing link');
+                if(mobile)await page.locator('#mobilePagesV51').selectOption('map');
+                else await page.locator('.tab[data-page="map"]').click();
+                assert.ok(await page.locator('#page-map').isVisible(),'Original map must remain accessible');
                 if(width===390||width===1280){
                   await page.screenshot({path:'/tmp/second-v51-shot-'+width+'.png',fullPage:true,animations:'disabled'});
                 }
