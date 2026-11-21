@@ -126,6 +126,7 @@ jobs:
                   await synTab.click();
                 }
                 await page.locator('#page-synapse').waitFor({state:'visible'});
+                await page.waitForFunction(()=>Number(document.querySelector('#page-synapse [data-count]')?.textContent)>0,null,{timeout:10000});
                 const synapse=await page.evaluate(()=>({
                   ideas:Number(document.querySelector('#page-synapse [data-count]')?.textContent),
                   links:Number(document.querySelector('#page-synapse [data-links]')?.textContent),
