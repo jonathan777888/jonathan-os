@@ -139,6 +139,10 @@ jobs:
             localStorage.setItem('second-brain-verify-token-v43','SECRET-NE-DOIT-PAS-ETRE-SYNCHRONISE');
             localStorage.setItem('second-brain-private-api-key','SECRET-API');
             window.__mockUpserts=[];
+            window.__mockStorageEvents=[];
+            window.addEventListener('storage',e=>{
+              window.__mockStorageEvents.push({key:e.key,url:e.url,oldSize:e.oldValue?.length||0,newSize:e.newValue?.length||0});
+            });
             const remoteRow=remote;
             window.supabase={
               createClient:()=>({
@@ -185,7 +189,9 @@ jobs:
                   badge:document.getElementById('cloudBadgeV52')?.textContent,
                   mockCount:window.__mockUpserts?.length,
                   ownerSet:!!JSON.parse(localStorage.getItem('second-brain-cloud-meta-v52')||'null')?.userId,
-                  cloudService:!!window.SecondBrainCloudV52
+                  cloudService:!!window.SecondBrainCloudV52,
+                  storageEvents:(window.__mockStorageEvents||[]).slice(-15),
+                  iframes:Array.from(document.querySelectorAll('iframe')).map(f=>f.src)
                 }));
                 console.log('CLOUD-TEST-DIAGNOSTIC '+JSON.stringify(diag));
                 throw err;
