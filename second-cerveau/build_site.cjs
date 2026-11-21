@@ -18,7 +18,7 @@ html=html.slice(0,closing)+modules+html.slice(closing);
 for(const file of ['index.html','app.html','local.html'])fs.writeFileSync(path.join(out,file),html);
 fs.copyFileSync(path.join(root,'transfer.html'),path.join(out,'transfer.html'));
 // Preserve the existing software engineering workspace from V52.
-for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js']){
+for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js','synapse-entry.js']){
   if(!fs.existsSync(path.join(root,file))) throw Error('Required software engineering module missing: '+file);
   fs.copyFileSync(path.join(root,file),path.join(out,file));
 }
@@ -28,7 +28,7 @@ for(const file of ['atelier-genie-logiciel.html','software-engineering-entry.js'
     const page=fs.readFileSync(target,'utf8');
     const closingTag=page.lastIndexOf('</body></html>');
     if(closingTag<0)throw Error('Missing final HTML closing tag: '+file);
-    fs.writeFileSync(target,page.slice(0,closingTag)+'<script src="./software-engineering-entry.js" defer></script>'+page.slice(closingTag));
+    fs.writeFileSync(target,page.slice(0,closingTag)+'<script src="./software-engineering-entry.js" defer></script><script src="./synapse-entry.js" defer></script>'+page.slice(closingTag));
   }
 }
 
