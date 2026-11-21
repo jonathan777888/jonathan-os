@@ -64,6 +64,11 @@ jobs:
           grep -Fq 'Retrouver mes anciens travaux' public/engineering-guided-v54.js
           grep -Fq 'second-cerveau-genie-logiciel-v1' public/engineering-guided-v54.js
           test -s public/atelier-genie-logiciel.html
+          test -s public/synapse-entry.js
+          grep -Fq 'synapse-entry.js' public/index.html
+          grep -Fq 'data-do="fullscreen"' public/synapse-entry.js
+          grep -Fq 'requestFullscreen' public/synapse-entry.js
+          grep -Fq 'syn-full-overlay' public/synapse-entry.js
           test -s public/software-engineering-entry.js
           grep -Fq 'software-engineering-entry.js' public/index.html
           grep -Fq 'Mon atelier Génie logiciel & DevOps' public/software-engineering-entry.js
