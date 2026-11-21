@@ -12,6 +12,7 @@ const num=x=>Number.isFinite(x)?x:0;
 let graph={nodes:[],edges:[]},nodes=new Map(),edges=new Map();
 let xp={xp:0,returns:0,edge:null,t:.7,atCenter:false,away:true,furthest:0};
 let camera={x:0,y:0,z:1},stage,svg,layer,tab,page,panel,status,drag,ready=false,chosen=null;
+let pseudoFullscreen=false,previousPageOverflow='',previousScrollY=0,lastStageSize=null;
 function tree(){
  try{const s=JSON.parse(localStorage.getItem(SOURCE)||'null');if(s?.tree?.children)return s.tree}catch{}
  try{if(typeof state!=='undefined'&&state?.tree?.children)return state.tree}catch{}
@@ -139,6 +140,69 @@ function exportXp(){
  const b=new Blob([JSON.stringify({version:1,type:'synapse-progression',progress:xp,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
  const url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='synapse-progression.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+function fullscreenActive(){
+ return pseudoFullscreen||document.fullscreenElement===page;
+}
+function updateFullscreenButton(){
+ if(!page)return;
+ const button=$('[data-do="fullscreen"]',page);
+ if(!button)return;
+ const active=fullscreenActive();
+ button.textContent=active?'⤢ Quitter le plein écran':'⛶ Plein écran';
+ button.setAttribute('aria-pressed',String(active));
+ button.setAttribute('aria-label',active?'Quitter le mode plein écran de Synapse':'Afficher Synapse en plein écran');
+ button.title=active?'Revenir à la taille normale (Échap)':'Agrandir la carte Synapse';
+}
+function enterOverlayFullscreen(){
+ if(pseudoFullscreen)return;
+ previousPageOverflow=document.documentElement.style.overflow;
+ previousScrollY=window.scrollY;
+ pseudoFullscreen=true;
+ page.classList.add('syn-full-overlay');
+ document.documentElement.style.overflow='hidden';
+ updateFullscreenButton();
+ requestAnimationFrame(adjustStage);
+}
+function exitOverlayFullscreen(){
+ if(!pseudoFullscreen)return;
+ pseudoFullscreen=false;
+ page.classList.remove('syn-full-overlay');
+ document.documentElement.style.overflow=previousPageOverflow;
+ updateFullscreenButton();
+ requestAnimationFrame(()=>{
+   adjustStage();
+   window.scrollTo(0,previousScrollY);
+ });
+}
+async function toggleFullscreen(){
+ if(document.fullscreenElement===page){
+   try{await document.exitFullscreen()}catch{updateFullscreenButton()}
+   return;
+ }
+ if(pseudoFullscreen){exitOverlayFullscreen();return}
+ // The browser API hides system browser chrome where supported (PC/Android).
+ // On browsers without it (notably iOS), a fixed viewport overlay is used.
+ if(typeof page.requestFullscreen==='function'){
+   try{
+     await page.requestFullscreen();
+     updateFullscreenButton();
+     requestAnimationFrame(adjustStage);
+     return;
+   }catch{}
+ }
+ enterOverlayFullscreen();
+}
+function adjustStage(){
+ if(!svg||!page?.classList.contains('active'))return;
+ const next={w:w(),h:h()};
+ if(lastStageSize){
+   camera.x+=(next.w-lastStageSize.w)/2;
+   camera.y+=(next.h-lastStageSize.h)/2;
+ }
+ lastStageSize=next;
+ draw();
+}
 function install(){
  const nav=$('nav.tabs'),app=$('.app');if(!nav||!app||$('#page-'+PAGE))return;
  const css=document.createElement('style');css.id='synapse-v5-styles';
@@ -165,19 +229,25 @@ function install(){
  '#page-synapse .syn-panel button{margin:7px 6px 0 0}',
  '#page-synapse .syn-foot{color:#b7c9df;font-size:12px;padding:9px 10px}',
  '#page-synapse .syn-status{color:#8fe5bb}',
+ '#page-synapse:fullscreen,#page-synapse.syn-full-overlay{position:fixed!important;inset:0!important;z-index:2147483000!important;width:100vw!important;height:100dvh!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:#0b1223!important}',
+ '#page-synapse:fullscreen .syn-h,#page-synapse.syn-full-overlay .syn-h{flex:0 0 auto}',
+ '#page-synapse:fullscreen .syn-tools,#page-synapse.syn-full-overlay .syn-tools{flex:0 0 auto}',
+ '#page-synapse:fullscreen .syn-stage,#page-synapse.syn-full-overlay .syn-stage{flex:1 1 auto!important;width:100%;height:auto!important;min-height:0!important;min-width:0;overflow:hidden}',
+ '#page-synapse:fullscreen .syn-foot,#page-synapse.syn-full-overlay .syn-foot{flex:0 0 auto;max-height:65px;overflow:auto;margin:0}',
+ '@media(max-width:760px){#page-synapse:fullscreen .syn-h p,#page-synapse.syn-full-overlay .syn-h p{display:none}#page-synapse:fullscreen .syn-foot,#page-synapse.syn-full-overlay .syn-foot{padding:5px;font-size:11px;max-height:50px}#page-synapse:fullscreen .syn-tools,#page-synapse.syn-full-overlay .syn-tools{gap:5px}}',
  '@media(max-width:760px){#page-synapse{padding:5px}#page-synapse .syn-stage{min-height:420px;height:62dvh}#page-synapse button{padding:9px}#page-synapse .syn-tools{gap:5px}#page-synapse input{max-width:none}}'
  ].join('');document.head.append(css);
  tab=document.createElement('button');tab.type='button';tab.className='tab';tab.dataset.page=PAGE;tab.textContent='🧠 Synapse';
  const anchor=$('.tab[data-page="map"]',nav);anchor?anchor.insertAdjacentElement('afterend',tab):nav.append(tab);
  page=document.createElement('section');page.className='page';page.id='page-'+PAGE;
  page.innerHTML='<div class="syn-h"><div><h2>✦ SYNAPSE — Carte neuronale</h2><p>Jéhovah au centre · les connexions symbolisent Jésus-Christ · Moi voyage sur les liens normaux.</p></div><div class="syn-score"><span data-xp>0 XP</span><small data-level>Niveau 1</small></div></div>'+
- '<div class="syn-tools"><button data-do="home">◎ Centre</button><button data-do="fit">▣ Tout voir</button><button data-do="plus">＋</button><span data-zoom>100 %</span><button data-do="minus">－</button><button data-do="refresh">↻ Actualiser</button><input data-search type="search" placeholder="Rechercher une idée…" aria-label="Rechercher une idée"><button data-do="export">Exporter XP</button></div>'+
+ '<div class="syn-tools"><button data-do="home">◎ Centre</button><button data-do="fit">▣ Tout voir</button><button data-do="plus">＋</button><span data-zoom>100 %</span><button data-do="minus">－</button><button data-do="refresh">↻ Actualiser</button><button type="button" data-do="fullscreen" aria-pressed="false" aria-label="Afficher Synapse en plein écran">⛶ Plein écran</button><input data-search type="search" placeholder="Rechercher une idée…" aria-label="Rechercher une idée"><button data-do="export">Exporter XP</button></div>'+
  '<div class="syn-stage"><svg role="img" aria-label="Carte neuronale et bille Moi à déplacer"><g class="syn-layer"></g></svg><aside class="syn-panel" hidden></aside></div>'+
  '<p class="syn-foot">Déplace la bille <strong>Moi</strong> le long des liens et reviens à Jéhovah pour +10 XP. Touche une bulle pour lire sa note. <span data-count>0</span> idées · <span data-links>0</span> connexions normales · interconnexions masquées. <span class="syn-status" role="status" aria-live="polite"></span></p>';
  app.append(page);stage=$('.syn-stage',page);svg=$('svg',stage);layer=$('.syn-layer',stage);panel=$('.syn-panel',stage);status=$('.syn-status',page);
  loadXp();
  page.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b)return;
-  const d=b.dataset.do;if(d==='home')home();if(d==='fit')fit();if(d==='plus')zoom(1.2);if(d==='minus')zoom(1/1.2);if(d==='refresh')refresh();if(d==='export')exportXp()});
+  const d=b.dataset.do;if(d==='home')home();if(d==='fit')fit();if(d==='plus')zoom(1.2);if(d==='minus')zoom(1/1.2);if(d==='refresh')refresh();if(d==='fullscreen')toggleFullscreen();if(d==='export')exportXp()});
  $('[data-search]',page).addEventListener('change',e=>{const s=e.target.value.trim().toLocaleLowerCase(),n=graph.nodes.find(x=>x.label.toLocaleLowerCase().includes(s));if(!s)return;if(!n){msg('Aucun résultat');return}
   camera.z=Math.max(camera.z,.83);camera.x=w()/2-n.x*camera.z;camera.y=h()/2-n.y*camera.z;inspect(n)});
  svg.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;
@@ -192,8 +262,11 @@ function install(){
  const release=e=>{if(drag&&drag.id===e.pointerId){drag=null;save()}};
  svg.addEventListener('pointerup',release);svg.addEventListener('pointercancel',release);
  svg.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?1.1:1/1.1)},{passive:false});
- if('ResizeObserver' in window)new ResizeObserver(()=>{if(page.classList.contains('active'))draw()}).observe(stage);
- tab.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===tab));$$('.page').forEach(x=>x.classList.toggle('active',x===page));requestAnimationFrame(()=>{refresh();window.scrollTo(0,0)})});
+ if('ResizeObserver' in window)new ResizeObserver(adjustStage).observe(stage);
+ document.addEventListener('fullscreenchange',()=>{if(document.fullscreenElement!==page&&pseudoFullscreen)exitOverlayFullscreen();updateFullscreenButton();requestAnimationFrame(adjustStage)});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pseudoFullscreen){e.preventDefault();exitOverlayFullscreen()}});
+ window.addEventListener('resize',()=>requestAnimationFrame(adjustStage));
+ tab.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===tab));$$('.page').forEach(x=>x.classList.toggle('active',x===page));requestAnimationFrame(()=>{refresh();adjustStage();window.scrollTo(0,0)})});
  const openHash=()=>{if(location.hash==='#synapse')tab.click()};window.addEventListener('hashchange',openHash);openHash();
  window.addEventListener('storage',e=>{if(e.key===SOURCE&&page.classList.contains('active'))refresh()});
  msg('Ouvre Synapse pour explorer ta carte.');
