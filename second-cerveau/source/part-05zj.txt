@@ -1,0 +1,372 @@
+
+// V52 — Synchronisation Google Drive personnelle, sans secret dans le navigateur.
+// Ce module reste inactif tant qu'un client OAuth Google Web n'est pas configure.
+(() => {
+  'use strict';
+  if(document.getElementById('googleSyncV52')) return;
+  const BUILT_IN_CLIENT_ID = ''; // Configurer avec l'ID client public Web, jamais le secret.
+  const CLIENT_KEY = 'second-brain-google-v52-client-id';
+  const PROFILE_KEY = 'second-brain-google-v52-sync-profile';
+  const FILE_NAME = 'jonathan-second-cerveau-v52.json';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  const BASE = 'https://www.googleapis.com';
+  const MAX_BYTES = 12 * 1024 * 1024;
+  const $ = id => document.getElementById(id);
+  const session = {token:'', expiry:0, email:'', displayName:'', remote:null, busy:false, ready:false};
+  let tokenClient = null, tokenClientFor = '';
+  let lastAutoError = '';
+
+  const style=document.createElement('style');
+  style.id='googleSyncStyleV52';
+  style.textContent = [
+    '#googleSyncV52{margin-top:18px;border:1px solid #c7dacf;border-radius:20px;background:#f7faf6;padding:18px}',
+    '#googleSyncV52 h2{margin:0 0 8px;font-size:22px}',
+    '#googleSyncV52 p{line-height:1.55;font-size:13px;color:#536359}',
+    '#googleSyncV52 .g52-panel{padding:13px;background:white;border:1px solid #e0e8df;border-radius:14px;margin-top:12px}',
+    '#googleSyncV52 .g52-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}',
+    '#googleSyncV52 .g52-actions .btn{min-height:44px;white-space:normal}',
+    '#googleSyncV52 .g52-label{font-size:12px;font-weight:800;display:block;margin-bottom:5px}',
+    '#googleSyncV52 .g52-help{font-size:11px;margin:6px 0}',
+    '#googleSyncV52 .g52-message{padding:12px 13px;background:#eaf3e8;border-radius:12px;min-height:42px;color:#244d39;font-size:12px;line-height:1.55}',
+    '#googleSyncV52 .g52-identity{font-weight:800;color:#244d39;font-size:13px}',
+    '#googleSyncV52 .g52-checkbox{display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:700}',
+    '#googleSyncV52 .g52-checkbox input{width:19px;height:19px;flex-shrink:0}',
+    '@media(max-width:760px){#googleSyncV52{padding:13px}#googleSyncV52 .g52-actions{display:grid;grid-template-columns:1fr}#googleSyncV52 .g52-actions .btn{width:100%}}'
+  ].join('');
+  document.head.appendChild(style);
+
+  const backupPage=$('page-backup');
+  const parent=backupPage ? (backupPage.querySelector('.section-card') || backupPage) : null;
+  if(!parent)return;
+  const panel=document.createElement('section');
+  panel.id='googleSyncV52';
+  panel.setAttribute('aria-label','Synchronisation avec mon compte Google');
+  panel.innerHTML=[
+    "<h2>☁️ Mes données sur tous mes appareils</h2>",
+    "<p>Connecte ton compte Google pour sauvegarder et retrouver les données du Second Cerveau sur ordinateur, tablette et téléphone. Seuls les fichiers privés de cette application sont accessibles, jamais l'ensemble de ton Drive.</p>",
+    "<div class='g52-panel' id='g52Config'>",
+      "<label class='g52-label' for='g52ClientId'>Configuration Google (une seule fois pour le site)</label>",
+      "<input id='g52ClientId' class='field' type='text' autocomplete='off' spellcheck='false' placeholder='123456789-abc.apps.googleusercontent.com'>",
+      "<p class='g52-help'>Il faut un identifiant client OAuth 2.0 de type Application Web. Ne colle jamais de mot de passe, secret client ou clé privée.</p>",
+      "<div class='g52-actions'><button type='button' class='btn' id='g52SaveConfig'>Enregistrer l'identifiant public</button></div>",
+    "</div>",
+    "<div class='g52-panel'>",
+      "<div class='g52-identity' id='g52Account'>Google : non connecté</div>",
+      "<div class='g52-actions'>",
+        "<button type='button' class='btn primary' id='g52Connect'>Se connecter avec Google</button>",
+        "<button type='button' class='btn' id='g52Disconnect' disabled>Se déconnecter</button>",
+        "<button type='button' class='btn' id='g52Compare' disabled>Vérifier ma sauvegarde</button>",
+      "</div>",
+      "<p id='g52Status' class='g52-message' role='status' aria-live='polite'>En attente de la configuration Google.</p>",
+    "</div>",
+    "<div class='g52-panel'>",
+      "<h3 style='margin:0 0 7px;font-size:16px'>Retrouver ou enregistrer mes informations</h3>",
+      "<div class='g52-actions'>",
+        "<button type='button' class='btn primary' id='g52Load' disabled>Retrouver mes données Google</button>",
+        "<button type='button' class='btn' id='g52Upload' disabled>Enregistrer mes données sur Google</button>",
+        "<button type='button' class='btn' id='g52Export'>Télécharger une copie locale</button>",
+      "</div>",
+      "<p class='g52-help'>La récupération crée d'abord une copie téléchargeable des données actuellement présentes sur cet appareil. Une sauvegarde Google existante n'est jamais écrasée sans vérification.</p>",
+      "<label class='g52-checkbox'><input type='checkbox' id='g52Auto' disabled><span>Synchroniser automatiquement les nouvelles modifications environ chaque minute, lorsque le site est ouvert et que la connexion Google est valide.</span></label>",
+      "<p class='g52-help'>Si le téléphone et l'ordinateur ont tous les deux été modifiés, la synchronisation se met en pause pour éviter d'effacer des informations.</p>",
+    "</div>"
+  ].join('');
+  parent.appendChild(panel);
+
+  function message(text){$('g52Status').textContent=text;}
+  function getClientId(){
+    let local='';
+    try{local=localStorage.getItem(CLIENT_KEY)||'';}catch(e){}
+    return BUILT_IN_CLIENT_ID||local;
+  }
+  function validClientId(id){
+    return /^[0-9]+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(String(id||'').trim());
+  }
+  function profile(){
+    try{const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'null');return p&&typeof p==='object'?p:{};}catch(e){return {};}
+  }
+  function setProfile(p){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(p));}catch(e){message('Impossible de conserver les préférences de synchronisation sur cet appareil.');}}
+  function isDataKey(key){
+    if(!/^(second-brain-|jonathan-)/.test(key))return false;
+    if(/^second-brain-google-/i.test(key))return false;
+    if(/^second-brain-(?:before-|pre-upgrade|recover-)/i.test(key))return false;
+    if(/(?:token|secret|password|passcode|access[-_]?code|api[-_]?key|client[-_]?id|oauth|credential|bearer|jwt|private[-_]?key)/i.test(key))return false;
+    return true;
+  }
+  function entries(){
+    const out={};
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&isDataKey(k)){const v=localStorage.getItem(k);if(typeof v==='string')out[k]=v;}
+      }
+    }catch(e){throw new Error('Lecture des données locales impossible : '+e.message);}
+    return Object.fromEntries(Object.keys(out).sort().map(k=>[k,out[k]]));
+  }
+  function makeSnapshot(){
+    return {format:'jonathan-second-cerveau',schema:1,appVersion:'52',savedAt:new Date().toISOString(),entries:entries()};
+  }
+  function serializeData(s){return JSON.stringify(s.entries);}
+  async function fingerprint(s){
+    const bytes=new TextEncoder().encode(serializeData(s));
+    const hash=await crypto.subtle.digest('SHA-256',bytes);
+    return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  function checkSnapshot(obj){
+    if(!obj||obj.format!=='jonathan-second-cerveau'||obj.schema!==1||!obj.entries||typeof obj.entries!=='object'||Array.isArray(obj.entries))throw new Error('Cette sauvegarde Google est incompatible.');
+    const keys=Object.keys(obj.entries);
+    if(keys.length>1000)throw new Error('Sauvegarde trop volumineuse (nombre de données).');
+    for(const k of keys)if(!isDataKey(k)||typeof obj.entries[k]!=='string')throw new Error('Contenu Google non reconnu : aucune donnée locale n’a été remplacée.');
+    if(new TextEncoder().encode(JSON.stringify(obj)).length>MAX_BYTES)throw new Error('Sauvegarde trop volumineuse pour la récupération automatique.');
+    return obj;
+  }
+  function downloadSnapshot(s){
+    const data=JSON.stringify(s,null,2);
+    const blob=new Blob([data],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='second-cerveau-sauvegarde-locale-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),15000);
+  }
+  function setButtons(){
+    const online=!!session.token&&Date.now()<session.expiry;
+    const loaded=online&&!session.busy;
+    $('g52Account').textContent=online?'Google : '+(session.displayName?session.displayName+' — ':'')+session.email:'Google : non connecté';
+    $('g52Connect').disabled=session.busy||!session.ready||!validClientId(getClientId());
+    $('g52Disconnect').disabled=!online||session.busy;
+    $('g52Compare').disabled=!loaded;
+    $('g52Upload').disabled=!loaded;
+    $('g52Load').disabled=!loaded||!session.remote;
+    const p=profile();
+    $('g52Auto').disabled=!loaded||p.email!==session.email||!p.fileId;
+    $('g52Auto').checked=!!(p.auto&&p.email===session.email);
+  }
+  function loadGoogleLibrary(){
+    if(window.google&&google.accounts&&google.accounts.oauth2){session.ready=true;setButtons();return;}
+    if(document.getElementById('g52GoogleSdk'))return;
+    const script=document.createElement('script');
+    script.id='g52GoogleSdk';
+    script.async=true;
+    script.src='https://accounts.google.com/gsi/client';
+    script.onload=()=>{session.ready=!!(window.google&&google.accounts&&google.accounts.oauth2);setButtons();};
+    script.onerror=()=>{message('Impossible de charger la connexion Google. Vérifie Internet ou un bloqueur de scripts.');};
+    document.head.appendChild(script);
+  }
+  async function googleRequest(url,options={}){
+    if(!session.token||Date.now()>=session.expiry)throw new Error('Session Google expirée : reconnecte-toi avec Google.');
+    const headers=new Headers(options.headers||{});
+    headers.set('Authorization','Bearer '+session.token);
+    const result=await fetch(url,{...options,headers});
+    if(!result.ok){
+      const excerpt=(await result.text()).slice(0,250);
+      if(result.status===401){session.token='';setButtons();}
+      throw new Error('Google Drive : erreur '+result.status+(result.status===403?' (vérifie le consentement OAuth et l’activation de Google Drive API)':'')+'. '+excerpt.replace(/<[^>]+>/g,' '));
+    }
+    return result;
+  }
+  async function findCloudFile(){
+    const query=new URLSearchParams({spaces:'appDataFolder',q:"name = '"+FILE_NAME+"' and trashed = false",fields:'nextPageToken,files(id,name,modifiedTime,version,size)',pageSize:'100',orderBy:'modifiedTime desc'});
+    const result=await googleRequest(BASE+'/drive/v3/files?'+query.toString());
+    const data=await result.json();
+    if(data.nextPageToken)throw new Error('Plusieurs sauvegardes détectées : liste incomplète. Vérification nécessaire.');
+    if((data.files||[]).length>1)throw new Error('Plusieurs sauvegardes actives détectées. Aucune sauvegarde automatique effectuée.');
+    return (data.files||[])[0]||null;
+  }
+  async function getCloudFile(f){
+    if(!f||!f.id)throw new Error('Aucune sauvegarde Google disponible.');
+    const response=await googleRequest(BASE+'/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
+    let doc;
+    try{doc=JSON.parse(await response.text());}catch(e){throw new Error('Le fichier Google ne contient pas un JSON lisible.');}
+    return checkSnapshot(doc);
+  }
+  async function createCloudFile(name,snapshotText){
+    const boundary='sb'+Math.random().toString(36).slice(2)+Date.now();
+    const metadata=JSON.stringify({name:name,mimeType:'application/json',parents:['appDataFolder']});
+    const bytes=new Blob([
+      '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',metadata,
+      '\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',snapshotText,
+      '\r\n--'+boundary+'--\r\n'
+    ]);
+    const res=await googleRequest(BASE+'/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime,version',{
+      method:'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body:bytes
+    });
+    return await res.json();
+  }
+  async function updateCloudFile(f,snapshotText){
+    const res=await googleRequest(BASE+'/upload/drive/v3/files/'+encodeURIComponent(f.id)+'?uploadType=media&fields=id,name,modifiedTime,version',{
+      method:'PATCH',headers:{'Content-Type':'application/json; charset=UTF-8'},body:snapshotText
+    });
+    return await res.json();
+  }
+  function sameRevision(a,b){
+    return !!a&&!!b&&a.id===b.id&&String(a.version||a.modifiedTime)===String(b.version||b.modifiedTime);
+  }
+  async function loadCloudStatus(){
+    session.remote=await findCloudFile();
+    const p=profile();
+    const local=makeSnapshot();
+    const localHash=await fingerprint(local);
+    if(!session.remote){
+      message('Aucune sauvegarde Google pour ce compte. Utilise « Enregistrer mes données sur Google » sur l’appareil où se trouvent tes informations.');
+    }else if(p.email!==session.email||p.fileId!==session.remote.id){
+      message('Une sauvegarde a été trouvée sur Google ('+new Date(session.remote.modifiedTime).toLocaleString('fr-CA')+'). Clique sur « Retrouver mes données Google » pour l’importer. Rien ne sera écrasé automatiquement.');
+    }else if(String(p.modifiedTime)!==String(session.remote.modifiedTime) && String(p.version)!==String(session.remote.version)){
+      message('Cette sauvegarde Google a changé depuis la dernière synchronisation. Vérifie les données avant de remplacer quoi que ce soit.');
+    }else if(localHash!==p.localHash){
+      message('Des modifications locales ne sont pas encore sauvegardées sur Google.');
+    }else{
+      message('Google et cet appareil étaient synchronisés à la dernière sauvegarde.');
+    }
+    setButtons();
+  }
+  function useProfile(file,hash){
+    const current=profile();
+    setProfile({email:session.email,fileId:file.id,version:file.version||'',modifiedTime:file.modifiedTime||'',localHash:hash,auto:current.email===session.email?!!current.auto:false});
+  }
+  async function busy(action){
+    if(session.busy)return;
+    session.busy=true;setButtons();
+    try{await action();}catch(e){message('Erreur : '+(e.message||String(e)));}
+    finally{session.busy=false;setButtons();}
+  }
+  async function upload(manual){
+    if(!session.email)throw new Error('Connecte-toi avec Google.');
+    const snap=makeSnapshot();
+    const data=JSON.stringify(snap);
+    if(new TextEncoder().encode(data).length>MAX_BYTES)throw new Error('Données volumineuses : conserve une copie JSON locale avant de poursuivre.');
+    const hash=await fingerprint(snap);
+    const remote=await findCloudFile();
+    const p=profile();
+    if(remote){
+      const trusted=p.email===session.email&&p.fileId===remote.id&&sameRevision(remote,{id:p.fileId,version:p.version,modifiedTime:p.modifiedTime});
+      if(!trusted){
+        if(!manual){message('Synchronisation interrompue : Google contient une autre version. Utilise les boutons pour choisir la bonne.');return;}
+        if(!confirm('Une sauvegarde Google existe déjà et pourrait contenir des modifications plus récentes.\n\nUne archive de la version Google sera créée avant de la remplacer. Confirmer ?'))return;
+        const prior=await getCloudFile(remote);
+        const archiveName='jonathan-second-cerveau-archive-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+        await createCloudFile(archiveName,JSON.stringify(prior));
+      }else if(hash===p.localHash){
+        session.remote=remote;message('Aucune nouvelle modification à enregistrer.');return;
+      }
+    }else if(!manual){
+      message('Aucune sauvegarde Google. Lance d’abord une sauvegarde manuelle.');return;
+    }
+    const saved=remote?await updateCloudFile(remote,data):await createCloudFile(FILE_NAME,data);
+    const confirmed=await findCloudFile();
+    if(!confirmed||confirmed.id!==saved.id)throw new Error('Sauvegarde envoyée, mais vérification Google incomplète. Ne ferme pas ta copie locale.');
+    session.remote=confirmed;
+    useProfile(confirmed,hash);
+    message('Sauvegardé dans ton compte Google à '+new Date().toLocaleTimeString('fr-CA')+'. Tu peux maintenant le récupérer sur tes autres appareils.');
+  }
+  function replaceLocal(cloud){
+    const old=entries();
+    const keys=Object.keys(old);
+    try{
+      keys.forEach(k=>localStorage.removeItem(k));
+      Object.keys(cloud.entries).forEach(k=>localStorage.setItem(k,cloud.entries[k]));
+    }catch(err){
+      try{
+        for(const k of Object.keys(entries()))localStorage.removeItem(k);
+        Object.keys(old).forEach(k=>localStorage.setItem(k,old[k]));
+      }catch(recoveryError){throw new Error('Espace local insuffisant, restauration annulée. Conserve le fichier JSON téléchargé avant cette opération.');}
+      throw new Error('Restauration annulée et données locales précédentes rétablies : '+err.message);
+    }
+  }
+  async function restoreCloud(manual){
+    const file=await findCloudFile();
+    if(!file)throw new Error('Aucune donnée Google à retrouver.');
+    const cloud=await getCloudFile(file);
+    const current=makeSnapshot();
+    if(manual){
+      if(!confirm('Remplacer les données de ce navigateur par celles de Google ?\n\nUne sauvegarde locale sera téléchargée avant le remplacement. Cette action recharge ensuite le Second Cerveau.'))return;
+      downloadSnapshot(current);
+    }
+    replaceLocal(cloud);
+    const newHash=await fingerprint(makeSnapshot());
+    session.remote=file;
+    useProfile(file,newHash);
+    message('Données Google restaurées. Rechargement de l’application…');
+    location.reload();
+  }
+  async function automaticSync(){
+    const p=profile();
+    if(!session.email||!p.auto||session.busy||p.email!==session.email||!p.fileId)return;
+    if(Date.now()>=session.expiry){message('Connexion Google expirée : reconnecte-toi pour reprendre la synchronisation.');setButtons();return;}
+    await busy(async()=>{
+      const remote=await findCloudFile();
+      const same=remote&&p.fileId===remote.id&&sameRevision(remote,{id:p.fileId,version:p.version,modifiedTime:p.modifiedTime});
+      const hash=await fingerprint(makeSnapshot());
+      if(!same){
+        if(hash===p.localHash && remote){
+          await restoreCloud(false);
+        }else{
+          message('Conflit entre appareils : une version Google différente existe. Synchronisation automatique suspendue, aucune donnée effacée.');
+        }
+        return;
+      }
+      if(hash!==p.localHash)await upload(false);
+      else if(lastAutoError){message('Données Google et locales synchronisées.');lastAutoError='';}
+    });
+  }
+  function connect(){
+    const id=getClientId();
+    if(!validClientId(id)){message('Configure d’abord un identifiant client OAuth Google Web valide.');return;}
+    if(!(window.google&&google.accounts&&google.accounts.oauth2)){message('Connexion Google en cours de chargement. Réessaie dans un instant.');loadGoogleLibrary();return;}
+    if(!tokenClient||tokenClientFor!==id){
+      tokenClientFor=id;
+      tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:id,scope:DRIVE_SCOPE,
+        callback:response=>{
+          if(!response||response.error||!response.access_token){message('Connexion Google non autorisée ou annulée.');return;}
+          busy(async()=>{
+            session.token=response.access_token;
+            session.expiry=Date.now()+Math.max(60,Number(response.expires_in)||3600)*1000-30000;
+            const about=await googleRequest(BASE+'/drive/v3/about?fields=user(emailAddress,displayName)');
+            const info=(await about.json()).user||{};
+            if(!info.emailAddress)throw new Error('Impossible de confirmer le compte Google. Aucune donnée transférée.');
+            session.email=info.emailAddress;session.displayName=info.displayName||'';
+            await loadCloudStatus();
+          });
+        },
+        error_callback:()=>message('La fenêtre Google a été fermée ou bloquée. Réessaie.')
+      });
+    }
+    tokenClient.requestAccessToken({prompt:'select_account'});
+  }
+  $('g52SaveConfig').onclick=()=>{
+    const value=$('g52ClientId').value.trim();
+    if(!validClientId(value)){message('Format attendu : 123456789-abc.apps.googleusercontent.com. Il s’agit d’un identifiant public, pas d’un mot de passe.');return;}
+    if(BUILT_IN_CLIENT_ID){message('Cet identifiant est déjà configuré pour le site.');return;}
+    try{localStorage.setItem(CLIENT_KEY,value);tokenClient=null;tokenClientFor='';message('Identifiant public Google enregistré sur cet appareil. Active aussi Google Drive API et autorise l’origine du site dans Google Cloud.');}catch(e){message('Enregistrement local impossible.');}
+    setButtons();
+  };
+  $('g52Connect').onclick=connect;
+  $('g52Disconnect').onclick=()=>{
+    session.token='';session.expiry=0;session.email='';session.displayName='';session.remote=null;
+    message('Déconnecté de cette session. Aucune sauvegarde Google n’a été supprimée.');
+    setButtons();
+  };
+  $('g52Compare').onclick=()=>busy(loadCloudStatus);
+  $('g52Upload').onclick=()=>busy(()=>upload(true));
+  $('g52Load').onclick=()=>busy(()=>restoreCloud(true));
+  $('g52Export').onclick=()=>{try{downloadSnapshot(makeSnapshot());message('Copie locale JSON préparée pour le téléchargement.');}catch(e){message('Impossible de préparer le fichier : '+e.message);}};
+  $('g52Auto').onchange=()=>{
+    const p=profile();
+    if(!session.email||p.email!==session.email||!p.fileId){$('g52Auto').checked=false;message('Effectue d’abord une sauvegarde ou une récupération manuelle.');return;}
+    p.auto=$('g52Auto').checked;setProfile(p);
+    message(p.auto?'Synchronisation automatique activée : elle s’arrête en cas de conflit ou de session expirée.':'Synchronisation automatique désactivée.');
+  };
+  if(BUILT_IN_CLIENT_ID){
+    $('g52Config').hidden=true;
+  }else{
+    $('g52ClientId').value=getClientId();
+  }
+  message(getClientId()?'Configuration Google disponible. Clique sur « Se connecter avec Google ».':'Pour activer la connexion Google, configure une fois l’identifiant client OAuth public de ton site.');
+  loadGoogleLibrary();
+  setButtons();
+  setInterval(()=>automaticSync().catch(e=>{
+    if(String(e.message)!==lastAutoError){lastAutoError=String(e.message);message('Synchronisation automatique : '+lastAutoError);}
+  }),60000);
+  window.SecondBrainGoogleSyncV52={isDataKey,makeSnapshot,checkSnapshot,version:52};
+})();
