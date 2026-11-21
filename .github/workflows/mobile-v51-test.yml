@@ -175,7 +175,21 @@ jobs:
               assert.equal(await page.evaluate(()=>window.__mockUpserts.length),0,'First upload must require explicit consent');
               await page.locator('[data-page="backup"]').click();
               await page.locator('#cloudSyncNowV52').click();
-              await page.waitForFunction(()=>window.__mockUpserts.length===1);
+              try {
+                await page.waitForFunction(()=>window.__mockUpserts.length===1,{timeout:10000});
+              } catch(err) {
+                const diag=await page.evaluate(()=>({
+                  visible:!document.getElementById('cloudSyncNowV52')?.hidden,
+                  email:document.getElementById('cloudEmailV52')?.textContent,
+                  status:document.getElementById('cloudStatusV52')?.textContent,
+                  badge:document.getElementById('cloudBadgeV52')?.textContent,
+                  mockCount:window.__mockUpserts?.length,
+                  ownerSet:!!JSON.parse(localStorage.getItem('second-brain-cloud-meta-v52')||'null')?.userId,
+                  cloudService:!!window.SecondBrainCloudV52
+                }));
+                console.log('CLOUD-TEST-DIAGNOSTIC '+JSON.stringify(diag));
+                throw err;
+              }
               const first=await page.evaluate(()=>({
                 row:window.__mockUpserts[0],
                 email:document.getElementById('cloudEmailV52')?.textContent||'',
