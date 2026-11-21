@@ -9,6 +9,7 @@ on:
       - 'second-cerveau/spiritual-ladder.js'
       - 'second-cerveau/google-drive-sync-v53.js'
       - 'second-cerveau/build_site.cjs'
+      - 'second-cerveau/synapse-entry.js'
       - '.github/workflows/pages-second-cerveau.yml'
   workflow_dispatch:
 
