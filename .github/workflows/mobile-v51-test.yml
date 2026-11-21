@@ -139,6 +139,48 @@ jobs:
                 assert.equal(synapse.links,synapse.ideas,'Synapse must use only parent/child links');
                 assert.equal(synapse.nodeCount,synapse.ideas+1,'Synapse must have Jéhovah at its center');
                 assert.ok(synapse.marble,'The Moi marble must travel on an existing link');
+
+                // Force fallback in a supported test environment, then check desktop/mobile fullscreen.
+                await page.evaluate(()=>{
+                  const section=document.getElementById('page-synapse');
+                  section.requestFullscreen=undefined;
+                });
+                const fullButton=page.locator('#page-synapse [data-do="fullscreen"]');
+                await fullButton.click();
+                await page.waitForFunction(()=>document.getElementById('page-synapse')?.classList.contains('syn-full-overlay'));
+                const expanded=await page.evaluate(()=>{
+                  const section=document.getElementById('page-synapse');
+                  const bounds=section.getBoundingClientRect();
+                  return {
+                    pressed:section.querySelector('[data-do="fullscreen"]').getAttribute('aria-pressed'),
+                    full:section.classList.contains('syn-full-overlay'),
+                    width:bounds.width,height:bounds.height,
+                    viewportWidth:innerWidth,viewportHeight:innerHeight,
+                    marble:!!section.querySelector('[data-marble]')
+                  };
+                });
+                assert.equal(expanded.pressed,'true','Fullscreen button did not toggle on');
+                assert.ok(expanded.full&&expanded.marble,'Fullscreen must preserve the marble');
+                assert.ok(expanded.width>=expanded.viewportWidth-8,'Fullscreen must span viewport width');
+                assert.ok(expanded.height>=expanded.viewportHeight-8,'Fullscreen must span viewport height');
+                await fullButton.click();
+                assert.equal(await fullButton.getAttribute('aria-pressed'),'false','Fullscreen exit did not reset');
+                assert.ok(!(await page.locator('#page-synapse').evaluate(n=>n.classList.contains('syn-full-overlay'))),'Fullscreen overlay remained after exiting');
+                // Verify the new Synapse fullscreen toggle works on both PC and phone.
+                const fullButton=page.locator('#page-synapse [data-do="fullscreen"]');
+                assert.equal(await fullButton.count(),1,'Synapse fullscreen button missing');
+                await fullButton.click();
+                await page.waitForFunction(()=>!!document.fullscreenElement||document.getElementById('page-synapse').classList.contains('syn-full-overlay'));
+                const fsState=await page.evaluate(()=>{
+                  const root=document.getElementById('page-synapse'),rect=root.getBoundingClientRect();
+                  return {native:document.fullscreenElement===root,overlay:root.classList.contains('syn-full-overlay'),w:rect.width,h:rect.height,label:root.querySelector('[data-do="fullscreen"]').textContent};
+                });
+                assert.ok(fsState.native||fsState.overlay,'Fullscreen mode did not activate');
+                assert.ok(fsState.w>=width-5,'Fullscreen does not span the viewport');
+                assert.ok(fsState.label.includes('Quitter'),'Exit fullscreen button must be visible');
+                await fullButton.click();
+                await page.waitForFunction(()=>!document.fullscreenElement&&!document.getElementById('page-synapse').classList.contains('syn-full-overlay'));
+                assert.ok((await fullButton.textContent()).includes('Plein écran'),'Fullscreen toggle did not reset');
                 if(mobile)await page.locator('#mobilePagesV51').selectOption('map');
                 else await page.locator('.tab[data-page="map"]').click();
                 assert.ok(await page.locator('#page-map').isVisible(),'Original map must remain accessible');
